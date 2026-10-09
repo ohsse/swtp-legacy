@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="284" height="52" viewBox="0 0 284 52">
+  <defs>
+    <clipPath id="clip-path">
+      <rect id="사각형_53" data-name="사각형 53" width="284" height="52" transform="translate(52 2758)" fill="#fff"/>
+    </clipPath>
+    <linearGradient id="linear-gradient" x1="0.5" x2="0.5" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#081823"/>
+      <stop offset="1" stop-color="#081823"/>
+    </linearGradient>
+    <filter id="패스_133" x="4.688" y="31.003" width="35.052" height="32.59" filterUnits="userSpaceOnUse">
+      <feOffset input="SourceAlpha"/>
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feFlood flood-color="#08f" flood-opacity="0.902"/>
+      <feComposite operator="in" in2="blur"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+    <filter id="패스_134" x="244.295" y="30.883" width="35.052" height="32.59" filterUnits="userSpaceOnUse">
+      <feOffset input="SourceAlpha"/>
+      <feGaussianBlur stdDeviation="4" result="blur-2"/>
+      <feFlood flood-color="#08f" flood-opacity="0.902"/>
+      <feComposite operator="in" in2="blur-2"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+  </defs>
+  <g id="마스크_그룹_14" data-name="마스크 그룹 14" transform="translate(-52 -2758)" clip-path="url(#clip-path)">
+    <g id="그룹_272" data-name="그룹 272" transform="translate(52 2758.379)">
+      <g id="패스_132" data-name="패스 132" transform="translate(20 0)" fill="url(#linear-gradient)">
+        <path d="M 243.6580505371094 50.88521957397461 L 0.3419430553913116 50.88521957397461 L -19.26884078979492 0.5000064373016357 L 263.2688293457031 0.5000064373016357 L 243.6580505371094 50.88521957397461 Z" stroke="none"/>
+        <path d="M -18.5377197265625 1.000007629394531 L 0.6838531494140625 50.38521957397461 L 243.3161468505859 50.38521957397461 L 262.5377197265625 1.000007629394531 L -18.5377197265625 1.000007629394531 M -20 7.62939453125e-06 L 264 7.62939453125e-06 L 244 51.38521957397461 L 0 51.38521957397461 L -20 7.62939453125e-06 Z" stroke="none" fill="#003153"/>
+      </g>
+      <g id="그룹_271" data-name="그룹 271" transform="translate(17.338 43.154)">
+        <g transform="matrix(1, 0, 0, 1, -17.34, -43.53)" filter="url(#패스_133)">
+          <path id="패스_133-2" data-name="패스 133" d="M2054.6,3103.324l2.993,7.44h6.909" transform="translate(-2037.26 -3059.67)" fill="none" stroke="#2c80ff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        </g>
+        <g transform="matrix(1, 0, 0, 1, -17.34, -43.53)" filter="url(#패스_134)">
+          <path id="패스_134-2" data-name="패스 134" d="M2063.955,3103.228l-2.993,7.44h-6.909" transform="translate(-1797.26 -3059.69)" fill="none" stroke="#2c80ff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

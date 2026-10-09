@@ -1,0 +1,21 @@
+# ---- build stage : 컨테이너 안에서 지정 프로파일로 bootJar ----
+FROM eclipse-temurin:21-jdk-jammy AS build
+# 빌드 프로파일(resources-env/<profile> 오버레이). docker-compose 의 build.args.PROFILE 로 주입, 미지정 시 ubuntu.
+ARG PROFILE=ubuntu
+WORKDIR /src
+COPY . .
+RUN chmod +x gradlew && ./gradlew --no-daemon bootJar -Pprofile=${PROFILE}
+
+# ---- runtime stage ----
+FROM eclipse-temurin:21-jre-jammy
+# 런타임 기본 경로(컴포즈의 STORAGE_PATH/LOG_PATH 로 오버라이드). 이미지에 동일 경로를 미리 만들어 두어야
+# 네임드 볼륨이 app 사용자 소유권을 상속한다. 기본 STORAGE_PATH=/app/files (PY config.docker.json 과 일치).
+ENV TZ=Asia/Seoul LANG=C.UTF-8 LC_ALL=C.UTF-8 \
+    EDITOR_STORAGE_BASE_PATH=/app/files LOG_PATH=/app/logs JAVA_OPTS=""
+RUN groupadd -r app && useradd -r -g app -d /app app \
+ && mkdir -p /app /app/files /app/logs && chown -R app:app /app /app/files /app/logs
+WORKDIR /app
+COPY --from=build --chown=app:app /src/build/libs/api.jar /app/api.jar
+USER app
+EXPOSE 30091
+ENTRYPOINT ["sh","-c","exec java $JAVA_OPTS -jar /app/api.jar"]

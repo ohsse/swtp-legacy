@@ -1,0 +1,90 @@
+# gu_db.yaml과 데이터 전처리는 완전히 동일하고, model만 다르다 — 새 아키텍처
+# (attn_transformer_residual)가 실제로 기존 구조(attn_lstm)보다 나은지 같은
+# 조건에서 비교하기 위한 config.
+#
+# attn_lstm(model.py의 AttnLSTMForecaster)은 이 프로젝트에서 원래 쓰던 구조다:
+# LSTM 인코더 + Luong-style attention + 절대값 직접 회귀. attn_transformer_
+# residual과 달리 persistence 잔차 구조가 없다 — 그래서 실제로 gunsan_db를
+# 이 구조로 학습했을 때 skill_vs_persistence가 Q_GunSnS -0.09~-0.27, P_GunS
+# -0.52~-1.18로 그냥 직전값 쓰는 것보다 못했다(model.py 상단 docstring 참고).
+# 그 문제 때문에 attn_transformer_residual을 새로 설계한 것이므로, 이 config로
+# 학습한 결과가 지금도 여전히 persistence보다 나쁘게 나오는지(구조 자체의
+# 한계였는지), 아니면 그때와 다른(태그 병합/Q8 처리 등) 지금 데이터에서는
+# 쓸만한지 실측으로 확인하는 용도다.
+#
+# model.encoder_hidden/decoder_hidden은 일부러 ModelConfig 기본값(64/32,
+# attn_lstm이 원래 쓰던 크기)을 그대로 둔다 — attn_transformer_residual 쪽
+# 용량(d_model=160 등)에 맞춰 키우면 "같은 구조를 더 크게 vs 다른 구조"까지
+# 같이 바뀌어 순수한 아키텍처 비교가 아니게 된다.
+#
+# 실행: PYTHONPATH=src python -m deepems.train --config configs/gu_db_attn_lstm.yaml
+# (또는 gu_db.yaml에 --model-type attn_lstm을 주는 것과 동일 — output.dir도
+# train.py의 자동 접미사 규칙과 똑같이 _attn_lstm으로 맞춰뒀다)
+
+data:
+  taglist_path: "./taglist/GU_taglist.xlsx"
+  sheet: GU
+  mode: BOTH
+  freq: "5min"
+  ffill_limit_minutes: 10
+  stuck_value_min_minutes: 360
+  stuck_value_impute_columns: [P6, P9]
+  stuck_value_impute_method: linear   # 근거는 gu_db.yaml 참고 (2026-09-10)
+  column_start_dates:
+    Q8: "2025-03-27"
+  combine_max_columns:
+    H3: [H3_1, H3_2]
+    H7: [H7_1, H7_2]
+  linear_interp_columns: [P_GunS, P1, P_Ham, P2, P4, P5, P6]
+  time_features: [hour_sin, hour_cos]
+
+  source: db
+  start_date: "2023-01-01"
+  end_date: null
+
+  db_connections_path: "./configs/db_connections.json"
+  db_environment: dev        # prod로 바꿀 땐 반드시 명시적으로 지정할 것
+  db_connection_key: "maria-ems-db-gs"
+
+window:
+  window_size: 288   # 5분 리샘플링에서 과거 24시간
+  horizon: 6           # 미래 30분
+  stride: 1             # train 데이터 증강용 촘촘한 슬라이딩 (5분마다)
+  eval_stride: null    # val/test는 기본값(horizon=6)을 써서 겹치는 윈도우를 반복 평가하지 않음
+  min_segment_minutes: 3000  # window_size+horizon=294스텝=1470분보다 넉넉히 크게
+
+split:
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  purge_minutes: 1470   # (window_size + horizon) * freq = 294 * 5분
+
+outlier:
+  enabled: true
+  lower_quantile: 0.01
+  upper_quantile: 0.99
+  apply_to_splits: ["train", "val"]
+  column_overrides:
+    P6: [0.0, 1.0]   # 사실상 clip 끔 — gu_db.yaml 참고
+
+model:
+  type: attn_lstm
+  encoder_hidden: 64   # attn_lstm 원래 기본값 그대로 (위 설명 참고)
+  decoder_hidden: 32
+  dropout: 0.1
+  non_negative_output: true
+
+train:
+  batch_size: 1024
+  epochs: 200
+  patience: 15
+  lr: 0.001
+  weight_decay: 0.0
+  seed: 42
+  device: auto
+  target_loss_weighting: inverse_persistence_mae
+  target_loss_weight_cap: 3.0   # P6/H7 문제 진단(2.0은 P6에 오히려 역효과였음) 근거는 gu_db.yaml 참고
+
+output:
+  dir: "./runs/gu_db_attn_lstm"
+  analysis_dir: "./analysis/{sheet}_db"

@@ -1,0 +1,176 @@
+# 1분 주기 운영용 config — `gu_db_noq8_h6.yaml`(5분 주기 / 6시간 horizon)을
+# **대체**하는 버전이다(2026-09-28, 개발사 요구).
+#
+# 바뀐 목적: 운영 분석 주기를 5분 -> 1분으로, 예측 horizon을 6시간 ->
+# **1/5/15/30분**으로 바꾼다. 업로드 테이블(`tb_ctr_tnk_rst`)의 VALUE_*
+# 컬럼도 1h~6h를 폐기하고 VALUE_1min/5min/15min/30min만 쓴다
+# (`scripts/harness/upload.py`의 HORIZON_OFFSET_MINUTES 참고).
+#
+# **리드타임 후퇴는 의도된 것**: `gu_db_noq8_h6.yaml` 헤더에 적힌 대로 원래
+# horizon을 30분 -> 6시간으로 늘린 이유는 "H7이 반응하는 데 4~6시간 걸려서
+# 몇 시간 전에 미리 알아야 정수장 조작이 의미가 있다"였다. 이 config는 그
+# 리드타임을 포기하는 대신 짧은 주기/짧은 horizon을 택한다(개발사 요구,
+# 2026-09-28) — 즉 **Stage3 정수장 추천의 리드타임이 최대 30분으로 줄어든다**는
+# 걸 알고 쓰는 설정이다. 6시간 리드타임이 다시 필요해지면
+# `gu_db_noq8_h6.yaml`을 그대로 쓰면 된다(이 파일은 그 파일을 지우지 않는다).
+#
+# gu_db_noq8_h6.yaml 대비 바뀐 값과 이유:
+#  - data.freq: "5min" -> "1min". 원본 DB/`Data/` 캐시가 애초에 1분 간격으로
+#    기록되므로 새로 받을 데이터는 없다(리샘플링 격자만 촘촘해짐).
+#  - data.lever_diff_steps: [1, 3, 6] -> [5, 15, 30]. 이 값은 **스텝 단위**라
+#    5분 격자에서 [1,3,6]은 5/15/30분 변화량이었다 - 1분 격자에서 같은
+#    물리적 의미(5/15/30분)를 유지하려면 스텝 수를 5배로 키워야 한다.
+#    안 바꾸면 1/3/6분 변화량이 되어 feature 의미가 달라진다.
+#  - window.horizon: 72(6시간) -> 30(30분). 업로드 컬럼 중 가장 먼 것이
+#    30분이라 그 이상은 계산할 이유가 없다.
+#  - window.window_size: 288 -> 360. 288을 그대로 두면 1분 격자에서 과거
+#    4.8시간만 보게 된다. 다만 24시간(1440스텝)으로 맞추는 건 self-attention
+#    비용이 window_size^2이라 1440^2/288^2 = 25배로 뛰어서 택하지 않았다.
+#    360(6시간)으로 둔 근거: (a) horizon이 30분이라 24시간 맥락이 과하고,
+#    (b) gu_db_noq8_h6.yaml 헤더의 baseline 실측에서 "moving_average(최근
+#    1시간 평균)가 seasonal_naive(전날 같은 시각)보다 강했다" = 최근 국소
+#    추세가 24시간 주기 반복보다 유용한 신호였고, (c) 일일 주기는
+#    time_features(hour_sin/hour_cos)가 이미 담당한다. attention 비용은
+#    360^2/288^2 = 1.56배로 감당 가능한 수준.
+#  - window.stride: 6 -> 30. 스텝 단위라 5분 격자에서 6스텝=30분이었다.
+#    1분 격자에서 30스텝으로 두면 같은 30분 간격이 유지돼 학습 윈도우 수가
+#    기존과 비슷해진다(안 바꾸면 6분 간격이 되어 윈도우가 5배로 늘어남).
+#  - window.min_segment_minutes: 3600 -> 780. 기존 config의 관례(=
+#    (window_size+horizon)*freq의 2배)를 그대로 따랐다: (360+30)*1 = 390,
+#    그 2배 = 780.
+#  - split.purge_minutes: 1800 -> 390. 기존과 같은 공식
+#    (= (window_size+horizon)*freq = (360+30)*1).
+#  - model.decoder_hidden: 192 유지. 출력 차원은 horizon*n_targets인데
+#    horizon이 72->30으로 줄어든 대신 taglist 갱신(O8/O9/P9/H7_3~H7_8 추가)
+#    으로 target이 12->24개가 되어, 864 -> 720으로 거의 비슷하다.
+#  - train.batch_size: 1024 유지. 인코더 시퀀스는 1.25배(288->360),
+#    디코더 출력은 0.83배(864->720)라 메모리 총량이 기존과 비슷하다.
+#    OOM이 나면 512로 줄일 것.
+#  - output.dir/analysis_dir: 기존 5분 모델 산출물을 덮어쓰지 않도록 새 경로.
+#
+# **이 config로는 Stage1 NN을 반드시 재학습해야 한다** - `infer.py`가
+# 아티팩트에 저장된 freq/window_size/horizon을 그대로 읽어 추론하므로,
+# 5분으로 학습된 기존 `runs/gu_db_noq8_h6` 모델은 1분 주기 경로에 쓸 수 없다
+# (5분 모델은 원리적으로 1분 앞 예측을 만들 수 없다). Stage2/3 오프라인
+# 아티팩트(`train.py --cfg`)도 이 config로 다시 만들어야 한다 - 잔차모델의
+# horizon/추세창 스텝 수가 config의 freq/horizon에서 자동으로 파생된다.
+
+data:
+  taglist_path: "./taglist/GU_taglist.xlsx"
+  sheet: GU
+  mode: BOTH
+  freq: "1min"
+  ffill_limit_minutes: 10
+  stuck_value_min_minutes: 360
+  stuck_value_impute_columns: [P6, P9]
+  stuck_value_impute_method: linear   # 근거는 gu_db.yaml 참고 (2026-09-10)
+  # P9 제외 근거(2026-09-28, 1분 모델 학습 결과 실측): P9(지평선산단 압력,
+  # 891-365-PRI-8500)는 2024-07-26부터 캐시 끝까지 값이 **정확히 0으로 고정**
+  # (최근 6개월 변화율 0.00%, std 0)인 죽은 센서다. 그런데 target으로 남겨두면
+  # 두 가지 해를 끼친다: (a) skill_vs_persistence가 -8.0까지 나와(persistence
+  # MAE가 0에 가까워 분모가 0에 수렴) 지표를 왜곡하고, (b) 손실 가중치가
+  # `inverse_persistence_mae`(1/persistence_MAE)라 **가중치 2.16**을 먹는다 -
+  # 정작 제어에 쓰는 H3(0.276)/O7(0.065)보다 훨씬 큰 몫을 죽은 신호가 가져간다.
+  # feature로도 쓸 가치가 없다(분산 0이라 정보량이 없음)므로 완전히 제외한다.
+  # **업로드 영향**: target에서 빠지므로 `P9_Predict` 행이 더는 올라가지 않는다
+  # (전부 0을 예측해 올리던 행이라 운영상 손실은 없음. 기존 행은 그대로 남는다).
+  exclude_vars: [Q8, P9]
+  # 오식도 개별 지 수위 6개는 **예측 대상에서만** 빼고 입력 feature로는 남긴다
+  # (2026-09-28). 근거: (a) `docs/network_control_simulation_design.md` §5(규칙5)가
+  # 이미 "오식도 개별 8개는 예측 대상에서 빼고 요약값만 입력으로 쓴다"고 정해둔
+  # 방향이고, (b) 1분 모델 첫 학습 실측에서 이 6개가 `inverse_persistence_mae`
+  # 가중치를 2.2~2.8씩(P6 3.0과 합쳐 전체의 62%) 먹으면서 정작 제어에 쓰는
+  # H3(0.29)/O7(0.07)를 밀어냈다 - 느리게 변해 persistence로 이미 잘 맞는 신호에
+  # 모델 용량을 쓰는 게 낭비다. H7_1/H7_2는 combine_max로 합친 대표값 `H7`이
+  # target으로 남아있어 오식도 수위 예측 자체가 사라지는 건 아니다.
+  # **업로드 영향**: H7_3_Predict ~ H7_8_Predict 행이 더는 안 올라간다
+  # (H7_1/H7_2는 H7 대표 예측값이 복사돼 그대로 올라감).
+  # P6(군산관말 압력)도 예측 대상에서 제외 - **가중치를 더 줬는데 오히려
+  # 나빠진 걸 실측으로 확인해서** 내린 결정(2026-09-28 2차 학습):
+  #   - H7_3~H7_8을 뺀 뒤 P6 가중치가 23.8%(cap 3.0 단독 점유)로 올랐는데,
+  #     P6 자신의 30분 skill은 -0.210 -> -0.495로 **더 나빠졌다**. 같은 구간
+  #     "고정구간 제외 실질 skill(active)"도 -0.133으로 여전히 음수.
+  #   - 원인: test 30분 윈도우의 43%가 "내내 정답이 상수"인 센서 고장 구간
+  #     (유효 4,676 / 8,206)이라 학습할 신호가 애초에 거의 없다. 문서
+  #     `docs/model_results.md` §1의 "P6은 알려진 센서 고장 - 모델 문제 아님"
+  #     판정과 일치한다.
+  #   - 그 23.8%가 낭비되는 동안 Q4(-0.089)/Q7(-0.075)/Q6(-0.068)/P5(-0.064)/
+  #     O7(-0.054)이 같이 밀렸다.
+  # `exclude_vars`(완전 제거)가 아니라 target만 빼는 이유: 2025-09 고장 전
+  # 구간엔 정상 데이터가 있어 입력 feature로는 여전히 쓸 수 있다.
+  # **업로드 영향**: `P6_Predict` 행이 더는 올라가지 않는다.
+  target_exclude_vars: [H7_3, H7_4, H7_5, H7_6, H7_7, H7_8, P6]
+  combine_max_columns:
+    H3: [H3_1, H3_2]
+    H7: [H7_1, H7_2]
+  linear_interp_columns: [P_GunS, P1, P_Ham, P2, P4, P5, P6]
+  time_features: [hour_sin, hour_cos]
+  lever_diff_columns: [V2, V4, Q_GunS]
+  lever_diff_steps: [5, 15, 30]   # 1분 격자에서 5/15/30분 변화량(위 설명 참고)
+
+  source: db
+  start_date: "2023-01-01"
+  # ⚠️ 설정 A/B 비교를 위해 **의도적으로 고정**했다(2026-09-28). null("지금까지
+  # 전부")로 두면 run 사이에 데이터가 더 쌓여 70/15/15 분할 경계가 밀리고,
+  # 그러면 "config를 바꿔서 좋아진 것"과 "데이터가 달라져서 좋아진 것"을
+  # 구분할 수 없다 - 실제로 2차->3차 학습에서 test 윈도우가 8,206 -> 7,938로
+  # 바뀌고 persistence MAE까지 달라져(30분 O7: 253.28 -> 250.50) 비교가
+  # 오염됐다(persistence MAE는 데이터만의 속성이므로 이게 증거).
+  #
+  # 이 날짜를 고른 근거: 현재 소스 데이터가 2026-08-24~26에서 끝나므로
+  # (오늘 기준 약 한 달 전 - dev DB/캐시가 그만큼 뒤처져 있음) 2026-09-01로
+  # 잘라도 **버리는 데이터가 없다**. 즉 재현성만 얻고 손실은 0.
+  #
+  # **운영 재학습 때는 이 값을 최신 날짜로 갱신하거나 null로 되돌릴 것** -
+  # 고정해둔 채로 계속 재학습하면 새 데이터를 영구히 못 본다.
+  end_date: "2026-09-01"
+
+  db_connections_path: "./configs/db_connections.json"
+  db_environment: dev        # prod로 바꿀 땐 반드시 명시적으로 지정할 것
+  db_connection_key: "maria-ems-db-gs"
+
+window:
+  window_size: 360          # 1분 리샘플링에서 과거 6시간 (위 설명 참고)
+  horizon: 30               # 미래 30분 (업로드 최대 컬럼이 VALUE_30min)
+  stride: 30                # train 데이터 증강 간격 30분 (기존과 같은 물리 간격)
+  eval_stride: null         # val/test는 기본값(horizon=30)을 써서 겹치는 윈도우를 반복 평가하지 않음
+  min_segment_minutes: 780  # (window_size+horizon)*freq의 2배 = 390*2
+
+split:
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  purge_minutes: 390        # = (window_size+horizon)*freq = (360+30)*1
+
+outlier:
+  enabled: true
+  lower_quantile: 0.01
+  upper_quantile: 0.99
+  apply_to_splits: ["train", "val"]
+  column_overrides:
+    P6: [0.0, 1.0]   # 사실상 clip 끔 — gu_db.yaml 참고
+
+model:
+  type: attn_transformer_residual
+  d_model: 160
+  nhead: 8
+  num_encoder_layers: 2
+  dim_feedforward: 320
+  decoder_hidden: 192    # 출력 720차원(horizon 30 * target 24) — 위 설명 참고
+  dropout: 0.1
+  non_negative_output: true
+
+train:
+  batch_size: 1024   # 위 설명 참고(OOM이면 512로)
+  epochs: 200
+  patience: 15
+  lr: 0.001
+  weight_decay: 0.0
+  seed: 42
+  device: auto
+  target_loss_weighting: inverse_persistence_mae
+  target_loss_weight_cap: 3.0
+
+output:
+  dir: "./runs/gu_db_1min_h30"
+  analysis_dir: "./analysis/{sheet}_db_1min_h30"

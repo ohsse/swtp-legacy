@@ -1,0 +1,2344 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.mindone.ems.drvn.DrvnMapper">
+	<select id="getPumpCombTime" parameterType="String" resultType="String">
+		SELECT
+			DATE_SUB(MAX(RGSTR_TIME), INTERVAL 3 MINUTE)
+		from
+			TB_CTR_PUMPYN_RST
+<!--		WHERE-->
+<!--			RGSTR_TIME &lt;= DATE_ADD(#{nowDate}, INTERVAL 10 MINUTE)-->
+<!--		AND-->
+<!--			RGSTR_TIME &gt; DATE_SUB(#{nowDate}, INTERVAL 1 DAY);-->
+	</select>
+	<select id="getPumpCombLogTime" parameterType="String" resultType="String">
+		SELECT
+		DATE_FORMAT(MAX(RGSTR_TIME), '%Y-%m-%d %H:%i')
+		from
+		TB_CTR_PUMPYN_RST
+	</select>
+	<select id="selectPumpPressure" resultType="hashmap" parameterType="hashmap">
+		select DATE_FORMAT(tr.TS, '%Y-%m-%d %H:%i') as ts, tr.VALUE as value
+		from TB_RAWDATA tr, TB_CTR_PRF_PUMPMST_INF tcppi
+		WHERE
+		tr.TAGNAME = tcppi.PRI_T_TAG
+			AND
+			tcppi.PUMP_GRP = #{pump_grp}
+			<if test="first == true">
+				and tr.TS &lt;= #{startDate}
+				and tr.TS &gt; DATE_SUB(#{startDate}, INTERVAL #{cycle} minute)
+				order by tr.TS desc limit 1;
+			</if>
+			<if test="first != true">
+				and tr.TS &lt; #{startDate}
+				and tr.TS &gt;= DATE_SUB(#{startDate}, INTERVAL #{range} hour)
+				and MINUTE(tr.TS) % #{cycle} = 0
+				group by tr.TS
+				order by tr.TS;
+			</if>
+	</select>
+	<select id="tunnelWaterLevel" resultType="hashmap" parameterType="hashmap">
+		select DATE_FORMAT(tr.TS, '%Y-%m-%d %H:%i') as ts, tr.VALUE as value
+		from TB_RAWDATA tr, TB_CTR_PRF_PUMPMST_INF tcppi
+		WHERE
+		tr.TAGNAME = tcppi.LEI_TAG
+		<if test="first == true">
+			and tr.TS &lt;= #{startDate}
+			and tr.TS &gt; DATE_SUB(#{startDate}, INTERVAL #{cycle} minute)
+			order by tr.TS desc limit 1;
+		</if>
+		<if test="first != true">
+			and tr.TS &lt; #{startDate}
+			and tr.TS &gt;= DATE_SUB(#{startDate}, INTERVAL #{range} hour)
+			and MINUTE(tr.TS) % #{cycle} = 0
+			group by tr.TS
+			order by tr.TS;
+		</if>
+	</select>
+	<select id="selectPumpFlow" resultType="hashmap" parameterType="hashmap">
+		select DATE_FORMAT(tr.TS, '%Y-%m-%d %H:%i') as ts, tr.VALUE as value
+		from TB_RAWDATA tr, TB_CTR_PRF_PUMPMST_INF tcppi
+		WHERE
+		tr.TAGNAME = tcppi.FRI_TAG
+			AND
+			tcppi.PUMP_GRP = #{pump_grp}
+			<if test="first == true">
+				and tr.TS &lt;= #{startDate}
+				and tr.TS &gt; DATE_SUB(#{startDate}, INTERVAL #{cycle} minute)
+				order by tr.TS desc limit 1;
+			</if>
+			<if test="first != true">
+				and tr.TS &lt; #{startDate}
+				and tr.TS &gt;= DATE_SUB(#{startDate}, INTERVAL #{range} hour)
+				and MINUTE(tr.TS) % #{cycle} = 0
+				group by tr.TS
+				order by tr.TS;
+			</if>
+	</select>
+	
+	<select id="selectNowPumpUse" parameterType="hashmap" resultType="hashmap">
+		SELECT
+		tr_spi.TS,
+		tcppi.PUMP_TYP as PUMP_TYP,
+		tr_spi.TAGNAME AS spi_tagname,
+		tr_pmb.TAGNAME AS pmb_tagname,
+		tr_spi.VALUE AS pump_freq,
+		tr_pmb.VALUE AS pump_use,
+		tcppi.PUMP_IDX,
+		tcppi.PUMP_GRP_IDX,
+		tcppi.PUMP_GRP_NM,
+		tcppi.PUMP_NM
+		FROM
+		TB_CTR_PRF_PUMPMST_INF tcppi
+		LEFT JOIN
+		TB_RAWDATA tr_spi ON tr_spi.TAGNAME = tcppi.SPI_TAG AND tr_spi.TS = (select max(TS) from TB_RAWDATA where TS &lt;= #{startDate} and TS &gt; DATE_SUB(#{startDate}, interval 10 minute))
+		LEFT JOIN
+		TB_RAWDATA tr_pmb ON tr_pmb.TAGNAME = tcppi.PMB_TAG AND tr_pmb.TS = (select max(TS) from TB_RAWDATA where TS &lt;= #{startDate} and TS &gt; DATE_SUB(#{startDate}, interval 10 minute))
+		<if test="pump_grp != 0">
+			WHERE
+			tcppi.PUMP_GRP = #{pump_grp}
+		</if>
+		ORDER BY
+		tcppi.PUMP_IDX;
+	</select>
+	<select id="getPumpUse" parameterType="hashmap" resultType="hashmap">
+		SELECT
+			DATE_FORMAT(tr_pmb.TS, '%Y-%m-%d %H:%i') as TS,
+			tcppi.PUMP_TYP AS PUMP_TYP,
+			tr_pmb.VALUE AS pump_use,
+			tcppi.PUMP_GRP_IDX as PUMP_IDX,
+			tcppi.PUMP_GRP,
+			tcppi.PUMP_GRP_DSC as PUMP_GRP_NM,
+			tcppi.PUMP_NM
+		FROM
+			TB_CTR_PRF_PUMPMST_INF tcppi
+			LEFT JOIN
+				TB_RAWDATA tr_pmb ON tr_pmb.TAGNAME = tcppi.PMB_TAG
+		WHERE
+			<if test="first == true">
+					tr_pmb.TS = (SELECT MAX(TS) FROM TB_RAWDATA WHERE TS &lt;= #{startDate} AND TS &gt; DATE_SUB(#{startDate}, INTERVAL 10 MINUTE))
+			</if>
+			<if test="first != true">
+					tr_pmb.TS &lt;= DATE_SUB(#{startDate}, INTERVAL #{cycle} MINUTE)
+				AND
+					tr_pmb.TS &gt;= DATE_SUB(#{startDate}, INTERVAL #{range} HOUR)
+				AND
+					MINUTE(tr_pmb.TS) % #{cycle} = 0
+				GROUP BY
+					tr_pmb.TS, tcppi.PUMP_GRP, tcppi.PUMP_IDX
+			</if>
+		ORDER BY
+			tr_pmb.TS, tcppi.PUMP_GRP, tcppi.PUMP_IDX;
+	</select>
+	<select id="getPumpFreqUse" parameterType="hashmap" resultType="hashmap">
+		SELECT
+			DATE_FORMAT(tr_spi.TS, '%Y-%m-%d %H:%i') as TS,
+			tcppi.PUMP_TYP AS PUMP_TYP,
+			CAST(tr_spi.VALUE AS VARCHAR(10)) AS pump_freq,
+			tcppi.PUMP_GRP_IDX as PUMP_IDX,
+			tcppi.PUMP_GRP,
+			tcppi.PUMP_GRP_DSC as PUMP_GRP_NM,
+			tcppi.PUMP_NM
+		FROM
+			TB_CTR_PRF_PUMPMST_INF tcppi
+			LEFT JOIN
+				TB_RAWDATA tr_spi ON tr_spi.TAGNAME = tcppi.SPI_TAG
+		WHERE
+			<if test="first == true">
+					tr_spi.TS = (SELECT MAX(TS) FROM TB_RAWDATA WHERE TS &lt;= #{startDate} AND TS &gt; DATE_SUB(#{startDate}, INTERVAL 10 MINUTE))
+			</if>
+			<if test="first != true">
+					tr_spi.TS &lt;= DATE_SUB(#{startDate}, INTERVAL #{cycle} MINUTE)
+				AND
+					tr_spi.TS &gt;= DATE_SUB(#{startDate}, INTERVAL #{range} HOUR)
+				AND
+					MINUTE(tr_spi.TS) % #{cycle} = 0
+				GROUP BY
+					tr_spi.TS, tcppi.PUMP_GRP, tcppi.PUMP_IDX
+			</if>
+		ORDER BY
+			tr_spi.TS, tcppi.PUMP_GRP, tcppi.PUMP_IDX;
+	</select>
+	<select id="selectNowPumpPwrUse" parameterType="hashmap" resultType="hashmap">
+		SELECT
+		tr.TS,
+		tcppi.PUMP_IDX,
+		tcppi.PUMP_GRP_IDX,
+		tr.TAGNAME,
+		tr.VALUE * tpti.PWI_UNIT_VALUE as value
+		FROM
+		TB_RAWDATA tr,
+		TB_CTR_PRF_PUMPMST_INF tcppi,
+		TB_PEAK_TAG_INF tpti
+		WHERE
+		tr.TAGNAME = tcppi.PWI_TAG
+		AND
+		tr.TAGNAME  = tpti.PWI_TAG
+		<if test="pump_grp != 0">
+			AND
+			tcppi.PUMP_GRP = #{pump_grp}
+		</if>
+		AND
+		tr.TS = (select max(TS) from TB_RAWDATA where TS &lt;= #{startDate} and TS &gt; DATE_SUB(#{startDate}, interval 10 minute))
+		<!--tr.TS = #{startDate};-->
+		ORDER BY tcppi.PUMP_IDX ASC
+	</select>
+	<select id="selectHeadLoss" resultType="double" parameterType="hashmap">
+		SELECT
+			sum(tlv.HH_LOSS_VAL) as lossVal
+		from TB_FR_VAL tlv
+			join TB_LINK_GRP tlg on tlg.LINK_ID = tlv.LINK_ID
+			JOIN TB_TOT_GRP ttg ON tlg.GRP_NM = ttg.GRP_KEY
+		where
+				UPPER(tlv.FLG) = UPPER(#{opt_idx})
+			AND
+				ttg.TOT_GRP = #{GRP_NM}
+			and
+				tlv.RGSTR_TIME = (
+				select max(rgstr_time) from TB_FR_VAL where rgstr_time &lt;= #{startDate} and rgstr_time &gt;= DATE_SUB(#{startDate}, interval 3 minute)
+			)
+		GROUP BY
+			tlv.RGSTR_TIME
+		order by
+		tlv.RGSTR_TIME desc limit 1;
+	</select>
+	
+	<select id="selectForHeadLoss" resultType="hashmap" parameterType="hashmap">
+		SELECT
+			SUM(tlv.HH_LOSS_VAL) AS lossVal,
+			tlv.RGSTR_TIME as ts
+		FROM
+			TB_FR_VAL tlv
+			JOIN TB_LINK_GRP tlg ON tlg.LINK_ID = tlv.LINK_ID
+			JOIN TB_TOT_GRP ttg ON tlg.GRP_NM = ttg.GRP_KEY
+		WHERE
+			UPPER(tlv.FLG) = UPPER(#{opt_idx})
+		AND
+			ttg.TOT_GRP = #{GRP_NM}
+		AND
+			tlv.RGSTR_TIME &lt;= #{startDate}
+		and
+			tlv.RGSTR_TIME &gt;= DATE_SUB(#{startDate}, INTERVAL #{range} hour)
+		and
+			MINUTE(tlv.RGSTR_TIME) % #{cycle} = 0
+		GROUP BY
+			tlv.RGSTR_TIME
+		ORDER BY
+			tlv.RGSTR_TIME
+	</select>
+	
+	<select id="selectGsAllLinkRange" resultType="hashmap" parameterType="hashmap">
+		SELECT
+			FLW_ALG_RST_VAL AS linkVal,
+			RGSTR_TIME as ts
+		FROM
+		TB_FR_VAL
+		WHERE
+			UPPER(FLG) = UPPER(#{opt_idx})
+		AND
+		LINK_ID = #{link_id}
+		AND
+		RGSTR_TIME &lt;= #{startDate}
+		and
+		RGSTR_TIME &gt;= DATE_SUB(#{startDate}, INTERVAL #{range} hour)
+		and
+		MINUTE(RGSTR_TIME) % #{cycle} = 0
+		GROUP BY
+		RGSTR_TIME
+		ORDER BY
+		RGSTR_TIME
+	</select>
+	
+	<select id="selectGsAllNodeRange" resultType="hashmap" parameterType="hashmap">
+		SELECT
+		FP_ALG_RST_VAL AS nodeVal,
+		RGSTR_TIME as ts
+		FROM
+		TB_FP_VAL
+		WHERE
+		UPPER(FLG) = UPPER(#{opt_idx})
+		AND
+		NODE_ID = #{node_id}
+		AND
+		RGSTR_TIME &lt;= #{startDate}
+		and
+		RGSTR_TIME &gt;= DATE_SUB(#{startDate}, INTERVAL #{range} hour)
+		and
+		MINUTE(RGSTR_TIME) % #{cycle} = 0
+		GROUP BY
+		RGSTR_TIME
+		ORDER BY
+		RGSTR_TIME
+	</select>
+	
+	<select id="selectGsAllCurLinkRange" resultType="hashmap" parameterType="hashmap">
+		SELECT
+		FLW_ALG_RST_VAL AS linkVal,
+		RGSTR_TIME as ts
+		FROM
+		TB_FR_SI_VAL
+		WHERE
+		LINK_ID = #{link_id}
+		AND
+		RGSTR_TIME &lt;= #{startDate}
+		and
+		RGSTR_TIME &gt;= DATE_SUB(#{startDate}, INTERVAL #{range} hour)
+		and
+		MINUTE(RGSTR_TIME) % #{cycle} = 0
+		and
+		FLG = 'mo'
+		GROUP BY
+		RGSTR_TIME
+		ORDER BY
+		RGSTR_TIME
+	</select>
+	
+	<select id="selectGsAllCurNodeRange" resultType="hashmap" parameterType="hashmap">
+		SELECT
+		FP_ALG_RST_VAL AS nodeVal,
+		RGSTR_TIME as ts
+		FROM
+		TB_FP_SI_VAL
+		WHERE
+		NODE_ID = #{node_id}
+		AND
+		RGSTR_TIME &lt;= #{startDate}
+		and
+		RGSTR_TIME &gt;= DATE_SUB(#{startDate}, INTERVAL #{range} hour)
+		and
+		MINUTE(RGSTR_TIME) % #{cycle} = 0
+		and
+		FLG = 'mo'
+		GROUP BY
+		RGSTR_TIME
+		ORDER BY
+		RGSTR_TIME
+	</select>
+	
+	<select id="selectGsAllNodeFirst" resultType="double" parameterType="hashmap">
+		SELECT
+		FP_ALG_RST_VAL AS nodeVal
+		FROM
+		TB_FP_VAL
+		WHERE
+		UPPER(FLG) = UPPER(#{opt_idx})
+		AND
+		NODE_ID = #{node_id}
+		AND
+		RGSTR_TIME = (
+		select max(rgstr_time) from TB_FP_VAL where rgstr_time &lt;= #{startDate} and rgstr_time &gt;= DATE_SUB(#{startDate}, interval 3 minute) and UPPER(FLG) = UPPER(#{opt_idx})
+		)
+		GROUP BY
+		RGSTR_TIME
+		order by
+		RGSTR_TIME desc limit 1;
+	</select>
+	
+	<select id="selectGsAllLinkFirst" resultType="double" parameterType="hashmap">
+		SELECT
+		FLW_ALG_RST_VAL AS linkVal
+		FROM
+		TB_FR_VAL
+		WHERE
+		UPPER(FLG) = UPPER(#{opt_idx})
+		AND
+		LINK_ID = #{link_id}
+		AND
+		RGSTR_TIME = (
+		select max(rgstr_time) from TB_FR_VAL where rgstr_time &lt;= #{startDate} and rgstr_time &gt;= DATE_SUB(#{startDate}, interval 3 minute) and UPPER(FLG) = UPPER(#{opt_idx})
+		)
+		GROUP BY
+		RGSTR_TIME
+		order by
+		RGSTR_TIME desc limit 1;
+	</select>
+	<select id="selectGsAllCurNodeFirst" resultType="double" parameterType="hashmap">
+		SELECT
+		FP_ALG_RST_VAL AS nodeVal
+		FROM
+		TB_FP_SI_VAL
+		WHERE
+		FLG = 'mo'
+		AND
+		NODE_ID = #{node_id}
+		AND
+		RGSTR_TIME = (
+		select max(rgstr_time) from TB_FP_SI_VAL where rgstr_time &lt;= #{startDate} and rgstr_time &gt;= DATE_SUB(#{startDate}, interval 3 minute) and FLG = 'mo'
+		)
+		GROUP BY
+		RGSTR_TIME
+		order by
+		RGSTR_TIME desc limit 1;
+	</select>
+	
+	<select id="selectGsAllCurLinkFirst" resultType="double" parameterType="hashmap">
+		SELECT
+		FLW_ALG_RST_VAL AS linkVal
+		FROM
+		TB_FR_SI_VAL
+		WHERE
+		FLG = 'mo'
+		AND
+		LINK_ID = #{link_id}
+		AND
+		RGSTR_TIME = (
+		select max(rgstr_time) from TB_FR_SI_VAL where rgstr_time &lt;= #{startDate} and rgstr_time &gt;= DATE_SUB(#{startDate}, interval 3 minute) and FLG = 'mo'
+		)
+		GROUP BY
+		RGSTR_TIME
+		order by
+		RGSTR_TIME desc limit 1;
+	</select>
+	
+	<select id="selectPrdctFlowPressure" parameterType="hashmap" resultType="hashmap">
+		SELECT
+			tctr.DSTRB_ID as junction_id,
+			tctr.PRDCT_VALUE as value,
+			DATE_FORMAT(tctr.RGSTR_TIME, '%Y-%m-%d %H:%i') as ts
+		from
+			TB_CTR_TNK_RST tctr
+		WHERE
+			UPPER(tctr.DSTRB_ID) = UPPER(#{DSTRB_ID})
+			and
+		<if test="first == true">
+			RGSTR_TIME &lt;= DATE_ADD(#{startDate}, INTERVAL 1 minute)
+				and
+			RGSTR_TIME &gt; DATE_SUB(#{startDate}, INTERVAL 5 minute)
+			order by
+				tctr.RGSTR_TIME desc limit 1
+		</if>
+		<if test="first != true">
+					<if test="intradotion == true">
+						tctr.RGSTR_TIME &lt;= #{startDate}
+					</if>
+					<if test="intradotion != true">
+						tctr.RGSTR_TIME &lt;= #{startDate}
+					</if>
+					and
+						tctr.RGSTR_TIME &gt;= DATE_SUB(#{startDate}, INTERVAL #{range} hour)
+					and
+						MINUTE(tctr.RGSTR_TIME) % #{cycle} = 0
+				group by tctr.RGSTR_TIME
+			order by
+				tctr.RGSTR_TIME
+		</if>
+		
+	</select>
+	
+	<select id="prdctFlowPressure" parameterType="hashmap" resultType="hashmap">
+		SELECT
+			tctr.PRDCT_VALUE as value,
+			DATE_FORMAT(tctr.RGSTR_TIME, '%Y-%m-%d %H:%i') as ts
+		from
+			TB_CTR_TNK_RST tctr
+		WHERE
+			UPPER(tctr.DSTRB_ID) = UPPER(#{DSTRB_ID})
+			and
+				RGSTR_TIME &lt;= #{nowDateTime}
+				and
+				RGSTR_TIME &gt;= DATE_SUB(#{nowDateTime}, interval 10 minute)
+		group by
+			tctr.RGSTR_TIME
+		order by
+			tctr.RGSTR_TIME desc limit 1
+	</select>
+	<select id="curFlowPressure" parameterType="hashmap" resultType="hashmap">
+		SELECT
+		VALUE as value,
+		DATE_FORMAT(TS, '%Y-%m-%d %H:%i') as ts
+		from
+		TB_RAWDATA
+		WHERE
+		TAGNAME = #{DSTRB_ID}
+		and
+		TS &lt;= DATE_SUB(#{nowDateTime}, interval 1 minute)
+		and
+		TS &gt;= DATE_SUB(#{nowDateTime}, interval 5 minute)
+		group by
+		TS
+		order by
+		TS desc limit 1
+	</select>
+	<select id="preFlowPressure" parameterType="hashmap" resultType="hashmap">
+		SELECT
+			CAST(PRDCT_VALUE as CHAR) as value,
+			DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:%i') as ts
+		FROM
+			TB_CTR_TNK_RST
+		WHERE
+				UPPER(DSTRB_ID) = UPPER(#{DSTRB_ID})
+			AND
+				RGSTR_TIME &lt;= #{nowDateTime}
+			AND
+				RGSTR_TIME &gt;= DATE_SUB(#{nowDateTime}, interval 10 minute)
+		GROUP BY
+			RGSTR_TIME
+		ORDER BY
+			RGSTR_TIME
+		DESC LIMIT 1;
+	</select>
+	
+	
+	<select id="selectPreIntradotion" parameterType="hashmap" resultType="hashmap">
+		SELECT
+			tctr.PRDCT_VALUE as value,
+			DATE_FORMAT(tctr.RGSTR_TIME, '%Y-%m-%d %H:%i') as ts,
+		<if test="type == 'flow'">
+			tnt.FRI_TAG as tag,
+			tnt.DSTRB_Q_ID as dstrb_id
+			from
+				TB_CTR_TNK_INF tnt
+			join
+				TB_CTR_TNK_RST tctr on tnt.DSTRB_Q_ID = tctr.DSTRB_ID
+			WHERE
+				UPPER(tnt.DSTRB_Q_ID) in
+					<foreach item="id" collection="dstrb_id" open="(" separator="," close=")">
+						UPPER(#{id})
+					</foreach>
+		</if>
+		<if test="type == 'pressure'">
+			tnt.PRI_TAG as tag,
+			tnt.DSTRB_P_ID as dstrb_id
+			from
+				TB_CTR_TNK_INF tnt
+			join
+				TB_CTR_TNK_RST tctr on tnt.DSTRB_P_ID = tctr.DSTRB_ID
+			WHERE
+				UPPER(tnt.DSTRB_P_ID) in
+					<foreach item="id" collection="dstrb_id" open="(" separator="," close=")">
+						UPPER(#{id})
+					</foreach>
+		</if>
+		and
+		<if test="first == true">
+			tctr.RGSTR_TIME &lt;= DATE_ADD(#{startDate}, interval 1 minute)
+			and
+			tctr.RGSTR_TIME &gt;= DATE_SUB(#{startDate}, interval 3 minute)
+			order by tctr.RGSTR_TIME
+			limit 1;
+		</if>
+		<if test="first != true">
+			tctr.RGSTR_TIME &lt;= #{startDate}
+			and
+			tctr.RGSTR_TIME &gt;= DATE_SUB(#{startDate}, INTERVAL 12 hour)
+			order by tctr.RGSTR_TIME;
+		</if>
+	</select>
+	<sql id="setDate12HourAgo">
+		WITH RECURSIVE A AS
+		(
+			SELECT STR_TO_DATE(DATE_SUB(#{startDate}, INTERVAL 12 hour), '%Y-%m-%d %H:%i:00') AS TS
+			UNION ALL
+			SELECT DATE_ADD(A.TS, INTERVAL 1 MINUTE) AS TS FROM A
+			WHERE A.TS &lt;= STR_TO_DATE(#{startDate}, '%Y-%m-%d %H:%i:00')
+		)
+	</sql>
+	<sql id="setDate1MinuteAfter">
+		WITH RECURSIVE A AS
+		(
+			SELECT STR_TO_DATE(DATE_ADD(#{startDate}, INTERVAL 1 MINUTE), '%Y-%m-%d %H:%i:00') AS TS
+		)
+	</sql>
+	
+	<select id="selectIntradotion" parameterType="hashmap" resultType="hashmap">
+		SELECT
+			tr.TS,
+			tr.VALUE as value,
+			tnt.PRI_TAG as tag,
+			tnt.DSTRB_P_ID as dstrb_id
+		from
+		    TB_RAWDATA tr
+			LEFT JOIN
+				TB_CTR_TNK_INF tnt ON tnt.PRI_TAG = tr.TAGNAME
+		WHERE
+			tnt.DSTRB_P_ID in
+				<foreach item="id" collection="dstrb_id" open="(" separator="," close=")">
+					#{id}
+				</foreach>
+			AND
+				tr.TS &lt;= #{startDate}
+			AND
+				tr.TS &gt;= DATE_SUB(#{startDate}, INTERVAL 12 hour)
+			AND
+				MINUTE(tr.TS) % 5 = 0
+		order by tr.TS;
+	</select>
+	<select id="grPreesureList" parameterType="hashmap" resultType="hashmap">
+		SELECT
+			tr.TS,
+			tr.VALUE as value,
+			tr.TAGNAME as tag
+		from
+			TB_RAWDATA tr
+		WHERE
+			tr.TAGNAME IN (
+			'780-344-PRC-6004',
+			'780-344-PRC-4004'
+		)
+		AND
+		tr.TS &lt;= #{startDate}
+		AND
+		tr.TS &gt;= DATE_SUB(#{startDate}, INTERVAL 12 hour)
+		AND
+		MINUTE(tr.TS) % 5 = 0
+		order by tr.TS;
+	</select>
+	<select id="selectCurFlowData" resultType="hashmap" parameterType="hashmap">
+		SELECT
+			tr.TS,
+			tr.TAGNAME as tag,
+			tr.VALUE as value
+		FROM
+			TB_RAWDATA tr
+		WHERE
+			tr.TAGNAME in
+				<foreach item="tag" collection="tagList" open="(" separator="," close=")">
+					#{tag}
+				</foreach>
+			AND
+				tr.TS &lt;= #{startDate}
+			AND
+				tr.TS &gt;= DATE_SUB(#{startDate}, INTERVAL 12 hour)
+			AND
+				MINUTE(tr.TS) % 5 = 0
+		order by tr.TS;
+	</select>
+	<select id="select12HourCurPumpFlow" resultType="hashmap" parameterType="hashmap">
+		SELECT tr.TS, tr.VALUE as value
+		FROM TB_RAWDATA tr
+		WHERE tr.TAGNAME IN (
+		SELECT FRI_TAG
+		FROM TB_CTR_PRF_PUMPMST_INF
+		WHERE PUMP_GRP = #{pump_grp}
+		)
+		AND tr.TS BETWEEN DATE_SUB(#{startDate}, INTERVAL 12 HOUR) AND #{startDate}
+		AND MINUTE(tr.TS) % 5 = 0
+		GROUP BY tr.TS
+		ORDER BY tr.TS;
+	</select>
+	<select id="select12HourCurPumpPressure" resultType="hashmap" parameterType="hashmap">
+		SELECT
+		tr.TS,
+		tr.VALUE AS value
+		FROM
+		TB_RAWDATA tr
+		WHERE
+		tr.TAGNAME IN (
+		SELECT PRI_T_TAG
+		FROM TB_CTR_PRF_PUMPMST_INF
+		WHERE PUMP_GRP = #{pump_grp}
+		)
+		AND tr.TS BETWEEN DATE_SUB(#{startDate}, INTERVAL 12 HOUR) AND #{startDate}
+		AND MINUTE(tr.TS) % 5 = 0
+		GROUP BY
+		tr.TS
+		ORDER BY
+		tr.TS
+	</select>
+	
+	<select id="selectPreFlow" resultType="hashmap" parameterType="hashmap">
+		SELECT
+			tctr.RGSTR_TIME as ts,
+			tctr.PRDCT_VALUE as value,
+			tnt.FRI_TAG as tag,
+			tnt.DSTRB_Q_ID as dstrb_id
+		from
+			TB_CTR_TNK_RST tctr
+			LEFT JOIN
+				TB_CTR_TNK_INF tnt on tnt.DSTRB_Q_ID = tctr.DSTRB_ID
+		WHERE
+			UPPER(tnt.DSTRB_Q_ID) in
+			<foreach item="id" collection="dstrb_id" open="(" separator="," close=")">
+				UPPER(#{id})
+			</foreach>
+			AND
+			<if test="first != true">
+					tctr.RGSTR_TIME &lt;= #{startDate}
+				AND
+					tctr.RGSTR_TIME &gt;= DATE_SUB(#{startDate}, INTERVAL 12 hour)
+				order by
+					tctr.RGSTR_TIME
+			</if>
+			<if test="first == true">
+					tctr.RGSTR_TIME &lt;= DATE_ADD(#{startDate}, INTERVAL 3 MINUTE)
+				AND
+					tctr.RGSTR_TIME &gt;= #{startDate}
+				order by
+					tctr.RGSTR_TIME desc
+				limit
+					1
+			</if>
+
+	</select>
+	<select id="selectPrePri" resultType="hashmap" parameterType="hashmap">
+		SELECT
+			tctr.RGSTR_TIME as ts,
+			tctr.PRDCT_VALUE as value,
+			tnt.PRI_TAG as tag,
+			tnt.DSTRB_P_ID as dstrb_id
+		from
+			TB_CTR_TNK_RST tctr
+			LEFT JOIN
+				TB_CTR_TNK_INF tnt on tnt.DSTRB_P_ID = tctr.DSTRB_ID
+		WHERE
+			UPPER(tnt.DSTRB_P_ID) in
+					<foreach item="id" collection="dstrb_id" open="(" separator="," close=")">
+						UPPER(#{id})
+					</foreach>
+			AND
+			<if test="first != true">
+					tctr.RGSTR_TIME &lt;= #{startDate}
+				AND
+					tctr.RGSTR_TIME &gt;= DATE_SUB(#{startDate}, INTERVAL 12 hour)
+				order by
+					tctr.RGSTR_TIME
+			</if>
+			<if test="first == true">
+					tctr.RGSTR_TIME &lt;= DATE_ADD(#{startDate}, INTERVAL 3 MINUTE)
+				AND
+					tctr.RGSTR_TIME &gt;= #{startDate}
+				order by
+					tctr.RGSTR_TIME desc
+				limit
+					1
+			</if>
+	</select>
+	<select id="grPrePressure" resultType="hashmap" parameterType="hashmap">
+		SELECT
+			COALESCE(inquiry.RGSTR_TIME, rst.RGSTR_TIME) AS ts,
+			ROUND(CAST(COALESCE(inquiry.TUBE_PRSR_PRDCT, rst.TUBE_PRSR_PRDCT) AS FLOAT), 1) AS value,
+			'780-344-PRC-6004' as tag
+		FROM
+				TB_CTR_PUMPYN_RST AS rst
+			LEFT JOIN
+				TB_CTR_PUMPYN_INQUIRY AS inquiry ON rst.OPT_IDX = inquiry.OPT_IDX AND rst.PUMP_GRP = inquiry.PUMP_GRP AND rst.RGSTR_TIME = inquiry.RGSTR_TIME
+		WHERE
+				rst.PUMP_GRP = 2
+			AND
+		<if test="first != true">
+				rst.RGSTR_TIME &lt;= #{startDate}
+			AND
+				rst.RGSTR_TIME &gt;= DATE_SUB(#{startDate}, INTERVAL 12 hour)
+			AND
+				MINUTE(rst.RGSTR_TIME) % 5 = 0
+			GROUP BY
+				rst.RGSTR_TIME
+			ORDER BY
+				rst.RGSTR_TIME
+		</if>
+		<if test="first == true">
+				rst.RGSTR_TIME &lt;= DATE_ADD(#{startDate}, INTERVAL 3 MINUTE)
+			AND
+				rst.RGSTR_TIME &gt;= #{startDate}
+			GROUP BY
+				rst.RGSTR_TIME
+			ORDER BY
+				rst.RGSTR_TIME DESC
+			limit
+				1
+		</if>
+	</select>
+	<select id="selectPreWithDstrb" parameterType="hashmap" resultType="hashmap">
+		SELECT
+			tctr.RGSTR_TIME as ts,
+			tctr.DSTRB_ID as junction_id,
+			tctr.PRDCT_VALUE as value
+		from
+			TB_CTR_TNK_RST tctr
+		WHERE
+			UPPER(tctr.DSTRB_ID) = UPPER(#{DSTRB_ID})
+			AND
+			<if test="first != true">
+					tctr.RGSTR_TIME &lt;= #{startDate}
+				AND
+					tctr.RGSTR_TIME &gt;= DATE_SUB(#{startDate}, INTERVAL 12 hour)
+				order by
+					tctr.RGSTR_TIME
+			</if>
+			<if test="first == true">
+					tctr.RGSTR_TIME &lt;= DATE_ADD(#{startDate}, INTERVAL 3 MINUTE)
+				AND
+					tctr.RGSTR_TIME &gt;= #{startDate}
+				order by
+					tctr.RGSTR_TIME desc
+				limit
+					1
+			</if>
+	</select>
+	<select id="selectPumpCombCalGosan" resultType="hashmap">
+		SELECT
+		tpc.PUMP_GRP,
+		tpc.C_IDX,
+		tpc.C_ORD,
+		tpc.FC_VAL,
+		tpc.P_ADD_VAL,
+		tpc.CS_OP,
+		tpc.P_MUL_VAL,
+		tpc.SS_OP,
+		tpc.P_SQRT_MUL_VAL,
+		tpc.PUMP_COMB,
+		tpc.PUMP_COUNT,
+		tpc.PUMP_PRIORITY,
+		tpc.COUNT_IDX,
+		tpc.USE_YN
+		FROM
+		TB_PUMP_CAL tpc
+		LEFT JOIN TB_PUMP_COMBINATION_INF tpci
+		ON tpc.PUMP_COUNT = tpci.PUMP_COUNT
+		AND tpc.PUMP_PRIORITY = tpci.PUMP_PRIORITY
+		WHERE
+		tpci.USE_YN = 1
+		AND
+		tpc.USE_YN = 1
+		ORDER BY tpc.PUMP_GRP, tpc.C_IDX, tpc.C_ORD,  tpc.PUMP_COUNT , tpc.PUMP_PRIORITY;
+	</select>
+	
+	<select id="selectAverageValueLast10Minutes" resultType="double">
+		SELECT AVG(PRDCT_VALUE)
+		FROM (
+		SELECT PRDCT_VALUE
+		FROM TB_CTR_TNK_RST
+		WHERE DSTRB_ID = #{DSTRB_ID}
+		AND PRDCT_VALUE IS NOT NULL
+		AND PRDCT_VALUE != 0
+		AND RGSTR_TIME <![CDATA[ <= ]]> #{nowDateTime}
+		ORDER BY RGSTR_TIME DESC
+		LIMIT 10
+		) AS recent_data
+	</select>
+	
+	<select id="selectPumpCombCal" resultType="hashmap">
+		SELECT
+		cal.PUMP_GRP,
+		cal.C_IDX,
+		cal.C_ORD,
+		cal.FC_VAL,
+		cal.P_ADD_VAL,
+		cal.CS_OP,
+		cal.P_MUL_VAL,
+		cal.SS_OP,
+		cal.P_SQRT_MUL_VAL,
+		-- C_ORD가 1인 경우에만 조합 펌프를 보여줍니다.
+		CASE
+		WHEN cal.C_ORD = 1 THEN IFNULL(combo.ACTIVE_PUMPS, cal.PUMP_COMB)
+		ELSE cal.PUMP_COMB
+		END AS PUMP_COMB,
+		cal.PUMP_COUNT,
+		cal.PUMP_PRIORITY,
+		cal.COUNT_IDX,
+		cal.USE_YN
+		FROM TB_PUMP_CAL AS cal
+		-- TB_PUMP_COMBINATION_INF 테이블을 INNER JOIN하여 USE_YN이 1인 조합만 선택
+		INNER JOIN TB_PUMP_COMBINATION_INF AS inf
+		ON cal.PUMP_GRP = inf.PUMP_GRP
+		AND cal.PUMP_COUNT = inf.PUMP_COUNT
+		AND cal.PUMP_PRIORITY = inf.PUMP_PRIORITY
+		AND inf.USE_YN = 1
+		LEFT JOIN (
+		SELECT
+		PUMP_GRP,
+		PUMP_COUNT,
+		PUMP_PRIORITY,
+		GROUP_CONCAT(PUMP_IDX ORDER BY PUMP_IDX) AS ACTIVE_PUMPS
+		FROM TB_PUMP_COMBINATION
+		WHERE PUMP_YN = 1
+		GROUP BY PUMP_GRP, PUMP_COUNT, PUMP_PRIORITY
+		) AS combo
+		ON cal.PUMP_GRP = combo.PUMP_GRP
+		AND cal.PUMP_COUNT = combo.PUMP_COUNT
+		AND cal.PUMP_PRIORITY = combo.PUMP_PRIORITY
+		WHERE cal.USE_YN = 1
+		ORDER BY
+		cal.PUMP_GRP,
+		cal.C_IDX,
+		cal.C_ORD,
+		cal.PUMP_COUNT,
+		cal.PUMP_PRIORITY;
+	</select>
+	<select id="selectPreTnkFlowPressure" resultType="hashmap" parameterType="hashmap">
+		SELECT * FROM (
+		SELECT
+			DATE_FORMAT(tctr.RGSTR_TIME, '%Y-%m-%d %H:%i') as ts,
+			tctr.PRDCT_VALUE as value,
+			tcti.SRTTN as srttn
+		from
+			TB_CTR_TNK_INF tcti
+		join
+			<if test="find == 'flow'">
+				TB_CTR_TNK_RST tctr on UPPER(tcti.DSTRB_Q_ID) = UPPER(tctr.DSTRB_ID)
+			</if>
+			<if test="find == 'press'">
+				TB_CTR_TNK_RST tctr on UPPER(tcti.DSTRB_P_ID) = UPPER(tctr.DSTRB_ID)
+			</if>
+		WHERE
+			tcti.TYPE = #{type}
+		<if test="pump_grp != null">
+			AND
+				tcti.USE_YN IN (#{pump_grp}, 0)
+		</if>
+		AND
+			tctr.RGSTR_TIME &lt;= DATE_ADD(#{startDate}, interval 1 minute)
+		AND
+			tctr.RGSTR_TIME &gt;= DATE_SUB(DATE_ADD(#{startDate}, interval 5 minute), INTERVAL #{range} hour)
+		AND
+			MINUTE(tctr.RGSTR_TIME) % #{cycle} = 0
+		UNION ALL
+		SELECT
+		DATE_FORMAT(tctr.RGSTR_TIME, '%Y-%m-%d %H:%i') as ts,
+		tctr.PRDCT_VALUE as value,
+		tcti.SRTTN as srttn
+		from
+		TB_CTR_TNK_INF tcti
+		join
+		<if test="find == 'flow'">
+			TB_CTR_TNK_RST tctr on UPPER(tcti.DSTRB_Q_ID) = UPPER(tctr.DSTRB_ID)
+		</if>
+		<if test="find == 'press'">
+			TB_CTR_TNK_RST tctr on UPPER(tcti.DSTRB_P_ID) = UPPER(tctr.DSTRB_ID)
+		</if>
+		WHERE
+		tcti.TYPE = 0
+		<if test="pump_grp != null">
+			AND
+				tcti.USE_YN IN (#{pump_grp}, 0)
+		</if>
+		AND
+		tctr.RGSTR_TIME &lt;= DATE_ADD(#{startDate}, interval 1 minute)
+		AND
+		tctr.RGSTR_TIME &gt;= DATE_SUB(DATE_ADD(#{startDate}, interval 5 minute), INTERVAL #{range} hour)
+		AND
+		MINUTE(tctr.RGSTR_TIME) % #{cycle} = 0
+		) AS combined_results
+		ORDER BY ts;
+	</select>
+	
+	<select id="selectCurTnkFlowPressure" resultType="hashmap" parameterType="hashmap">
+		SELECT * FROM (
+		SELECT
+			DATE_FORMAT(tr.TS, '%Y-%m-%d %H:%i') as ts,
+			tr.VALUE as value,
+			tcti.SRTTN as srttn
+		from
+			TB_CTR_TNK_INF tcti
+		join
+			<if test="find == 'flow'">
+				TB_RAWDATA tr on tcti.FRI_TAG = tr.TAGNAME
+			</if>
+			<if test="find == 'press'">
+				TB_RAWDATA tr on tcti.PRI_TAG = tr.TAGNAME
+			</if>
+		WHERE
+			tcti.TYPE = #{type}
+		<if test="pump_grp != null">
+			AND
+				tcti.USE_YN IN (#{pump_grp}, 0)
+		</if>
+		AND
+			tr.TS &lt;= #{startDate}
+		AND
+			tr.TS &gt;= DATE_SUB(#{startDate}, INTERVAL #{range} hour)
+		AND
+			MINUTE(tr.TS) % #{cycle} = 0
+		UNION ALL
+		SELECT
+		DATE_FORMAT(tr.TS, '%Y-%m-%d %H:%i') as ts,
+		tr.VALUE as value,
+		tcti.SRTTN as srttn
+		from
+		TB_CTR_TNK_INF tcti
+		join
+		<if test="find == 'flow'">
+			TB_RAWDATA tr on tcti.FRI_TAG = tr.TAGNAME
+		</if>
+		<if test="find == 'press'">
+			TB_RAWDATA tr on tcti.PRI_TAG = tr.TAGNAME
+		</if>
+		WHERE
+		tcti.TYPE = 0
+		<if test="pump_grp != null">
+			AND
+				tcti.USE_YN IN (#{pump_grp}, 0)
+		</if>
+		AND
+		tr.TS &lt;= #{startDate}
+		AND
+		tr.TS &gt;= DATE_SUB(#{startDate}, INTERVAL #{range} hour)
+		AND
+		MINUTE(tr.TS) % #{cycle} = 0
+		) AS combined_results
+		ORDER BY ts;
+	</select>
+	
+	<select id="selectPreEPANETTnkFlowPressure" resultType="hashmap" parameterType="hashmap">
+		SELECT * FROM (
+		SELECT
+		DATE_FORMAT(tctr.RGSTR_TIME, '%Y-%m-%d %H:%i') as ts,
+		<if test="find == 'flow'">
+			tctr.FLW_ALG_RST_VAL
+		</if>
+		<if test="find == 'press'">
+			tctr.FP_ALG_RST_VAL
+		</if>
+		 as value,
+		tcti.SRTTN as srttn
+		from
+		TB_CTR_TNK_INF tcti
+		join
+			<if test="find == 'flow'">
+				TB_FR_VAL tctr on tcti.LINK_ID = tctr.LINK_ID
+				WHERE
+						tcti.FRI_TAG IS NOT NULL
+					<if test="notSrttn != null">
+						AND
+						UPPER(tcti.DSTRB_Q_ID) NOT IN
+						<foreach item="name" collection="notSrttn" open="(" separator="," close=")">
+							UPPER(#{name})
+						</foreach>
+					</if>
+					AND
+			</if>
+			<if test="find == 'press'">
+				TB_FP_VAL tctr on UPPER(tcti.NODE_ID) = UPPER(tctr.NODE_ID)
+				WHERE
+						tcti.PRI_TAG IS NOT NULL
+					<if test="notSrttn != null">
+						AND
+						UPPER(tcti.DSTRB_P_ID) NOT IN
+						<foreach item="name" collection="notSrttn" open="(" separator="," close=")">
+							UPPER(#{name})
+						</foreach>
+					</if>
+					AND
+			</if>
+			tctr.FLG = 'PRE'
+		AND
+			tcti.TYPE = 1
+		AND
+			tcti.NODE_ID IS NOT NULL
+		<if test="pump_grp != null">
+			AND
+				tcti.USE_YN IN (#{pump_grp}, 0)
+		</if>
+		AND
+			tctr.RGSTR_TIME &lt;= DATE_ADD(#{startDate}, interval 1 minute)
+		AND
+			tctr.RGSTR_TIME &gt;= DATE_SUB(DATE_ADD(#{startDate}, interval 1 minute), INTERVAL #{range} hour)
+		AND
+			MINUTE(tctr.RGSTR_TIME) % #{cycle} = 0
+		UNION ALL
+		SELECT
+		DATE_FORMAT(tctr.RGSTR_TIME, '%Y-%m-%d %H:%i') as ts,
+		<if test="find == 'flow'">
+			tctr.FLW_ALG_RST_VAL
+		</if>
+		<if test="find == 'press'">
+			tctr.FP_ALG_RST_VAL
+		</if>
+		as value,
+		tcti.SRTTN as srttn
+		from
+		TB_CTR_TNK_INF tcti
+		join
+		<if test="find == 'flow'">
+			TB_FR_VAL tctr on tcti.LINK_ID = tctr.LINK_ID
+			WHERE
+			tcti.FRI_TAG IS NOT NULL
+			<if test="notSrttn != null">
+				AND
+				UPPER(tcti.DSTRB_Q_ID) NOT IN
+				<foreach item="name" collection="notSrttn" open="(" separator="," close=")">
+					UPPER(#{name})
+				</foreach>
+			</if>
+			AND
+		</if>
+		<if test="find == 'press'">
+			TB_FP_VAL tctr on UPPER(tcti.NODE_ID) = UPPER(tctr.NODE_ID)
+			WHERE
+			tcti.PRI_TAG IS NOT NULL
+			<if test="notSrttn != null">
+				AND
+				UPPER(tcti.DSTRB_P_ID) NOT IN
+				<foreach item="name" collection="notSrttn" open="(" separator="," close=")">
+					UPPER(#{name})
+				</foreach>
+			</if>
+			AND
+		</if>
+		tctr.FLG = 'PRE'
+		AND
+		tcti.TYPE = 0
+		AND
+		tcti.NODE_ID IS NOT NULL
+		<if test="pump_grp != null">
+			AND
+				tcti.USE_YN IN (#{pump_grp}, 0)
+		</if>
+		AND
+		tctr.RGSTR_TIME &lt;= DATE_ADD(#{startDate}, interval 1 minute)
+		AND
+		tctr.RGSTR_TIME &gt;= DATE_SUB(DATE_ADD(#{startDate}, interval 1 minute), INTERVAL #{range} hour)
+		AND
+		MINUTE(tctr.RGSTR_TIME) % #{cycle} = 0
+		) AS combined_results
+		ORDER BY ts;
+	</select>
+	
+	<select id="selectHeadLossTargetCurFlow" resultType="Double" parameterType="hashmap">
+		SELECT
+		sum(tr.VALUE) as value
+		from
+		TB_CTR_TNK_INF tcti
+		join
+			TB_RAWDATA tr on tcti.FRI_TAG = tr.TAGNAME
+		WHERE
+		UPPER(tcti.DSTRB_Q_ID) in
+		<foreach item="id" collection="dstrbList" open="(" separator="," close=")">
+			UPPER(#{id})
+		</foreach>
+		<if test="first == true">
+			and tr.TS &lt;= #{startDate}
+			and tr.TS &gt; DATE_SUB(#{startDate}, INTERVAL 5 minute)
+			group by tr.TS
+			order by tr.TS desc limit 1;
+		</if>
+		<if test="first != true">
+			and tr.TS &lt; DATE_SUB(#{startDate}, INTERVAL #{cycle} minute)
+			and tr.TS &gt;= DATE_SUB(#{startDate}, INTERVAL #{range} hour)
+			and MINUTE(tr.TS) % #{cycle} = 0
+			group by tr.TS
+			order by tr.TS;
+		</if>
+	</select>
+	<select id="selectHeadLossTargetPreFlow" resultType="Double" parameterType="hashmap">
+		SELECT
+		sum(tctr.PRDCT_VALUE) as value
+		from
+		TB_CTR_TNK_INF tcti
+		join
+			TB_CTR_TNK_RST tctr on tcti.DSTRB_Q_ID = tctr.DSTRB_ID
+		WHERE
+		UPPER(tcti.DSTRB_Q_ID) in
+		<foreach item="id" collection="dstrbList" open="(" separator="," close=")">
+			UPPER(#{id})
+		</foreach>
+		AND
+		<if test="first == true">
+			tctr.RGSTR_TIME &lt;= DATE_ADD(#{startDate}, interval 1 minute)
+			and
+			tctr.RGSTR_TIME &gt; DATE_SUB(DATE_SUB(#{startDate}, interval 5 minute), INTERVAL #{cycle} minute)
+			group by tctr.RGSTR_TIME
+			order by
+			tctr.RGSTR_TIME desc limit 1
+		</if>
+		<if test="first != true">
+			tctr.RGSTR_TIME &lt;= DATE_SUB(#{startDate}, INTERVAL #{cycle} minute)
+			and
+			tctr.RGSTR_TIME &gt;= DATE_SUB(#{startDate}, INTERVAL #{range} hour)
+			and
+			MINUTE(tctr.RGSTR_TIME) % #{cycle} = 0
+			group by tctr.RGSTR_TIME
+			order by
+			tctr.RGSTR_TIME
+		</if>
+	</select>
+	
+	<insert id="insertDrvnPumpYnData" parameterType="hashmap">
+		INSERT INTO TB_CTR_PUMPYN_RST
+		(
+			OPT_IDX,
+			PUMP_GRP,
+			PUMP_IDX,
+			PUMP_TYP,
+			PUMP_YN,
+			FREQ,
+			RGSTR_TIME,
+			PRDCT_MEAN,
+			TUBE_PRSR_PRDCT,
+			PWR_PRDCT
+			<if test="wpp_code == 'gu'">
+				,CHNG_STTS
+			</if>
+		)
+		VALUES
+		(
+			#{opt_idx},
+			#{PUMP_GRP},
+			#{PUMP_IDX},
+			#{PUMP_TYP},
+			#{pump_yn},
+			#{freq},
+			#{ts},
+			#{flow},
+			#{pressure},
+			#{pwrPrdct}
+			<if test="wpp_code == 'gu'">
+				,#{chng_stts}
+			</if>
+		)
+		ON DUPLICATE KEY UPDATE
+		PUMP_YN = #{pump_yn},
+		PUMP_TYP = #{PUMP_TYP},
+		PRDCT_MEAN = #{flow},
+		TUBE_PRSR_PRDCT = #{pressure},
+		PWR_PRDCT = #{pwrPrdct},
+		FREQ = #{freq}
+		<if test="wpp_code == 'gu'">
+		,CHNG_STTS = #{chng_stts}
+		</if>;
+	</insert>
+	
+	<insert id="insertInQuiryPumpYnData" parameterType="hashmap">
+		INSERT INTO TB_CTR_PUMPYN_INQUIRY
+			(
+				OPT_IDX,
+				PUMP_GRP,
+				PUMP_IDX,
+				PUMP_TYP,
+				PUMP_YN,
+				FREQ,
+				RATE_CTGRY,
+				FLOW_CTR,
+				RGSTR_TIME,
+				PRDCT_MEAN,
+				TUBE_PRSR_PRDCT,
+				PWR_PRDCT
+				<if test="wpp_code == 'gu'">
+					,CHNG_STTS
+				</if>
+			)
+		VALUES
+			(
+				#{opt_idx},
+				#{PUMP_GRP},
+				#{PUMP_IDX},
+				#{PUMP_TYP},
+				#{pump_yn},
+				#{freq},
+				#{RATE_CTGRY},
+				#{FLOW_CTR},
+				#{ts},
+				#{flow},
+				#{pressure},
+				#{pwrPrdct}
+				<if test="wpp_code == 'gu'">
+					,#{chng_stts}
+				</if>
+			)
+		ON DUPLICATE KEY UPDATE
+			PUMP_YN = #{pump_yn},
+			RATE_CTGRY = #{RATE_CTGRY},
+			FLOW_CTR = #{FLOW_CTR},
+			PUMP_TYP = #{PUMP_TYP},
+			PRDCT_MEAN = #{flow},
+			TUBE_PRSR_PRDCT = #{pressure},
+			PWR_PRDCT = #{pwrPrdct},
+			FREQ = #{freq}
+			<if test="wpp_code == 'gu'">
+				,CHNG_STTS = #{chng_stts}
+			</if>;
+	</insert>
+	
+	<delete id="deleteInquiryData" parameterType="hashmap">
+		DELETE FROM TB_CTR_PUMPYN_INQUIRY
+		WHERE
+		RGSTR_TIME &gt;= #{startDate}
+		AND
+		RGSTR_TIME &lt;= #{endDate}
+	</delete>
+	
+	<select id="getLoadInquiry" resultType="hashmap">
+		SELECT
+			MNTH,
+			STN_TM,
+			TIMEZONE
+		FROM
+			TB_RT_RATE_INF
+		WHERE
+			RATE_IDX = 1
+		ORDER BY MNTH, STN_TM;
+	</select>
+	
+	<select id="getInsertUsePrdctFlowPressure" parameterType="hashmap" resultType="hashmap">
+		SELECT
+		tctr.DSTRB_ID as junction_id,
+		tctr.PRDCT_VALUE as value,
+		DATE_FORMAT(tctr.RGSTR_TIME, '%Y-%m-%d %H:%i') as ts
+		from
+		TB_CTR_TNK_RST tctr
+		WHERE
+				UPPER(tctr.DSTRB_ID) = UPPER(#{DSTRB_ID})
+			and
+				tctr.RGSTR_TIME &lt;= #{endDate}
+			and
+				tctr.RGSTR_TIME &gt;= #{startDate}
+			order by
+				tctr.RGSTR_TIME
+	</select>
+	<select id="getInsertGsFlowPressure" parameterType="hashmap" resultType="hashmap">
+		SELECT
+		DATE_FORMAT(tctr.RGSTR_TIME, '%Y-%m-%d %H:%i') as ts,
+		MAX(CASE WHEN UPPER(tctr.DSTRB_ID) = UPPER('Q_GS_OLD_Predict') THEN tctr.PRDCT_VALUE END) as flow1,
+		MAX(CASE WHEN UPPER(tctr.DSTRB_ID) = UPPER('P_GS_OLD_Predict') THEN tctr.PRDCT_VALUE END) as pressure1,
+		MAX(CASE WHEN UPPER(tctr.DSTRB_ID) = UPPER('Q_GS_NEW_Predict') THEN tctr.PRDCT_VALUE END) as flow2,
+		MAX(CASE WHEN UPPER(tctr.DSTRB_ID) = UPPER('P_GS_NEW_Predict') THEN tctr.PRDCT_VALUE END) as pressure2
+		FROM
+		TB_CTR_TNK_RST tctr
+		WHERE
+		UPPER(tctr.DSTRB_ID) IN (
+		'Q_GS_OLD_Predict', 'P_GS_OLD_Predict',
+		'Q_GS_NEW_Predict', 'P_GS_NEW_Predict'
+		)
+		AND tctr.RGSTR_TIME &lt;= #{endDate}
+		AND tctr.RGSTR_TIME &gt;= #{startDate}
+		GROUP BY
+		DATE_FORMAT(tctr.RGSTR_TIME, '%Y-%m-%d %H:%i')
+		ORDER BY
+		ts;
+	</select>
+	
+	<select id="selectPrdctPumpCombYn" resultType="hashmap" parameterType="hashmap">
+		SELECT
+			COALESCE(inquiry.PUMP_GRP, rst.PUMP_GRP) AS PUMP_GRP,
+			DATE_FORMAT(rst.RGSTR_TIME, '%Y-%m-%d %H:%i') as ts,
+			COALESCE(inquiry.PUMP_IDX, rst.PUMP_IDX) AS PUMP_IDX,
+			COALESCE(inquiry.PUMP_TYP, rst.PUMP_TYP) AS PUMP_TYP,
+			COALESCE(inquiry.PUMP_YN, rst.PUMP_YN) AS PUMP_YN,
+			COALESCE(inquiry.FREQ, rst.FREQ) AS FREQ
+		FROM
+			TB_CTR_PUMPYN_RST AS rst
+				LEFT JOIN
+			TB_CTR_PUMPYN_INQUIRY AS inquiry ON rst.OPT_IDX = inquiry.OPT_IDX AND rst.PUMP_IDX = inquiry.PUMP_IDX AND rst.PUMP_GRP = inquiry.PUMP_GRP
+		WHERE
+		<if test="first == true">
+			rst.RGSTR_TIME = (select max(RGSTR_TIME) from TB_CTR_PUMPYN_RST where RGSTR_TIME &lt;= DATE_ADD(#{startDate}, interval 1 minute) and RGSTR_TIME &gt; DATE_SUB(#{startDate}, interval 10 minute))
+		</if>
+		<if test="first != true">
+			rst.RGSTR_TIME &lt;= #{startDate}
+				AND
+			rst.RGSTR_TIME &gt;= DATE_SUB(#{startDate}, INTERVAL #{range} hour)
+				AND
+			MINUTE(rst.RGSTR_TIME) % #{cycle} = 0
+		</if>
+		<if test="pump_grp != 0">
+			AND
+				rst.PUMP_GRP = #{pump_grp}
+		</if>
+		ORDER BY
+			rst.RGSTR_TIME,
+			COALESCE(inquiry.PUMP_GRP, rst.PUMP_GRP) ASC,
+			COALESCE(inquiry.PUMP_IDX, rst.PUMP_IDX) ASC;
+	</select>
+	
+	<select id="selectGrpPrdctPumpCombYn" resultType="hashmap" parameterType="hashmap">
+		SELECT
+			COALESCE(inquiry.PUMP_GRP, rst.PUMP_GRP) AS PUMP_GRP,
+			DATE_FORMAT(rst.RGSTR_TIME, '%Y-%m-%d %H:%i') as ts,
+			COALESCE(inquiry.PUMP_IDX, rst.PUMP_IDX) AS PUMP_IDX,
+			COALESCE(inquiry.PUMP_TYP, rst.PUMP_TYP) AS PUMP_TYP,
+			COALESCE(inquiry.PUMP_YN, rst.PUMP_YN) AS PUMP_YN,
+			COALESCE(inquiry.FREQ, rst.FREQ) AS FREQ,
+			COALESCE(inquiry.PWR_PRDCT, rst.PWR_PRDCT) AS PWR_PRDCT,
+			CASE
+				WHEN inquiry.OPT_IDX IS NOT NULL THEN 1
+				ELSE 0
+			END AS flag,
+			inquiry.FLOW_CTR as FLOW_CTR
+		FROM
+			TB_CTR_PUMPYN_RST AS rst
+		LEFT JOIN
+			TB_CTR_PUMPYN_INQUIRY AS inquiry ON rst.OPT_IDX = inquiry.OPT_IDX AND rst.PUMP_IDX = inquiry.PUMP_IDX and rst.PUMP_GRP = inquiry.PUMP_GRP
+		WHERE
+		<if test="pump_grp != 0">
+			rst.PUMP_GRP = #{pump_grp}
+			AND
+		</if>
+			rst.RGSTR_TIME = (select max(RGSTR_TIME) from TB_CTR_PUMPYN_RST where RGSTR_TIME &lt;= DATE_ADD(#{startDate}, interval 1 minute) and RGSTR_TIME &gt; DATE_SUB(#{startDate}, interval 10 minute))
+		GROUP BY rst.PUMP_IDX
+		ORDER BY
+			rst.RGSTR_TIME,
+			COALESCE(inquiry.PUMP_IDX, rst.PUMP_IDX) ASC;
+	</select>
+	<select id="optPumpUse" parameterType="hashmap" resultType="int">
+		SELECT
+		tr.VALUE as value
+		FROM
+		TB_RAWDATA tr,
+		TB_CTR_PRF_PUMPMST_INF tcppi
+		WHERE
+		tr.TAGNAME = tcppi.PMB_TAG
+		and
+		tcppi.PUMP_IDX = #{pump_idx}
+		and tr.TS &lt;= DATE_SUB(#{startDate}, INTERVAL 1 minute)
+		and tr.TS &gt;= DATE_SUB(#{startDate}, INTERVAL 35 minute)
+		order by tr.TS desc
+		limit 30;
+	</select>
+	<select id="optPrePumpUse" parameterType="hashmap" resultType="int">
+		SELECT
+		CAST(COALESCE(t2.PUMP_YN, t1.PUMP_YN) as INT) AS value
+		FROM
+		TB_CTR_PUMPYN_RST t1
+		LEFT JOIN TB_CTR_PUMPYN_INQUIRY t2
+		ON t1.OPT_IDX = t2.OPT_IDX
+		AND t1.PUMP_IDX = t2.PUMP_IDX
+		AND t1.RGSTR_TIME = t2.RGSTR_TIME
+		WHERE
+		t1.PUMP_IDX = #{pump_idx}
+		AND
+		t1.RGSTR_TIME &lt;= DATE_SUB(#{startDate}, INTERVAL 1 minute)
+		<if test="local != 'wm' and local != 'gs' and local != 'ba' and local != 'gr' and local != 'custom'">
+			and t1.RGSTR_TIME &gt;= DATE_SUB(#{startDate}, INTERVAL 35 minute)
+			order by t1.RGSTR_TIME desc
+			limit 30;
+		</if>
+		<if test="local == 'gs'">
+			and t1.RGSTR_TIME &gt;= DATE_SUB(#{startDate}, INTERVAL 125 minute)
+			order by t1.RGSTR_TIME desc
+			limit 60;
+		</if>
+		<if test="local == 'gr'">
+			and t1.RGSTR_TIME &gt;= DATE_SUB(#{startDate}, INTERVAL 125 minute)
+			order by t1.RGSTR_TIME desc
+			limit 120;
+		</if>
+		<if test="local == 'wm'">
+			and t1.RGSTR_TIME &gt;= DATE_SUB(#{startDate}, INTERVAL 65 minute)
+			order by t1.RGSTR_TIME desc
+			limit 60;
+		</if>
+		<if test="local == 'ba'">
+			and t1.RGSTR_TIME &gt;= DATE_SUB(#{startDate}, INTERVAL 125 minute)
+			order by t1.RGSTR_TIME desc
+			limit 120;
+		</if>
+		<if test="local == 'custom'">
+			and t1.RGSTR_TIME &gt;= DATE_SUB(#{startDate}, INTERVAL #{interval} minute)
+			order by t1.RGSTR_TIME desc
+			limit #{limit};
+		</if>
+	</select>
+	<select id="optPumpFreq" parameterType="hashmap" resultType="int">
+		SELECT
+		round(tr.VALUE) as value
+		FROM
+		TB_RAWDATA tr,
+		TB_CTR_PRF_PUMPMST_INF tcppi
+		WHERE
+		tr.TAGNAME = tcppi.SPI_TAG
+		and
+		tcppi.PUMP_IDX = #{pump_idx}
+		AND
+		tcppi.PUMP_GRP = #{pump_grp}
+		and tr.TS &lt;= DATE_SUB(#{startDate}, INTERVAL 1 minute)
+		and tr.TS &gt;= DATE_SUB(#{startDate}, INTERVAL 35 minute)
+		order by tr.TS desc
+		limit 30;
+	</select>
+	
+	
+	<select id="excelCurPumpPower" resultType="hashmap" parameterType="hashmap">
+		SELECT
+		DATE_FORMAT(TS, '%Y-%m-%d %H:%i') as TS,
+		SUM(VALUE) AS value
+		FROM
+		TB_RAWDATA_15MIN
+		WHERE
+		tagname IN (SELECT PWI_TAG FROM TB_CTR_PRF_PUMPMST_INF where PUMP_GRP=#{pump_grp})
+		AND TS &gt;= CONCAT(#{startDate}, ' 00:00:00') AND TS &lt;= CONCAT(#{endDate}, ' 23:59:59')
+		GROUP BY
+		TS
+		ORDER BY
+		TS
+	</select>
+	
+	<select id="excelPrePumpData" parameterType="hashmap" resultType="hashmap">
+		SELECT *
+		FROM (
+		SELECT
+			DATE_FORMAT(COALESCE(inquiry.RGSTR_TIME, rst.RGSTR_TIME), '%Y-%m-%d %H:%i') as TS,
+			COALESCE(inquiry.PRDCT_MEAN, rst.PRDCT_MEAN) AS PRDCT_MEAN,
+			COALESCE(inquiry.TUBE_PRSR_PRDCT, rst.TUBE_PRSR_PRDCT) AS TUBE_PRSR_PRDCT,
+			COALESCE(inquiry.PWR_PRDCT, rst.PWR_PRDCT) AS PWR_PRDCT
+			FROM
+			TB_CTR_PUMPYN_RST AS rst
+			LEFT JOIN
+			TB_CTR_PUMPYN_INQUIRY AS inquiry ON rst.OPT_IDX = inquiry.OPT_IDX AND rst.PUMP_IDX = inquiry.PUMP_IDX
+			WHERE
+			rst.PUMP_GRP = #{pump_grp}
+			and
+			rst.RGSTR_TIME &gt;= CONCAT(#{startDate}, ' 00:00:00')
+			AND
+			rst.RGSTR_TIME &lt;= CONCAT(#{endDate}, ' 23:59:59')
+			GROUP BY rst.RGSTR_TIME
+			ORDER BY rst.RGSTR_TIME
+		) AS subquery
+		WHERE MINUTE(TS) % 15 = 0
+		ORDER BY TS;
+	</select>
+	<select id="excelCurPumpFlow" resultType="hashmap" parameterType="hashmap">
+		SELECT
+		SUM(VALUE) AS value
+		FROM
+		TB_RAWDATA_15MIN
+		WHERE
+		tagname IN (SELECT FRI_TAG FROM TB_CTR_PRF_PUMPMST_INF where PUMP_GRP=#{pump_grp})
+		AND TS &gt;= CONCAT(#{startDate}, ' 00:00:00') AND TS &lt;= CONCAT(#{endDate}, ' 23:59:59')
+		GROUP BY
+		TS
+		ORDER BY
+		TS
+	</select>
+	<select id="excelCurPumpPri" parameterType="hashmap" resultType="hashmap">
+		SELECT
+		SUM(VALUE) AS value
+		FROM
+		TB_RAWDATA_15MIN
+		WHERE
+		tagname IN (SELECT PRI_T_TAG FROM TB_CTR_PRF_PUMPMST_INF where PUMP_GRP=#{pump_grp})
+		AND TS &gt;= CONCAT(#{startDate}, ' 00:00:00') AND TS &lt;= CONCAT(#{endDate}, ' 23:59:59')
+		GROUP BY
+		TS
+		ORDER BY
+		TS
+	</select>
+	<select id="excelPrePumpYn" resultType="hashmap" parameterType="hashmap">
+		SELECT *
+		FROM (
+			SELECT
+			DATE_FORMAT(COALESCE(inquiry.RGSTR_TIME, rst.RGSTR_TIME), '%Y-%m-%d %H:%i') as TS,
+			COALESCE(inquiry.PUMP_YN, rst.PUMP_YN) AS value
+			FROM
+			TB_CTR_PUMPYN_RST AS rst
+			LEFT JOIN
+			TB_CTR_PUMPYN_INQUIRY AS inquiry ON rst.OPT_IDX = inquiry.OPT_IDX AND rst.PUMP_IDX = inquiry.PUMP_IDX
+			WHERE
+			rst.PUMP_IDX = #{pump_idx}
+			and
+			rst.PUMP_GRP = #{pump_grp}
+			and
+			rst.RGSTR_TIME &gt;= CONCAT(#{startDate}, ' 00:00:00')
+			AND
+			rst.RGSTR_TIME &lt;= CONCAT(#{endDate}, ' 23:59:59')
+			GROUP BY rst.RGSTR_TIME
+			ORDER BY rst.RGSTR_TIME
+		) AS subquery
+		WHERE MINUTE(TS) % 15 = 0
+		ORDER BY TS;
+	</select>
+	<select id="excelCurPumpYn" resultType="hashmap" parameterType="hashmap">
+		select
+			value
+		from TB_RAWDATA_15MIN rdh,
+			TB_CTR_PRF_PUMPMST_INF cppi
+		where
+			rdh.TAGNAME = cppi.PMB_TAG
+		and
+			cppi.PUMP_GRP = #{pump_grp}
+		and
+			cppi.PUMP_IDX = #{pump_idx}
+		AND
+			rdh.TS &gt;= CONCAT(#{startDate}, ' 00:00:00')
+		and
+			rdh.TS &lt;= CONCAT(#{endDate}, ' 23:59:59')
+		ORDER BY rdh.TS
+	</select>
+	
+	<select id="getCurUsePumpString" parameterType="hashmap" resultType="hashmap">
+		SELECT
+			GROUP_CONCAT(
+				CASE
+					WHEN tr.VALUE = 1 AND tr.TAGNAME = tc.PMB_TAG THEN tc.PUMP_IDX
+				END
+				ORDER BY tc.PUMP_IDX ASC SEPARATOR ','
+			) AS PUMP_USE_RST,
+			GROUP_CONCAT(
+				CASE
+					WHEN tr.TAGNAME = tc.SPI_TAG AND ROUND(tr.VALUE) != 0 THEN ROUND(tr.VALUE)
+				END
+				ORDER BY tc.PUMP_IDX ASC SEPARATOR ','
+			) AS SPI_USE_RST
+		FROM
+			TB_RAWDATA tr
+			JOIN TB_CTR_PRF_PUMPMST_INF tc
+			ON tr.TAGNAME = tc.PMB_TAG
+			OR tr.TAGNAME = tc.SPI_TAG
+		WHERE
+			tr.TS = (select max(TS) from TB_RAWDATA where TS &lt;= #{targetDate} and TS &gt; DATE_SUB(#{targetDate}, interval 10 minute))
+			<if test="pump_grp != 0">
+				AND
+				tc.PUMP_GRP = #{pump_grp}
+			</if>
+		GROUP BY
+			tr.TS;
+	</select>
+	<select id="getPreUsePumpString" parameterType="hashmap" resultType="hashmap">
+		SELECT
+			GROUP_CONCAT(CASE WHEN A.PUMP_YN = 1 THEN A.PUMP_IDX END ORDER BY A.PUMP_IDX ASC) AS PUMP_USE_RST,
+			GROUP_CONCAT(CASE WHEN A.FREQ != 0 THEN ROUND(A.FREQ) END ORDER BY A.FREQ ASC) AS SPI_USE_RST
+		FROM (
+			SELECT
+				t1.PUMP_IDX,
+				COALESCE(t2.PUMP_YN, t1.PUMP_YN) AS PUMP_YN,
+				COALESCE(t2.RGSTR_TIME, t1.RGSTR_TIME) AS RGSTR_TIME,
+				COALESCE(t2.FREQ, t1.FREQ) AS FREQ
+			FROM
+			TB_CTR_PUMPYN_RST t1
+			LEFT JOIN TB_CTR_PUMPYN_INQUIRY t2
+				ON t1.OPT_IDX = t2.OPT_IDX
+				AND t1.PUMP_IDX = t2.PUMP_IDX
+				AND t1.RGSTR_TIME = t2.RGSTR_TIME
+			WHERE
+				<if test="pump_grp != 0">
+						t1.PUMP_GRP = #{pump_grp}
+					AND
+				</if>
+				t1.RGSTR_TIME = (select max(RGSTR_TIME) from TB_CTR_PUMPYN_RST where RGSTR_TIME &lt;= DATE_SUB(#{targetDate}, interval 1 minute) and RGSTR_TIME &gt; DATE_SUB(#{targetDate}, interval 30 minute))
+		) A
+		GROUP BY
+			A.RGSTR_TIME;
+	</select>
+	
+	<sql id="baseDateData">
+<!--		WITH RECURSIVE A AS (-->
+<!--			SELECT STR_TO_DATE(#{startDate}, '%Y-%m-%d %H:%i:00') AS TS-->
+<!--			UNION ALL-->
+<!--			SELECT DATE_ADD(A.TS, INTERVAL 15 MINUTE) AS TS FROM A-->
+<!--			WHERE A.TS &lt;= STR_TO_DATE(#{endDate}, '%Y-%m-%d %H:%i:00')-->
+<!--		)-->
+		WITH RECURSIVE A AS (
+			SELECT STR_TO_DATE(#{startDate}, '%Y-%m-%d %H:%i:00') AS TS
+			UNION ALL
+			SELECT DATE_ADD(A.TS, INTERVAL 15 MINUTE)
+			FROM A
+			WHERE A.TS &lt; STR_TO_DATE(#{endDate}, '%Y-%m-%d %H:%i:00')
+		)
+	</sql>
+	<select id="pumpInstPwr" resultType="double" parameterType="hashmap">
+		<include refid="baseDateData"/>
+		SELECT
+			SUM(tr.VALUE * tpti.PWI_UNIT_VALUE) AS pwr
+		FROM
+			A i
+			LEFT JOIN
+			TB_RAWDATA tr ON i.TS = tr.TS
+			LEFT JOIN
+			TB_CTR_PRF_PUMPMST_INF tcppi ON tr.TAGNAME = tcppi.PWI_TAG
+			LEFT JOIN
+			TB_PEAK_TAG_INF tpti ON tr.TAGNAME = tpti.PWI_TAG
+		WHERE
+			tcppi.PUMP_GRP = #{pump_grp} OR tr.TS IS NULL
+		GROUP BY
+			i.TS
+		ORDER BY
+			i.TS;
+	</select>
+	<select id="pumpInstFlowRate" resultType="double" parameterType="hashmap">
+		<include refid="baseDateData"/>
+		SELECT
+			tr.VALUE as flow
+		FROM
+			A i
+			LEFT JOIN
+				TB_RAWDATA tr ON i.TS = tr.TS
+			LEFT JOIN
+				TB_CTR_PRF_PUMPMST_INF tcppi ON tr.TAGNAME = tcppi.FRI_TAG
+		WHERE
+			tcppi.PUMP_GRP = #{pump_grp} OR tr.TS IS NULL
+		GROUP BY
+			i.TS
+		ORDER BY
+			i.TS;
+	</select>
+	<select id="pumpPrdcPwrFlow" resultType="hashmap" parameterType="hashmap">
+		<include refid="baseDateData"/>
+		SELECT
+			i.TS,
+			COALESCE(t2.PWR_PRDCT, t1.PWR_PRDCT) AS pwr,
+			COALESCE(t2.PRDCT_MEAN, t1.PRDCT_MEAN) AS flow
+		FROM
+		A i
+		LEFT JOIN
+		TB_CTR_PUMPYN_RST t1 ON i.TS = t1.RGSTR_TIME
+		LEFT JOIN TB_CTR_PUMPYN_INQUIRY t2
+		ON
+		t1.OPT_IDX = t2.OPT_IDX
+		AND
+		t1.PUMP_IDX = t2.PUMP_IDX
+		AND
+		t1.RGSTR_TIME = t2.RGSTR_TIME
+		WHERE
+		t1.PUMP_GRP = #{pump_grp} OR t1.RGSTR_TIME IS NULL
+		GROUP BY
+		i.TS
+		ORDER BY
+		i.TS
+	</select>
+	<select id="pumpActlMsrmCmbn" resultType="hashmap" parameterType="hashmap">
+		<include refid="baseDateData"/>
+		SELECT
+			i.TS,
+			GROUP_CONCAT(DISTINCT CASE WHEN tr.VALUE = 1 THEN tc.PUMP_IDX END ORDER BY tc.PUMP_IDX ASC) AS PUMP_YN_RST
+		FROM
+			A i
+			LEFT JOIN
+			TB_RAWDATA tr ON i.TS = tr.TS
+		JOIN
+			TB_CTR_PRF_PUMPMST_INF tc
+			ON
+			tr.TAGNAME = tc.PMB_TAG
+		WHERE 1 = 1
+			<if test="pump_grp != 0">
+				AND
+					tc.PUMP_GRP = #{pump_grp}
+			</if>
+			OR
+				tr.TS IS NULL
+		GROUP BY
+			i.TS
+		ORDER BY
+			i.TS
+	</select>
+	<select id="pumpPrdcCmbn" resultType="hashmap" parameterType="hashmap">
+		<include refid="baseDateData"/>
+		,
+		CTE AS (
+			SELECT
+				i.TS AS RGSTR_TIME,
+				t1.PUMP_IDX,
+				t1.PUMP_GRP,
+				COALESCE(t2.PUMP_YN, t1.PUMP_YN) AS PUMP_YN,
+				COALESCE(t2.PWR_PRDCT, t1.PWR_PRDCT) AS pwr,
+				COALESCE(t2.PRDCT_MEAN, t1.PRDCT_MEAN) AS flow
+			FROM
+			A i
+				LEFT JOIN TB_CTR_PUMPYN_RST t1
+					ON i.TS = t1.RGSTR_TIME
+					AND t1.PUMP_GRP = #{pump_grp}
+				LEFT JOIN TB_CTR_PUMPYN_INQUIRY t2
+					ON t1.OPT_IDX = t2.OPT_IDX
+					AND t1.PUMP_IDX = t2.PUMP_IDX
+					AND t1.RGSTR_TIME = t2.RGSTR_TIME
+					AND t1.PUMP_GRP = t2.PUMP_GRP
+		)
+		SELECT
+			RGSTR_TIME,
+			GROUP_CONCAT(DISTINCT CASE WHEN PUMP_YN = 1 THEN PUMP_IDX END ORDER BY PUMP_IDX ASC) AS PUMP_YN_RST,
+			pwr,
+			flow
+		FROM CTE
+			GROUP BY RGSTR_TIME;
+	</select>
+	
+	<select id="getWMFreqIdx" parameterType="String" resultType="int">
+		select CONVERT(VALUE, UNSIGNED) FROM TB_RAWDATA WHERE TAGNAME = '565-340-IVC-4001'
+		AND
+		TS &lt;= #{ts}
+		and
+		TS &gt;= DATE_SUB(#{ts}, interval 10 minute)
+		ORDER BY
+		TS desc limit 1
+	</select>
+	
+	<select id="getLastCurFreq" parameterType="hashmap" resultType="double">
+		select
+			VALUE
+		FROM
+		TB_RAWDATA tr
+		JOIN TB_CTR_PRF_PUMPMST_INF tc
+		ON tr.TAGNAME = tc.SPI_TAG
+		WHERE
+		tr.TS = (select max(TS) from TB_RAWDATA where TS &lt;= DATE_SUB(#{targetDate}, interval 1 minute) and TS &gt; DATE_SUB(#{targetDate}, interval 10 minute))
+		AND
+		tc.PUMP_IDX = #{pump_idx}
+	</select>
+	
+	<select id="wmInverterChange" parameterType="String" resultType="int">
+		select CONVERT(VALUE, UNSIGNED)
+		FROM
+		TB_RAWDATA
+		WHERE TAGNAME = '565-340-IVC-4001'
+		AND
+		TS &lt;= DATE_SUB(#{targetDate}, INTERVAL 1 minute)
+		and
+		TS &gt;= DATE_SUB(#{targetDate}, INTERVAL 35 minute)
+		order by TS desc
+		limit 30;
+	</select>
+	
+	<select id="selectRawData" parameterType="hashmap" resultType="double">
+		SELECT
+		VALUE
+		from
+		TB_RAWDATA
+		WHERE
+		TAGNAME = #{tagname}
+		and
+		TS &lt;= #{nowDateTime}
+		and
+		TS &gt;= DATE_SUB(#{nowDateTime}, interval 10 minute)
+		ORDER BY
+		TS desc limit 1
+	</select>
+	
+	<select id="select5MinuteAvgRawData" parameterType="hashmap" resultType="double">
+		SELECT
+			AVG(VALUE) as VALUE
+		from
+			TB_RAWDATA
+		WHERE
+			TAGNAME = #{tagname}
+			and
+			TS &lt;= #{nowDateTime}
+			and
+			TS &gt;= DATE_SUB(#{nowDateTime}, interval 5 minute)
+	</select>
+	<select id="select10MinuteAvgRawData" parameterType="hashmap" resultType="double">
+		SELECT
+			AVG(VALUE) as VALUE
+		from
+			TB_RAWDATA
+		WHERE
+			TAGNAME = #{tagname}
+			and
+			TS &lt;= #{nowDateTime}
+			and
+			TS &gt;= DATE_SUB(#{nowDateTime}, interval 5 minute)
+	</select>
+	
+	<select id="wmInverterPumpFreqCheck" parameterType="hashmap" resultType="int">
+		SELECT
+		CAST(COALESCE(t2.FREQ, t1.FREQ) as INT) AS value
+		FROM
+		TB_CTR_PUMPYN_RST t1
+		LEFT JOIN TB_CTR_PUMPYN_INQUIRY t2
+		ON t1.OPT_IDX = t2.OPT_IDX
+		AND t1.PUMP_IDX = t2.PUMP_IDX
+		AND t1.RGSTR_TIME = t2.RGSTR_TIME
+		WHERE
+		t1.PUMP_IDX = #{pump_idx}
+		AND
+		t1.RGSTR_TIME &lt;= DATE_SUB(#{startDate}, INTERVAL 1 minute)
+		and t1.RGSTR_TIME &gt;= DATE_SUB(#{startDate}, INTERVAL 65 minute)
+		order by t1.RGSTR_TIME desc
+		limit 60;
+	</select>
+	
+	<select id="pumpDrvnCombExcelData" parameterType="String" resultType="hashmap">
+		SELECT
+		DATE_FORMAT(rst.RGSTR_TIME, '%Y-%m-%d %H:%i:%s') as rgstr_time,
+		rst.PUMP_YN_RST as 'pre_comb',
+		raw.PUMP_USE_RST as 'cur_comb',
+		rst.FREQ_VALUES as 'pre_freq',
+		raw.SPI_USE_RST as 'cur_freq'
+		FROM
+		(SELECT
+		A.RGSTR_TIME,
+		GROUP_CONCAT(CASE WHEN A.PUMP_YN = 1 THEN A.PUMP_IDX END ORDER BY A.PUMP_IDX ASC) AS PUMP_YN_RST,
+		GROUP_CONCAT(CASE WHEN A.FREQ != 0 THEN ROUND(A.FREQ) END ORDER BY A.FREQ ASC) AS FREQ_VALUES
+		FROM (
+		SELECT
+		t1.PUMP_IDX,
+		COALESCE(t2.PUMP_YN, t1.PUMP_YN) AS PUMP_YN,
+		COALESCE(t2.RGSTR_TIME, t1.RGSTR_TIME) AS RGSTR_TIME,
+		COALESCE(t2.RATE_CTGRY, 'None') AS RATE_CTGRY,
+		COALESCE(t2.FREQ, t1.FREQ) AS FREQ,
+		COALESCE(t2.FLOW_CTR, 'None') AS FLOW_CTR,
+		CASE
+		WHEN t2.OPT_IDX is not null THEN 1
+		ELSE 0
+		END AS FLAG
+		FROM
+		TB_CTR_PUMPYN_RST t1
+		LEFT JOIN TB_CTR_PUMPYN_INQUIRY t2
+		ON t1.OPT_IDX = t2.OPT_IDX
+		AND t1.PUMP_IDX = t2.PUMP_IDX
+		AND t1.RGSTR_TIME = t2.RGSTR_TIME
+		WHERE
+		t1.RGSTR_TIME &gt;= CONCAT(#{startDate}, ' 00:00:00')
+		AND
+		t1.RGSTR_TIME &lt;= CONCAT(#{endDate}, ' 23:59:00')
+		) A
+		GROUP BY
+		A.RGSTR_TIME ) rst
+		LEFT JOIN
+		(SELECT
+		tr.TS as TS,
+		GROUP_CONCAT(CASE WHEN tr.VALUE = 1 THEN tc.PUMP_IDX END ORDER BY tc.PUMP_IDX ASC) AS PUMP_USE_RST,
+		GROUP_CONCAT(
+		CASE
+		WHEN tr.TAGNAME = tc.SPI_TAG AND ROUND(tr.VALUE) != 0 THEN ROUND(tr.VALUE)
+		END
+		ORDER BY tc.PUMP_IDX ASC SEPARATOR ','
+		) AS SPI_USE_RST
+		FROM
+		TB_RAWDATA tr
+		JOIN TB_CTR_PRF_PUMPMST_INF tc
+		ON tr.TAGNAME = tc.PMB_TAG
+		OR tr.TAGNAME = tc.SPI_TAG
+		WHERE
+		tr.TS &gt;= CONCAT(#{startDate}, ' 00:00:00')
+		AND
+		tr.TS &lt;= CONCAT(#{endDate}, ' 23:59:00')
+		GROUP BY
+		tr.TS) raw
+		ON rst.RGSTR_TIME = raw.TS
+		GROUP BY
+		rst.RGSTR_TIME
+		ORDER BY
+		rst.RGSTR_TIME;
+	</select>
+	
+	<select id="getGrLifePre" resultType="hashmap">
+		SELECT
+			tr.TS,
+			CAST(MAX(CASE WHEN tr.TAGNAME = '780-344-PRC-6004' THEN tr.VALUE END) AS DOUBLE) AS `780-344-PRC-6004`,
+			CAST(MAX(CASE WHEN tr.TAGNAME = '780-344-PRC-4004' THEN tr.VALUE END) AS DOUBLE) AS `780-344-PRC-4004`
+		FROM
+			TB_RAWDATA tr
+		WHERE
+				tr.TAGNAME IN ('780-344-PRC-6004', '780-344-PRC-4004')
+			AND tr.TS = (
+					SELECT
+						MAX(TS)
+					FROM
+						TB_RAWDATA
+					WHERE
+						TS &lt;= NOW() AND TS &gt; DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+				)
+		GROUP BY
+			tr.TS;
+	</select>
+	
+	<select id="selectPumpCombPressure" resultType="double" parameterType="hashmap">
+		SELECT
+			ROUND(CAST(COALESCE(inquiry.TUBE_PRSR_PRDCT, rst.TUBE_PRSR_PRDCT) AS DOUBLE), 1) AS TUBE_PRSR_PRDCT
+		FROM
+			TB_CTR_PUMPYN_RST AS rst
+		LEFT JOIN
+			TB_CTR_PUMPYN_INQUIRY AS inquiry ON rst.OPT_IDX = inquiry.OPT_IDX AND rst.PUMP_GRP = inquiry.PUMP_GRP AND rst.RGSTR_TIME = inquiry.RGSTR_TIME
+		WHERE
+			rst.RGSTR_TIME &lt;= #{nowDate}
+		AND
+			rst.RGSTR_TIME &gt;= DATE_SUB(#{nowDate}, INTERVAL #{interval} MINUTE)
+		AND
+			rst.PUMP_GRP = #{pumpGrp}
+		GROUP BY
+			rst.RGSTR_TIME
+		ORDER BY
+			rst.RGSTR_TIME DESC
+		LIMIT #{limit};
+	</select>
+	
+	<select id="checkManualOperLog" parameterType="hashmap" resultType="int">
+		SELECT
+			COUNT(*)
+		FROM
+			TB_MNL_CHN_LOG
+		WHERE
+			RGSTR_TIME > DATE_SUB(#{serverTime}, INTERVAL #{interval} MINUTE)
+			<if test="pump_grp != 0">
+				AND
+				PUMP_GRP = #{pump_grp};
+			</if>
+	</select>
+	<select id="checkManualOperLogPump" parameterType="hashmap" resultType="hashmap">
+		SELECT
+		DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:%i') AS RGSTR_TIME, NewPumpComb, NewPumpFreq, AgoPumpComb, AgoPumpFreq
+		FROM
+		TB_MNL_CHN_LOG
+		WHERE
+		<if test="local == 'gs'">
+			RGSTR_TIME &gt;= DATE_SUB(#{nowDate}, INTERVAL 60 MINUTE)
+		</if>
+		<if test="local == 'gr'">
+			RGSTR_TIME &gt;= DATE_SUB(#{nowDate}, INTERVAL 60 MINUTE)
+		</if>
+		<if test="local == 'wm'">
+			RGSTR_TIME &gt;= DATE_SUB(#{nowDate}, INTERVAL 60 MINUTE)
+		</if>
+		<if test="local == 'ba'">
+			RGSTR_TIME &gt;= DATE_SUB(#{nowDate}, INTERVAL 30 MINUTE)
+		</if>
+		AND
+		RGSTR_TIME &lt;= #{nowDate}
+		<if test="pump_grp != 0">
+			AND
+			PUMP_GRP = #{pump_grp}
+		</if>
+		ORDER BY
+		RGSTR_TIME DESC
+		LIMIT 1;
+	</select>
+	
+	<select id="guPumpStatusChange" resultType="String" parameterType="hashmap">
+		SELECT
+		COALESCE(inquiry.CHNG_STTS, rst.CHNG_STTS) AS CHNG_STTS
+		FROM
+		TB_CTR_PUMPYN_RST AS rst
+		LEFT JOIN
+		TB_CTR_PUMPYN_INQUIRY AS inquiry ON rst.OPT_IDX = inquiry.OPT_IDX AND rst.PUMP_GRP = inquiry.PUMP_GRP AND rst.RGSTR_TIME = inquiry.RGSTR_TIME
+		WHERE
+		rst.RGSTR_TIME &lt;= #{nowDate}
+		AND
+		rst.RGSTR_TIME &gt;= DATE_SUB(#{nowDate}, INTERVAL #{interval} MINUTE)
+		GROUP BY
+		rst.RGSTR_TIME
+		ORDER BY
+		rst.RGSTR_TIME DESC
+		LIMIT #{limit};
+	</select>
+	<select id="getPreUsePumpStatus" parameterType="hashmap" resultType="hashmap">
+		SELECT
+			GROUP_CONCAT(CASE WHEN A.PUMP_YN = 1 THEN A.PUMP_IDX END ORDER BY A.PUMP_IDX ASC) AS PUMP_USE_RST,
+			GROUP_CONCAT(CASE WHEN A.FREQ != 0 THEN ROUND(A.FREQ) END ORDER BY A.FREQ ASC) AS SPI_USE_RST,
+			DATE_FORMAT(A.RGSTR_TIME, '%Y-%m-%d %H:%i') AS RGSTR_TIME,
+			A.OPT_IDX AS OPT_IDX,
+			CAST(A.TUBE_PRSR_PRDCT AS DOUBLE) AS TUBE_PRSR_PRDCT,
+			CAST(A.PRDCT_MEAN AS DOUBLE) AS PRDCT_MEAN
+		FROM (
+			SELECT
+				t1.PUMP_IDX,
+				COALESCE(t2.PUMP_YN, t1.PUMP_YN) AS PUMP_YN,
+				COALESCE(t2.RGSTR_TIME, t1.RGSTR_TIME) AS RGSTR_TIME,
+				COALESCE(t2.FREQ, t1.FREQ) AS FREQ,
+				COALESCE(t2.OPT_IDX, t1.OPT_IDX) AS OPT_IDX,
+				COALESCE(t2.TUBE_PRSR_PRDCT, t1.TUBE_PRSR_PRDCT) AS TUBE_PRSR_PRDCT,
+				COALESCE(t2.PRDCT_MEAN, t1.PRDCT_MEAN) AS PRDCT_MEAN
+			FROM
+			TB_CTR_PUMPYN_RST t1
+				LEFT JOIN TB_CTR_PUMPYN_INQUIRY t2
+				ON t1.OPT_IDX = t2.OPT_IDX
+				AND t1.PUMP_IDX = t2.PUMP_IDX
+				AND t1.RGSTR_TIME = t2.RGSTR_TIME
+			WHERE
+				<if test="pump_grp != 0">
+						t1.PUMP_GRP = #{pump_grp}
+					AND
+				</if>
+			t1.RGSTR_TIME = (select max(RGSTR_TIME) from TB_CTR_PUMPYN_RST where RGSTR_TIME &lt;= #{targetDate} and RGSTR_TIME &gt; DATE_SUB(#{targetDate}, interval 10 minute))
+		) A
+		GROUP BY
+			A.RGSTR_TIME;
+	</select>
+	<insert id="insertManualOperLog" parameterType="hashmap">
+		INSERT INTO TB_MNL_CHN_LOG
+			(RGSTR_TIME, OPER, PUMP_GRP)
+		VALUES(
+			#{nowDate},
+			#{oper},
+			#{pump_grp}
+		);
+	</insert>
+	<insert id="insertManualOperLogNew" parameterType="hashmap">
+		INSERT INTO TB_MNL_CHN_LOG
+			(RGSTR_TIME, OPER, PUMP_GRP, NewPumpComb, NewPumpFreq, AgoPumpComb, AgoPumpFreq)
+		VALUES(
+			#{nowDate},
+			#{oper},
+			#{pump_grp},
+			#{newPumpComb},
+			#{newPumpFreq},
+			#{agoPumpComb},
+			#{agoPumpFreq}
+		)
+		ON DUPLICATE KEY UPDATE
+		NewPumpComb = #{newPumpComb},
+		NewPumpFreq = #{newPumpFreq},
+		AgoPumpComb = #{agoPumpComb},
+		AgoPumpFreq = #{agoPumpFreq};
+	</insert>
+	<select id="inverterPumpFreqCheck" parameterType="hashmap" resultType="int">
+		SELECT
+		CAST(COALESCE(t2.FREQ, t1.FREQ) as INT) AS value
+		FROM
+		TB_CTR_PUMPYN_RST t1
+		LEFT JOIN TB_CTR_PUMPYN_INQUIRY t2
+		ON t1.OPT_IDX = t2.OPT_IDX
+		AND t1.PUMP_IDX = t2.PUMP_IDX
+		AND t1.RGSTR_TIME = t2.RGSTR_TIME
+		WHERE
+		t1.PUMP_IDX = #{pump_idx}
+		AND
+		t1.PUMP_GRP = #{pump_grp}
+		AND
+		t1.RGSTR_TIME &lt;= #{nowDate}
+		and t1.RGSTR_TIME &gt;= DATE_SUB(#{nowDate}, INTERVAL #{interval} minute)
+		order by t1.RGSTR_TIME desc
+		limit #{limit};
+	</select>
+	
+	<select id="getBaWppValveData" parameterType="String" resultType="double">
+		SELECT
+			CAST(DEFAULT_VALUE as DOUBLE) as DEFAULT_VALUE
+		FROM
+			TB_WPP_TAG_CODE
+		WHERE
+			FUNC_TYP = #{func_typ};
+	</select>
+	
+	<select id="getWppData" parameterType="String" resultType="hashmap">
+		SELECT
+			DEFAULT_VALUE as DEFAULT_VALUE,
+			TAG_DSC as TAG_DSC,
+			TAG as PUMP_COMB
+		FROM
+			TB_WPP_TAG_CODE
+		WHERE
+			FUNC_TYP = #{func_typ};
+	</select>
+	
+	<select id="setBaWppValveData" parameterType="hashmap">
+		UPDATE
+		TB_WPP_TAG_CODE
+		SET
+			TAG_DSC= #{nowDate},
+			DEFAULT_VALUE= #{value}
+		WHERE
+		FUNC_TYP = #{func_typ};
+	</select>
+	<select id="setWppOnlyDate" parameterType="hashmap">
+		UPDATE
+			TB_WPP_TAG_CODE
+		SET
+			TAG_DSC= #{nowDate}
+		WHERE
+			FUNC_TYP = #{func_typ};
+	</select>
+	<select id="setWppCombAndStatus" parameterType="hashmap">
+		UPDATE
+			TB_WPP_TAG_CODE
+		SET
+			DEFAULT_VALUE= #{value},
+			TAG = #{pumpComb}
+		WHERE
+			FUNC_TYP = #{func_typ};
+	</select>
+	
+	<select id="getPumpCombination" resultType="hashmap" parameterType="hashmap">
+		SELECT
+			PUMP_IDX, PUMP_TYP
+		FROM
+			TB_PUMP_COMBINATION
+		WHERE
+			PUMP_GRP = #{pump_grp}
+			AND
+			PUMP_COUNT = #{pump_count}
+			AND
+			PUMP_PRIORITY = #{pump_priority}
+			AND
+			PUMP_YN = 1
+		ORDER BY
+			PUMP_IDX;
+	</select>
+	
+	<select id="getCalSameCountComb" resultType="hashmap" parameterType="hashmap">
+		SELECT
+		PUMP_IDX, PUMP_TYP
+		FROM
+		TB_PUMP_COMBINATION
+		WHERE
+		PUMP_GRP = #{pump_grp}
+		AND
+		PUMP_COUNT = #{pump_count}
+		AND
+		PUMP_YN = 1
+		ORDER BY
+		PUMP_PRIORITY, PUMP_IDX;
+	</select>
+	
+	<select id="getGosanOptLevel" resultType="Double" parameterType="int">
+		SELECT CAST(DEFAULT_VALUE AS DOUBLE) AS DEFAULT_VALUE
+		FROM TB_WPP_TAG_CODE
+		WHERE
+		FUNC_TYP = 'NGHTM_CNDTN'
+		AND TAG_DSC = #{hour};
+	</select>
+	
+	<select id="getHujaOptLevel" resultType="Double" parameterType="int">
+		SELECT CAST(DEFAULT_VALUE AS DOUBLE) AS DEFAULT_VALUE
+		FROM TB_WPP_TAG_CODE
+		WHERE
+		FUNC_TYP = 'HUJA_CNDTN'
+		AND TAG_DSC = #{hour};
+	</select>
+	
+	<select id="getGrpFlPreTag" parameterType="int" resultType="hashmap">
+		SELECT
+		PUMP_GRP,
+		FRI_TAG,
+		PRI_T_TAG
+		FROM
+		TB_CTR_PRF_PUMPMST_INF
+		<if test="pump_grp != 0">
+			WHERE
+			PUMP_GRP = #{pump_grp}
+		</if>
+		GROUP BY PUMP_GRP;
+	</select>
+	
+	<insert id="savePumpComb" parameterType="hashMap">
+		UPDATE
+		TB_PUMP_COMBINATION
+		SET
+		PUMP_YN= #{PUMP_YN}
+		WHERE
+		PUMP_GRP= #{PUMP_GRP}
+		AND
+		PUMP_IDX = #{PUMP_IDX}
+		AND
+		PUMP_COUNT = #{PUMP_COUNT}
+		AND
+		PUMP_PRIORITY = #{PUMP_PRIORITY};
+	</insert>
+	
+	<select id="selectPumpCombList" resultType="hashmap" parameterType="hashmap">
+		SELECT
+		PUMP_GRP,
+		COMB_NAME,
+		PUMP_COUNT,
+		PUMP_PRIORITY,
+		PUMP_PRIORITY_DCS,
+		PUMP_RULES,
+		USE_YN
+		FROM
+		TB_PUMP_COMBINATION_INF
+		<if test="pump_grp != null and pump_grp != '' and pump_grp != '0'">
+			WHERE
+			PUMP_GRP = #{pump_grp}
+		</if>
+		ORDER BY PUMP_COUNT, PUMP_PRIORITY
+	</select>
+	
+	<update id="updatePumpCombItem" parameterType="hashmap">
+		UPDATE
+		TB_PUMP_COMBINATION_INF
+		SET
+		USE_YN = #{use_yn}
+		WHERE
+		PUMP_GRP = #{use_yn}
+		AND PUMP_COUNT = #{use_yn}
+		AND PUMP_PRIORITY = #{pump_priority}
+	</update>
+	
+	<select id="getPumpCombinationItem" parameterType="hashmap" resultType="hashmap">
+		SELECT
+		tpc.PUMP_GRP,
+		tpc.PUMP_IDX,
+		tpc.PUMP_COUNT,
+		tpc.PUMP_PRIORITY,
+		tcppi.PUMP_GRP_NM,
+		tcppi.PUMP_GRP_IDX,
+		tpc.PUMP_YN,
+		tcppi.PUMP_NM,
+		tpc.PUMP_SIZE,
+		tpc.PUMP_TYP
+		FROM
+		TB_PUMP_COMBINATION tpc
+		LEFT JOIN
+		TB_CTR_PRF_PUMPMST_INF tcppi
+		ON tpc.PUMP_IDX = tcppi.PUMP_IDX
+		WHERE
+		tpc.PUMP_GRP = #{pump_grp}
+		AND
+		tpc.PUMP_COUNT = #{pump_count}
+		AND
+		tpc.PUMP_PRIORITY = #{pump_priority}
+		ORDER BY PUMP_IDX;
+	</select>
+	
+	<select id="getGroupPumpCal" resultType="hashmap" parameterType="hashmap">
+		SELECT
+		*
+		FROM
+		TB_PUMP_CAL
+		WHERE
+		PUMP_GRP = #{pump_grp}
+		AND
+		PUMP_COUNT = #{pump_count}
+		AND
+		PUMP_PRIORITY = #{pump_priority}
+		ORDER BY
+		C_IDX, PUMP_COUNT, PUMP_PRIORITY, COUNT_IDX;
+	</select>
+	<update id="setPumpListYn" parameterType="hashmap">
+		UPDATE TB_PUMP_COMBINATION_INF
+		SET USE_YN = #{USE_YN}
+		WHERE
+		PUMP_GRP = #{PUMP_GRP}
+		AND
+		PUMP_COUNT = #{PUMP_COUNT}
+		AND
+		PUMP_PRIORITY = #{PUMP_PRIORITY}
+	</update>
+	<update id="disableGroupPumpCal" parameterType="hashmap">
+		UPDATE TB_PUMP_CAL
+		SET USE_YN = 0
+		WHERE
+		PUMP_GRP = #{PUMP_GRP}
+		AND
+		C_IDX = #{C_IDX}
+		AND
+		PUMP_COUNT = #{PUMP_COUNT}
+		AND
+		PUMP_PRIORITY = #{PUMP_PRIORITY};
+	</update>
+	<update id="enableGroupPumpCal" parameterType="hashmap">
+		UPDATE TB_PUMP_CAL
+		SET USE_YN = 1
+		WHERE
+		PUMP_GRP = #{PUMP_GRP}
+		AND
+		C_IDX = #{C_IDX}
+		AND
+		PUMP_COUNT = #{PUMP_COUNT}
+		AND
+		PUMP_PRIORITY = #{PUMP_PRIORITY}
+		AND
+		COUNT_IDX = #{COUNT_IDX};
+	</update>
+	<select id="getGrpPumpComb" parameterType="int" resultType="hashmap">
+		SELECT PUMP_COMB, P_ADD_VAL, P_MUL_VAL, P_SQRT_MUL_VAL, FC_MIN_VAL, FC_MAX_VAL
+		FROM TB_PUMP_CAL
+		WHERE
+		PUMP_GRP = #{grp}
+		AND
+		C_ORD = 1
+		ORDER BY
+		PUMP_COUNT, PUMP_PRIORITY, COUNT_IDX, C_ORD ;
+	</select>
+    <select id="selectPumpComb" resultType="hashmap">
+		SELECT 
+		    CONCAT(
+				   'P#',
+				   REPLACE(REPLACE(t1.pump_comb, ' ', ''),',',CONCAT('(', CAST(t1.pump_tgt_hz AS DECIMAL(10, 0)), 'Hz), P#')),
+				   '(', CAST(t1.pump_tgt_hz AS DECIMAL(10, 0)), 'Hz)'
+			) AS pump_display
+		FROM 
+		    TB_CTRL_CMD_RST t1
+		ORDER BY 
+		    t1.ctrl_id
+		DESC
+		LIMIT 1;
+		    
+	</select>
+    <insert id="insertCombPwrUnit" parameterType="hashmap">
+		INSERT INTO EMS_DB.TB_PUMP_COMB_POWER
+		(PUMP_COMB, PWR_UNIT_COST, ESTM_PWR, AVG_FLOW)
+		VALUES
+		<foreach collection="list" item="mapItem" separator=",">
+		(
+			#{mapItem.comb},
+			#{mapItem.pwrUnitCost},
+			#{mapItem.pwr},
+			#{mapItem.flow}
+		)
+		</foreach>
+		ON DUPLICATE KEY UPDATE
+		PWR_UNIT_COST = VALUES(PWR_UNIT_COST),
+		ESTM_PWR = VALUES(ESTM_PWR),
+		AVG_FLOW = VALUES(AVG_FLOW)
+	</insert>
+	
+</mapper>

@@ -1,0 +1,455 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<mapper namespace="kr.co.mindone.ems.common.CommonMapper">
+
+
+	<select id="selectWppTagList" resultType="hashMap" parameterType="hashMap">
+		SELECT
+		TAG
+		FROM
+		TB_WPP_TAG_INF
+		WHERE
+		USE_YN = '1'
+		<if test="tag_grp != null and tag_grp != ''">
+			AND TAG_GRP = #{tag_grp}
+		</if>
+	</select>
+	<insert id="insertRawData" parameterType="hashMap">
+		INSERT IGNORE INTO
+		<if test='type == "all"'>
+			TB_RAWDATA
+		</if>
+		<if test='type == "hour"'>
+			TB_RAWDATA_HOUR
+		</if>
+		<if test='type == "min"'>
+			TB_RAWDATA_15MIN
+		</if>
+		<if test='type == "sum"'>
+			TB_RAWDATA_HOUR_INGRT
+		</if>
+		(
+		ts,
+		tagname,
+		value,
+		quality,
+		server
+		)
+		VALUES
+		(
+		#{timestamp},
+		#{tagname},
+		#{value},
+		#{quality},
+		#{server}
+		)
+	</insert>
+
+
+	<insert id="insertBaseSavingsTarget" parameterType="hashMap">
+		INSERT INTO
+		TB_BASE_SAVINGS_TARGET
+		VALUES
+		(#{type}, #{mnth}, #{value}, #{unit})
+		ON DUPLICATE KEY UPDATE
+		VALUE = #{value}
+	</insert>
+
+	<insert id="insertRstSavingsTarget" parameterType="hashMap">
+		INSERT INTO
+		TB_RST_SAVINGS_TARGET
+		VALUES
+		(#{date}, #{type}, #{savingCo2}, #{savingCost}, #{savingKwh}, #{savingUnit}, #{nowGoal}, #{allElecValue}, #{nowFrq})
+		ON DUPLICATE KEY UPDATE
+		SAVINGCOST =  #{savingCost},
+		SAVINGKWH = #{savingKwh},
+		SAVINGCO2 = #{savingCo2},
+		SAVINGUNIT = #{savingUnit},
+		NOW_GOAL = #{nowGoal},
+		NOW_PWR = #{allElecValue},
+		NOW_FRQ = #{nowFrq}
+
+	</insert>
+
+	<select id="selectTagInfo" resultType="hashMap">
+		SELECT
+		TAG_NAME,
+		TAG_DSC as TAG_DCS,
+		TAG_UNIT,
+		TAG_UNIT_VALUE
+		FROM
+		TB_TAG_UNIT_INFO
+		WHERE
+		TAG_TYP=#{tag_typ}
+	</select>
+
+	<select id="selectWppTagCodeList" parameterType="String" resultType="hashMap">
+		SELECT
+		FUNC_TYP,
+		DISPLAY_NM,
+		TAG,
+		TAG_KOR_NM,
+		TAG_UNIT,
+		TAG_DSC as TAG_DCS,
+		DEFAULT_VALUE
+		FROM
+		TB_WPP_TAG_CODE
+		WHERE
+		FUNC_TYP=#{func_typ}
+	</select>
+
+	<select id="selectRangeElecValue" parameterType="hashMap" resultType="hashMap">
+		SELECT
+			ROUND(IFNULL(SUM(rd.VALUE*pti.PWQ_UNIT_VALUE),0),2) as value
+		FROM
+			TB_RAWDATA_HOUR_INGRT rd, TB_PEAK_TAG_INF pti
+		WHERE
+			rd.tagname = pti.PWQ_TAG
+			AND pti.MNTR_YN ='1' AND pti.IS_ALL='1'
+		<if test='range == "day" or range == "dayAgo" or range =="all" '>
+			AND rd.ts BETWEEN CONCAT(#{date}, ' 00:00:00')
+			AND CONCAT(#{date}, ' 23:59:59')
+		</if>
+		<if test='range == "month"'>
+			AND rd.ts BETWEEN DATE_FORMAT(#{date}, '%Y-%m-01') AND LAST_DAY(#{date})
+		</if>
+		<if test='range == "year"'>
+			AND rd.ts BETWEEN CONCAT(YEAR(#{date}), '-01-01 00:00:00')
+			AND CONCAT(YEAR(#{date}), '-12-31 23:59:59')
+		</if>
+	</select>
+
+	<select id="selectRangeElecPwiValue" parameterType="hashMap" resultType="hashMap">
+			SELECT
+				ROUND(IFNULL(SUM(rd.VALUE*pti.PWI_UNIT_VALUE),0),2) as value
+			FROM
+				TB_RAWDATA_HOUR rd, TB_PEAK_TAG_INF pti
+			WHERE
+				rd.tagname = pti.PWI_TAG
+				AND pti.MNTR_YN ='1' AND pti.IS_ALL='1'
+			<if test='range == "day" or range == "dayAgo" or range =="all" '>
+				AND rd.ts BETWEEN CONCAT(#{date}, ' 00:00:00')
+				AND CONCAT(#{date}, ' 23:59:59')
+			</if>
+			<if test='range == "month"'>
+				AND rd.ts BETWEEN DATE_FORMAT(#{date}, '%Y-%m-01') AND LAST_DAY(#{date})
+			</if>
+			<if test='range == "year"'>
+				AND rd.ts BETWEEN CONCAT(YEAR(#{date}), '-01-01 00:00:00')
+				AND CONCAT(YEAR(#{date}), '-12-31 23:59:59')
+			</if>
+		</select>
+
+	<select id="selectAfterDayRtRate" parameterType="hashMap" resultType="hashMap">
+		select
+		rtr.ANLY_DATE,
+		rtr.DATA_BS_YMNTH,
+		rtr.RATE_IDX,
+		rtr.DATA_MSN_PRCNT,
+		FORMAT (rtr.TOT_PWR,0) TOT_PWR,
+		FORMAT (rtr.TOT_FEE,0) TOT_FEE,
+		FORMAT (rtr.BASE_FEE,0) BASE_FEE,
+		FORMAT (rtr.ETC_FEE,0) ETC_FEE,
+		FORMAT (rtr.L_PWR,0) L_PWR,
+		FORMAT (rtr.M_PWR,0) M_PWR,
+		FORMAT (rtr.H_PWR,0) H_PWR,
+		FORMAT (rtr.L_ELCTR_FEE,0) L_ELCTR_FEE,
+		FORMAT (rtr.M_ELCTR_FEE,0) M_ELCTR_FEE,
+		FORMAT (rtr.H_ELCTR_FEE,0) H_ELCTR_FEE,
+		rtr.DC_NMB,
+		DATE_FORMAT(rtr.RGSTR_TIME,'%Y-%m-%d %H:%i') as RGSTR_TIME,
+		rtr.FLAG,
+		rmi.LARGE_CTGRY,
+		rmi.MIDDLE_CTGRY,
+		rmi.SMALL_CTGRY,
+		FORMAT (rpr.PWR,0) PWR
+		from
+		TB_RT_RATE_RST rtr,
+		TB_RT_MSTR_INF rmi,
+		TB_RT_POWER_RST rpr
+		where
+		rtr.rate_idx = rmi.rate_idx AND rtr.DATA_BS_YMNTH = rpr.DATA_BS_YMNTH  AND rtr.ANLY_DATE = rpr.ANLY_DATE AND rmi.USE_YN = '1'
+		<![CDATA[
+	    	 	AND rtr.ANLY_DATE = (SELECT MAX(ANLY_DATE) ANLY FROM TB_RT_RATE_RST WHERE DATA_BS_YMNTH = #{ymnth})
+	    	 	and rtr.DATA_BS_YMNTH=#{ymnth}
+	    	  	]]>
+	</select>
+
+	<select id="selectAfterDayFRQ" parameterType="hashMap" resultType="hashMap"> <!-- 유량 -->
+		select
+		FORMAT(IFNULL(SUM(rdhi.value), 0) , 4) value
+		FROM
+		TB_RAWDATA_HOUR_INGRT rdhi
+		WHERE
+		rdhi.tagname in
+		(
+		SELECT
+		DISTINCT(FRQ_TAG)
+		FROM
+		TB_CTR_PRF_PUMPMST_INF
+		WHERE
+		USE_YN = 1
+		)
+		<if test='range == "day" or range == "dayAgo"'>
+			AND rdhi.ts BETWEEN CONCAT(#{date}, ' 00:00:00')
+			AND CONCAT(#{date}, ' 23:59:59')
+		</if>
+		<if test='range == "month"'>
+			AND rdhi.ts BETWEEN DATE_FORMAT(#{date}, '%Y-%m-01') AND LAST_DAY(#{date})
+		</if>
+		<if test='range == "year"'>
+			AND rdhi.ts BETWEEN CONCAT(YEAR(#{date}), '-01-01 00:00:00')
+			AND CONCAT(YEAR(#{date}), '-12-31 23:59:59')
+		</if>
+	</select>
+
+	<select id="selectPumpGroupItem" resultType="hashMap">
+		SELECT
+		PUMP_GRP, PUMP_GRP_NM, FRI_TAG, PRI_T_TAG, COUNT(PUMP_GRP_IDX) as GRP_COUNT
+		FROM
+		TB_CTR_PRF_PUMPMST_INF
+		GROUP BY PUMP_GRP
+	</select>
+
+	<select id="oneHourBeforeList" parameterType="hashMap" resultType="hashMap">
+		<![CDATA[
+	SELECT
+		DATE_FORMAT(ts, '%Y-%m-%d %H:%i:%s') AS ts,
+		tagname,
+		value,
+		quality
+	FROM TB_RAWDATA_HOUR
+		WHERE ts >= DATE_SUB(#{date}, INTERVAL 1 HOUR)	AND ts <= #{date}
+	and tagname in (select TAG from TB_WPP_TAG_INF where USE_YN='1' and TAG_GRP in ('PWQ', 'FRQ', 'PWI', 'VOI', 'SWI') )
+	]]>
+	</select>
+
+	<select id="selectEMSConsumerTag" resultType="hashMap">
+		select
+			FUNC_TYP,
+			TAG
+		from
+			TB_WPP_TAG_CODE
+		where
+				TAG_GRP = 'EMS'
+			and
+				DISPLAY_ID = 'ConsumerTag'
+	</select>
+	
+	<update id="updateEmergencyStatus" parameterType="hashMap">
+		update
+			TB_WPP_TAG_CODE
+		set
+			DEFAULT_VALUE = #{statusValue}
+		where
+				TAG_GRP = 'EMS'
+			and
+				TAG_DSC = 'emerStatus'
+			and
+				TAG_UNIT = #{pump_grp}
+	</update>
+	
+	<select id="selectWppEMSTag" resultType="hashMap">
+		select
+			FUNC_TYP,
+			TAG,
+			TAG_KOR_NM
+		from
+			TB_WPP_TAG_CODE
+		where
+			TAG_GRP = 'EMS'
+	</select>
+	
+	<select id="selectWppTagCodeLikeList" parameterType="String" resultType="hashMap">
+		SELECT
+		FUNC_TYP,
+		DISPLAY_NM,
+		TAG,
+		TAG_KOR_NM,
+		TAG_UNIT,
+		TAG_DSC as TAG_DCS,
+		COALESCE(DEFAULT_VALUE, 0) as DEFAULT_VALUE
+		FROM
+		TB_WPP_TAG_CODE
+		WHERE
+		FUNC_TYP LIKE CONCAT(#{func_typ}, '%');
+	</select>
+
+	<select id="selectTestApi" parameterType="String" resultType="hashMap">
+		SELECT
+		*
+		TEST_API
+		WHERE
+		FUNC_TYP LIKE CONCAT(#{func_typ}, '%');
+	</select>
+
+	<select id="selectPWIQValue" parameterType="String" resultType="hashMap">
+		<![CDATA[
+			SELECT
+			SUM(IFNULL(VALUE,0)*0.0167) as value
+			FROM
+			TB_RAWDATA
+			WHERE
+			TS >= DATE_FORMAT(now() - INTERVAL 1 HOUR, '%Y-%m-%d %H:00:00')
+			AND TS < DATE_FORMAT(now(), '%Y-%m-%d %H:00:00')
+			AND TAGNAME= #{tagname}
+		]]>
+	</select>
+	
+	<delete id="deleteRawData" parameterType="String">
+		<![CDATA[
+			DELETE FROM
+				TB_RAWDATA
+			WHERE
+				TS <= DATE_SUB(#{nowDateTime}, INTERVAL 20 WEEK);
+		]]>
+	</delete>
+
+	<delete id="deleteEpanetFP" parameterType="String">
+		<![CDATA[
+			DELETE FROM
+				TB_FP_VAL
+			WHERE
+				RGSTR_TIME <= DATE_SUB(#{nowDateTime}, INTERVAL 4 WEEK);
+		]]>
+	</delete>
+
+	<delete id="deleteEpanetFR" parameterType="String">
+		<![CDATA[
+			DELETE FROM
+				TB_FR_VAL
+			WHERE
+				RGSTR_TIME <= DATE_SUB(#{nowDateTime}, INTERVAL 4 WEEK);
+		]]>
+	</delete>
+
+	<update id="updatePumpType" parameterType="hashMap">
+		update
+		TB_CTR_PRF_PUMPMST_INF
+		set PUMP_TYP = #{type}, PWI_TAG = #{pwi}
+		where
+		PUMP_IDX = #{pump_idx}
+	</update>
+
+	<update id="updatePumpSyncCheck" parameterType="hashMap">
+		update
+		TB_WPP_TAG_CODE
+		set DEFAULT_VALUE = #{check_value}
+		where
+		FUNC_TYP = 'SyncStatus'
+	</update>
+
+	<select id="selectSyncFailedTag" parameterType="hashMap">
+		select
+			TAG,
+			VALUE
+		from
+			TB_WPP_TAG_CODE
+		where
+		FUNC_TYP = 'SyncStatus'
+	</select>
+
+	<select id="selectSyncPumpCtrModeTag" parameterType="hashMap">
+		select
+		TAG,
+		VALUE
+		from
+		TB_WPP_TAG_CODE
+		where
+		FUNC_TYP = 'SyncStatus'
+	</select>
+
+
+
+	<select id="selectDayGoal" parameterType="hashMap" resultType="hashMap">
+		SELECT
+		<choose>
+			<when test="mm == '1m'">
+				1m as goalValue
+			</when>
+			<when test="mm == '2m'">
+				2m as goalValue
+			</when>
+			<when test="mm == '3m'">
+				3m as goalValue
+			</when>
+			<when test="mm == '4m'">
+				4m as goalValue
+			</when>
+			<when test="mm == '5m'">
+				5m as goalValue
+			</when>
+			<when test="mm == '6m'">
+				6m as goalValue
+			</when>
+			<when test="mm == '7m'">
+				7m as goalValue
+			</when>
+			<when test="mm == '8m'">
+				8m as goalValue
+			</when>
+			<when test="mm == '9m'">
+				9m as goalValue
+			</when>
+			<when test="mm == '10m'">
+				10m as goalValue
+			</when>
+			<when test="mm == '11m'">
+				11m as goalValue
+			</when>
+			<when test="mm == '12m'">
+				12m as goalValue
+			</when>
+			<otherwise>
+				1m,
+				2m,
+				3m,
+				4m,
+				5m,
+				6m,
+				7m,
+				8m,
+				9m,
+				10m,
+				11m,
+				12m
+			</otherwise>
+		</choose>
+		FROM TB_GOALSETTING
+		WHERE TYPE = #{type} AND YEAR = #{year}
+	</select>
+
+
+	<select id="selectAiStatusAllgrp" resultType="hashMap">
+	select
+		TAG_GRP as PUMP_GRP,
+		DEFAULT_VALUE as VALUE
+		from TB_WPP_TAG_CODE
+	where FUNC_TYP='PumpStatus'
+		order by TAG_GRP asc
+	</select>
+
+	<select id="insertAiStatusRST" resultType="hashMap">
+		INSERT INTO
+			TB_AI_MODE_RST
+		VALUES
+		(#{RGSTR_TIME}, #{PUMP_GRP}, #{AI_MODE}, #{IS_WORK}, #{curPump}, #{prePump}, #{flow_ctr})
+			ON DUPLICATE KEY UPDATE
+		AI_MODE = #{AI_MODE},
+		IS_WORK = #{IS_WORK},
+		CUR_PUMP = #{curPump},
+		PRE_PUMP = #{prePump},
+		FLOW_CTR = #{flow_ctr}
+	</select>
+
+	<select id="getLastRawDate" resultType="String" parameterType="String">
+		SELECT DATE_FORMAT(MAX(TS), '%Y-%m-%d %H:%i:%s')
+		FROM TB_RAWDATA
+		WHERE
+		TS &lt;= #{nowDate}
+		AND
+		TS &gt; DATE_SUB(#{nowDate}, interval 15 minute)
+	</select>
+</mapper>

@@ -1,0 +1,16 @@
+* 파이썬 티베로 ODBC 설정
+1. C:\ 압축풀기
+tibero6-bin-FS07_CS_2005-windows64_2008-254895-20221012002446.zip
+
+2. 환경변수에 'TB_HOME' 추가
+TB_HOME
+C:\tibero6
+
+3. tibero odbc 설치
+C:\tibero6>%TB_HOME%\bin\tbodbc_driver_installer_6_64.exe -i
+
+4. 윈도우 내 ODBC 구성 @<ODBC 데이터 원본 관리자(64bit)>
+C:\> odbcad32
+(윈도우 창 내에서 구성)
+상단 탭 : "시스템 DSN"
+- 3번 과정 정상진행되면 '새 데이터 원본 만들기' 선택창에 Tibero 6 ODBC Driver 조회됨

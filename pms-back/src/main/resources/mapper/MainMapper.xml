@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.wapplab.pms.repository.MainMapper">
+
+  <select id="motorDataAll" resultType="java.util.HashMap" parameterType="int">
+      SELECT
+          tpi.GRP_IDX as grp_idx,
+          tpi.GRP_NM as grp_nm,
+          tpi.PUMP_NM as pump_nm,
+          tpi.PUMP_IDX as pump_idx,
+          m.MOTOR_ID as motor_id,
+          DATE_FORMAT(m.ACQ_DATE , '%Y-%m-%d %H:%i:%s') as acq_date,
+          m.DE_rms_amp  as motor_de_rms_amp,
+          m.NDE_rms_amp as motor_nde_rms_amp,
+          p.DE_rms_amp  as pump_de_rms_amp,
+          p.NDE_rms_amp as pump_nde_rms_amp
+      FROM
+        TB_AI_DIAG_MOTOR as m
+      JOIN
+          TB_AI_DIAG_PUMP as p ON m.MOTOR_ID = p.PUMP_ID
+      AND
+        DATE_FORMAT(m.ACQ_DATE , '%Y-%m-%d %H:%i') = DATE_FORMAT(p.ACQ_DATE , '%Y-%m-%d %H:%i')
+      JOIN
+        TB_PUMP_INF as tpi ON p.PUMP_ID = tpi.MOTOR_ID and m.MOTOR_ID = tpi.MOTOR_ID
+        AND m.ACQ_DATE = (SELECT MAX(ACQ_DATE) FROM TB_AI_DIAG_MOTOR WHERE MOTOR_ID IN (
+        SELECT MOTOR_ID FROM TB_PUMP_INF WHERE GRP_IDX = #{grp_idx} GROUP BY CENTER_ID) )
+      WHERE
+        tpi.GRP_IDX = #{grp_idx}
+      ORDER BY
+        m.ACQ_DATE DESC, PUMP_IDX
+  </select>
+
+  <select id="pumpBearingTempAll" resultType="java.util.HashMap" parameterType="int">
+      SELECT
+          tpi.GRP_IDX as grp_idx,
+          tpi.GRP_NM as grp_nm,
+          tpi.PUMP_IDX as pump_idx,
+          tps.PUMP_SCADA_ID as pump_scada_id,
+          tps.BRG_MOTOR_DE_TEMP as brg_motor_de_temp,
+          tps.BRG_MOTOR_NDE_TEMP as brg_motor_nde_temp,
+          tps.BRG_PUMP_DE_TEMP as brg_pump_de_temp,
+          tps.BRG_PUMP_NDE_TEMP as brg_pump_nde_temp,
+          DATE_FORMAT(tps.ACQ_DATE , '%Y-%m-%d %H:%i:%s') as acq_date
+      FROM
+                TB_PUMP_SCADA as tps
+            JOIN
+                TB_PUMP_INF as tpi ON tpi.PUMP_SCADA_ID = tps.PUMP_SCADA_ID
+      WHERE
+            ACQ_DATE =
+          (
+          SELECT
+            ACQ_DATE
+          FROM
+          TB_PUMP_SCADA
+          WHERE
+            ACQ_DATE >= DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+            AND PUMP_SCADA_ID in (SELECT PUMP_SCADA_ID FROM TB_PUMP_INF WHERE GRP_IDX= #{grp_idx})
+          GROUP BY
+            ACQ_DATE
+          ORDER BY
+            ACQ_DATE DESC LIMIT 0, 1)
+        AND
+        tpi.GRP_IDX = #{grp_idx}
+      order by
+        PUMP_IDX
+  </select>
+
+    <select id="pumpBearingScadaTempAll" resultType="java.util.HashMap" parameterType="int">
+        select
+            pmi.GRP_IDX as 'grp_idx',
+            pmi.GRP_NM as 'grp_nm',
+            pmi.PUMP_IDX as 'pump_idx',
+            psc.PUMP_SCADA_ID as 'pump_scada_id',
+            DATE_FORMAT(psc.ACQ_DATE , '%Y-%m-%d %H:%i:%s') as acq_date,
+            psc.BRG_MOTOR_DE_TEMP as 'M_DE_bearing_temp',
+            psc.BRG_MOTOR_NDE_TEMP as 'M_NDE_bearing_temp' ,
+            psc.BRG_PUMP_DE_TEMP as 'P_DE_bearing_temp',
+            psc.BRG_PUMP_NDE_TEMP as 'P_NDE_bearing_temp'
+        from
+            TB_PUMP_INF pmi, TB_PUMP_SCADA psc
+        WHERE
+            pmi.PUMP_SCADA_ID = psc.PUMP_SCADA_ID
+            and DATE_FORMAT(psc.ACQ_DATE, '%i') in ('00' , '30')
+            and psc.ACQ_DATE = (SELECT MAX(ACQ_DATE) FROM TB_PUMP_SCADA WHERE ACQ_DATE >= DATE_SUB(NOW(), INTERVAL 30 MINUTE))
+            and pmi.GRP_IDX = #{grp_idx}
+        GROUP BY psc.ACQ_DATE
+        order by pmi.PUMP_IDX ASC
+    </select>
+
+  <select id="motorAlarm" resultType="java.util.HashMap">
+      SELECT
+      tpi.grp_idx,
+      tpi.grp_nm,
+      tpi.pump_idx,
+      m.motor_id as motor_id,
+      CASE
+      WHEN m.unbalance_alarm = 1 OR
+      m.misalignment_alarm = 1 OR
+      m.rotor_alarm = 1 OR
+      m.de_bpfo_alarm = 1 OR
+      m.DE_BPFI_alarm = 1 OR
+      m.DE_BSF_alarm = 1 OR
+      m.DE_FTF_alarm = 1 OR
+      m.NDE_BPFO_alarm = 1 OR
+      m.NDE_BPFI_alarm = 1 OR
+      m.NDE_BSF_alarm = 1 OR
+      m.NDE_FTF_alarm = 1 OR
+      m.DE_RMS_ALARM = 1 OR
+      m.NDE_RMS_ALARM = 1 OR
+      p.impeller_alarm = 1 OR
+      p.cavitation_alarm = 1 OR
+      p.de_bpfo_alarm = 1 OR
+      p.DE_BPFI_alarm = 1 OR
+      p.DE_BSF_alarm = 1 OR
+      p.DE_FTF_alarm = 1 OR
+      p.NDE_BPFO_alarm = 1 OR
+      p.NDE_BPFI_alarm = 1 OR
+      p.NDE_BSF_alarm = 1 OR
+      p.NDE_FTF_alarm = 1
+      THEN 'True'
+      ELSE 'False'
+      END AS Alarm,
+      m.unbalance_alarm as 'm_unbalance_alarm',
+      m.misalignment_alarm as 'm_misalignment_alarm',
+      m.rotor_alarm as 'm_rotor_alarm',
+      m.de_bpfo_alarm as 'm_de_bpfo_alarm',
+      m.DE_BPFI_alarm as 'm_de_bpfi_alarm',
+      m.DE_BSF_alarm as 'm_de_bsf_alarm',
+      m.DE_FTF_alarm as 'm_de_ftf_alarm',
+      m.NDE_BPFO_alarm as 'm_nde_BPFO_alarm',
+      m.NDE_BPFI_alarm as 'm_nde_bpfi_alarm',
+      m.NDE_BSF_alarm as 'm_nde_bsfbsf_alarm',
+      m.NDE_FTF_alarm as 'm_nde_ftf_alarm',
+      m.DE_RMS_ALARM as 'm_de_rms_alarm',
+      m.NDE_RMS_ALARM as 'm_nde_rms_alarm',
+      p.impeller_alarm as 'p_impeller_alarm',
+      p.cavitation_alarm as 'p_cavitation_alarm',
+      p.de_bpfo_alarm as 'p_de_bpfo_alarm',
+      p.DE_BPFI_alarm as 'p_de_bpfi_alarm',
+      p.DE_BSF_alarm as 'p_de_bsf_alarm',
+      p.DE_FTF_alarm as 'p_de_ftf_alarm',
+      p.NDE_BPFO_alarm as 'p_nde_BPFO_alarm',
+      p.NDE_BPFI_alarm as 'p_nde_bpfi_alarm',
+      p.NDE_BSF_alarm as 'p_nde_bsf_alarm',
+      p.NDE_FTF_alarm as 'p_nde_ftf_alarm',
+      p.DE_RMS_ALARM as 'p_de_rms_alarm',
+      p.NDE_RMS_ALARM as 'p_m_nde_rms_alarm',
+      CASE
+      WHEN m.de_bpfo_alarm = 1 OR
+      m.DE_BPFI_alarm = 1 OR
+      m.DE_BSF_alarm = 1 OR
+      m.DE_FTF_alarm = 1
+      THEN 'True'
+      ELSE 'False'
+      END as 'm_de_bp_alarm',
+      CASE
+      WHEN m.NDE_BPFO_alarm = 1 OR
+      m.NDE_BPFI_alarm = 1 OR
+      m.NDE_BSF_alarm = 1 OR
+      m.NDE_FTF_alarm = 1
+      THEN 'True'
+      ELSE 'False'
+      END as 'm_nde_bp_alarm',
+      CASE
+      WHEN p.de_bpfo_alarm = 1 OR
+      p.DE_BPFI_alarm = 1 OR
+      p.DE_BSF_alarm = 1 OR
+      p.DE_FTF_alarm = 1
+      THEN 'True'
+      ELSE 'False'
+      END as 'p_de_bp_alarm',
+      CASE
+      WHEN p.NDE_BPFO_alarm = 1 OR
+      p.NDE_BPFI_alarm = 1 OR
+      p.NDE_BSF_alarm = 1 OR
+      p.NDE_FTF_alarm = 1
+      THEN 'True'
+      ELSE 'False'
+      END as 'p_nde_bp_alarm'
+      FROM
+      TB_AI_DIAG_MOTOR as m
+      LEFT JOIN TB_AI_DIAG_PUMP as p ON m.motor_id = p.PUMP_ID AND m.ACQ_DATE = p.ACQ_DATE
+      JOIN TB_PUMP_INF as tpi ON tpi.motor_id = p.PUMP_ID AND tpi.motor_id = m.motor_id
+      WHERE
+      m.ACQ_DATE = (
+      SELECT ACQ_DATE
+      FROM TB_AI_DIAG_MOTOR
+      WHERE ACQ_DATE &lt;= NOW() AND ACQ_DATE &gt;= DATE_SUB(NOW(), INTERVAL 60 MINUTE)
+      AND MOTOR_ID IN (SELECT MOTOR_ID FROM TB_PUMP_INF WHERE GRP_IDX= #{grp_idx})
+      GROUP BY ACQ_DATE
+      ORDER BY ACQ_DATE DESC
+      LIMIT 0, 1
+      )
+      AND tpi.grp_idx = #{grp_idx}
+      ORDER BY m.ACQ_DATE DESC, pump_idx;
+  </select>
+
+    <select id="getPumpInf" resultType="java.util.HashMap">
+        SELECT
+            grp_idx,
+            grp_nm,
+            motor_id,
+            PUMP_IDX as pump_idx,
+            PUMP_NM as pump_nm,
+            pump_scada_id,
+            MOTOR_NDE_AMP_TAG,
+            MOTOR_DE_AMP_TAG,
+            PUMP_NDE_AMP_TAG,
+            PUMP_DE_AMP_TAG,
+            MOTOR_ALARM_TAG,
+            PUMP_ALARM_TAG
+        FROM TB_PUMP_INF
+        group by grp_idx
+        order by grp_idx
+    </select>
+
+    <select id="getPumpInfAllList" resultType="java.util.HashMap">
+        SELECT
+        grp_idx,
+        grp_nm,
+        motor_id,
+        PUMP_IDX as pump_idx,
+        pump_scada_id,
+        MOTOR_NDE_AMP_TAG,
+        MOTOR_DE_AMP_TAG,
+        PUMP_NDE_AMP_TAG,
+        PUMP_DE_AMP_TAG,
+        MOTOR_ALARM_TAG,
+        PUMP_ALARM_TAG
+        FROM TB_PUMP_INF
+        order by grp_idx, PUMP_IDX
+    </select>
+
+    <select id="getAllFacStats" resultType="java.util.HashMap">
+        <![CDATA[
+        select SUM(SENSOR_COUNT) as 'SENSOR_COUNT' from TB_PUMP_INF
+        ]]>
+    </select>
+
+
+    <select id="getAllFacStatsMotor" resultType="java.util.HashMap">
+        <![CDATA[
+        select IFNULL(SUM(total_alarm_sum),0) as 'total_alarm_sum' from
+        (SELECT
+            tpi.PUMP_NM,
+            tpi.grp_idx,
+            tpi.PUMP_IDX,
+            tpi.sensor_count,
+            CASE
+            WHEN SUM(
+            IF(tadm.unbalance_alarm = 1, 1, 0) +
+            IF(tadm.misalignment_alarm = 1, 1, 0) +
+            IF(tadm.rotor_alarm = 1, 1, 0) +
+            IF(tadm.de_bpfo_alarm = 1, 1, 0) +
+            IF(tadm.DE_BPFI_alarm = 1, 1, 0) +
+            IF(tadm.DE_BSF_alarm = 1, 1, 0) +
+            IF(tadm.DE_FTF_alarm = 1, 1, 0) +
+            IF(tadm.NDE_BPFO_alarm = 1, 1, 0) +
+            IF(tadm.NDE_BPFI_alarm = 1, 1, 0) +
+            IF(tadm.NDE_BSF_alarm = 1, 1, 0) +
+            IF(tadm.NDE_FTF_alarm = 1, 1, 0) +
+            IF(tadm.DE_rms_alarm = 1, 1, 0) +
+            IF(tadm.NDE_rms_alarm = 1, 1, 0)
+            ) > 0 THEN 2
+        ELSE 0
+        END AS total_alarm_sum
+        FROM TB_AI_DIAG_MOTOR tadm
+
+        JOIN TB_PUMP_INF tpi ON tadm.motor_id = tpi.MOTOR_ID
+        WHERE tadm.ACQ_DATE >= DATE_SUB(CURDATE(), INTERVAL 1 DAY)
+        AND tadm.ACQ_DATE <= CONCAT(CURDATE(), ' 23:59:59')
+
+        GROUP BY tpi.grp_idx, tpi.PUMP_IDX) a
+        ]]>
+    </select>
+
+    <select id="getAllFacStatsPump" resultType="java.util.HashMap">
+        <![CDATA[
+        select IFNULL(SUM(total_alarm_sum),0) as 'total_alarm_sum' from
+        (
+        SELECT
+        tpi.PUMP_NM,
+        tpi.grp_idx,
+        tpi.PUMP_IDX,
+        tpi.sensor_count,
+        CASE
+        WHEN SUM(
+        IF(tadp.impeller_alarm = 1, 1, 0) +
+        IF(tadp.cavitation_alarm = 1, 1, 0) +
+        IF(tadp.DE_bpfo_alarm = 1, 1, 0) +
+        IF(tadp.DE_BPFI_alarm = 1, 1, 0) +
+        IF(tadp.DE_BSF_alarm = 1, 1, 0) +
+        IF(tadp.DE_FTF_alarm = 1, 1, 0) +
+        IF(tadp.NDE_BPFO_alarm = 1, 1, 0) +
+        IF(tadp.NDE_BPFI_alarm = 1, 1, 0) +
+        IF(tadp.NDE_BSF_alarm = 1, 1, 0) +
+        IF(tadp.NDE_FTF_alarm = 1, 1, 0) +
+        IF(tadp.DE_rms_alarm = 1, 1, 0) +
+        IF(tadp.NDE_rms_alarm = 1, 1, 0)
+        ) > 0 THEN 2
+        ELSE 0
+        END AS total_alarm_sum
+        FROM TB_AI_DIAG_PUMP tadp
+        JOIN TB_PUMP_INF tpi ON tadp.PUMP_ID = tpi.MOTOR_ID
+        WHERE tadp.ACQ_DATE >= DATE_SUB(CURDATE(), INTERVAL 1 DAY)
+        AND tadp.ACQ_DATE <= CONCAT(CURDATE(), ' 23:59:59')
+        GROUP BY tpi.grp_idx, tpi.PUMP_IDX
+        ) a
+        ]]>
+
+    </select>
+
+
+
+</mapper>

@@ -1,0 +1,125 @@
+/* 폰트 셋팅*/
+ @font-face {
+	font-family: KHNPHDBold;
+	src:url("fonts/KHNPHDBold.ttf") format("truetype");
+}
+ @font-face {
+	font-family: KHNPHUotfR;
+	src:  url("fonts/KHNPHDRegular.ttf") format("truetype");
+}
+ @font-face {
+	font-family: KHNPHDRegular;
+	src:  url("fonts/KHNPHDRegular.ttf") format("truetype");
+}
+ @font-face {
+	font-family: LAB디지털;
+	src:  url("fonts/LABDigital.ttf") format("truetype");
+}
+ @font-face {
+	font-family: LABDigital;
+	src:  url("fonts/LABDigital.ttf") format("truetype");
+}
+@font-face {
+	font-family: KHNPHDotfB;
+	src:  url("fonts/KHNPHDotfB.otf") format("truetype");
+}
+@font-face {
+	font-family: EliceDigitalBaeum_Regular;
+	src:  url("fonts/EliceDigitalBaeum_Regular.ttf") format("truetype");
+}
+@font-face {
+	font-family: EliceDigitalBaeum_Bold;
+	src:  url("fonts/EliceDigitalBaeum_Bold.ttf") format("truetype");
+}
+@font-face {
+	font-family: Barlow;
+	src:  url("fonts/Barlow-Light.ttf") format("truetype");
+}
+.fontR{
+	font-family: KHNPHDRegular;
+}
+.fontB{
+	font-family: KHNPHDBold;
+}
+.fontD{
+	font-family: LAB디지털;
+}
+
+/**타이틀(사업명)*/
+.fontMainTitle{ 
+	font-family: KHNPHDBold;
+	font-size: 27px;
+	color: white;
+	padding-left:12px;
+}
+
+/**서브 타이틀*/
+.fontServeTitle{ 
+	font-family: KHNPHDRegular;
+    font-size: 15px;
+    color: white;
+    margin-left: 5px;
+}
+
+
+
+.fontServeMenu{
+	font-family: KHNPHDRegular;
+	font-size: 15px;
+	color: white;
+	font-weight: inherit;
+}
+
+/**본문*/
+.fontContent{
+	font-family: KHNPHDRegular;
+	font-size: 18px; /*사용 가능 범위 : 18~16*/
+	color: white;
+	text-shadow: 0 0 9px #5cafff;
+}
+
+/**버튼*/
+.fontButton{
+	font-family: KHNPHDRegular;
+	font-size: 14px;
+	color: white;
+}
+
+/**메뉴*/
+.fontMenu{
+	font-family: KHNPHDRegular;
+	font-size: 11px;
+	color: #828EB5;
+	width: 100%;
+	text-align: center;
+}
+
+/**데이터*/
+.fontData{
+	font-family: LAB디지털;
+	font-size: 18px; /*사용 가능 범위 : 30~18*/
+	color: white;
+}
+/* 폰트 셋팅*/
+
+
+/*검색 버튼*/
+.search{
+	background-color:#3BB7E5;
+	padding: 8px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.search:hover{
+	background-color: #B4DFFA;
+}
+/*검색 버튼*/
+
+
+/*버튼 이미지*/
+.buttonImage{ 
+	vertical-align: text-top; /*버튼 앞에 image랑 text 높이 맞추기*/
+    margin: 0 5px 0px 0px; /*버튼 앞에 image랑 text 간격 주기*/
+}
+/*버튼 이미지*/

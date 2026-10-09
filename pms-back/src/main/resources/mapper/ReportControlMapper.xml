@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wapplab.pms.repository.ReportControlMapper">
+
+  <!-- 알람 수 확인-->
+  <select id="alarmCount" parameterType="java.lang.String" resultType="java.util.HashMap">
+      WITH pump AS (
+          SELECT
+              tpi.pump_nm,
+              tpi.sensor_count,
+              SUM(
+                  IF(tadp.impeller_alarm = 1, 1, 0) +
+                  IF(tadp.cavitation_alarm = 1, 1, 0) +
+                  IF(tadp.DE_bpfo_alarm = 1, 1, 0) +
+                  IF(tadp.DE_BPFI_alarm = 1, 1, 0) +
+                  IF(tadp.DE_BSF_alarm = 1, 1, 0) +
+                  IF(tadp.DE_FTF_alarm = 1, 1, 0) +
+                  IF(tadp.NDE_BPFO_alarm = 1, 1, 0) +
+                  IF(tadp.NDE_BPFI_alarm = 1, 1, 0) +
+                  IF(tadp.NDE_BSF_alarm = 1, 1, 0) +
+                  IF(tadp.NDE_FTF_alarm = 1, 1, 0) +
+                  IF(tadp.DE_rms_alarm = 1, 1, 0) +
+                  IF(tadp.NDE_rms_alarm = 1, 1, 0)
+              ) AS total_alarm_sum
+          FROM TB_AI_DIAG_PUMP tadp, TB_PUMP_INF tpi
+          WHERE tadp.PUMP_ID = tpi.MOTOR_ID
+        <if test="dateType == 'week'">
+            <![CDATA[AND tadp.ACQ_DATE >= DATE_SUB(CURDATE(), INTERVAL 1 WEEK)]]>
+        </if>
+        GROUP BY tpi.pump_nm
+      ),
+      motor AS (
+          SELECT
+              tpi.pump_nm,
+              tpi.sensor_count,
+              SUM(
+                  IF(tadm.unbalance_alarm = 1, 1, 0) +
+                  IF(tadm.misalignment_alarm = 1, 1, 0) +
+                  IF(tadm.rotor_alarm = 1, 1, 0) +
+                  IF(tadm.de_bpfo_alarm = 1, 1, 0) +
+                  IF(tadm.DE_BPFI_alarm = 1, 1, 0) +
+                  IF(tadm.DE_BSF_alarm = 1, 1, 0) +
+                  IF(tadm.DE_FTF_alarm = 1, 1, 0) +
+                  IF(tadm.NDE_BPFO_alarm = 1, 1, 0) +
+                  IF(tadm.NDE_BPFI_alarm = 1, 1, 0) +
+                  IF(tadm.NDE_BSF_alarm = 1, 1, 0) +
+                  IF(tadm.NDE_FTF_alarm = 1, 1, 0) +
+                  IF(tadm.DE_rms_alarm = 1, 1, 0) +
+                  IF(tadm.NDE_rms_alarm = 1, 1, 0)
+              ) AS total_alarm_sum2
+          FROM TB_AI_DIAG_MOTOR tadm, TB_PUMP_INF tpi
+          WHERE tadm.motor_id = tpi.MOTOR_ID
+          <if test="dateType == 'week'">
+            <![CDATA[AND tadm.ACQ_DATE >= DATE_SUB(CURDATE(), INTERVAL 1 WEEK)]]>
+          </if>
+          GROUP BY tpi.pump_nm
+      )
+      SELECT
+          p.pump_nm,
+          p.sensor_count,
+          p.total_alarm_sum + m.total_alarm_sum2 AS total_sum
+      FROM pump p
+      INNER JOIN motor m ON p.pump_nm = m.pump_nm
+      ORDER BY p.pump_nm
+  </select>
+
+
+    <!-- 알람 목록 확인-->
+  <select id="alarmList" resultType="java.util.HashMap">
+    <![CDATA[
+    SELECT
+        allAlarm.pump_nm,
+        DATE_FORMAT(allAlarm.ACQ_DATE, '%Y-%m-%d %H:%i') as acq_date,
+        allAlarm.alarm_type,
+        tsi.sensor_type,
+        tsi.sensor_name,
+        tsi.sensor_decs
+        FROM
+        (SELECT
+            tpi.pump_nm AS pump_nm,
+            tadp.ACQ_DATE,
+            CASE
+                WHEN tadp.impeller_alarm = 1 THEN 'impeller'
+                WHEN tadp.cavitation_alarm = 1 THEN 'cavitation'
+                WHEN tadp.DE_bpfo_alarm = 1 THEN 'DE_bpfo'
+                WHEN tadp.DE_BPFI_alarm = 1 THEN 'DE_BPFI'
+                WHEN tadp.DE_BSF_alarm = 1 THEN 'DE_BSF'
+                WHEN tadp.DE_FTF_alarm = 1 THEN 'DE_FTF'
+                WHEN tadp.NDE_BPFO_alarm = 1 THEN 'NDE_BPFO'
+                WHEN tadp.NDE_BPFI_alarm = 1 THEN 'NDE_BPFI'
+                WHEN tadp.NDE_BSF_alarm = 1 THEN 'NDE_BSF'
+                WHEN tadp.NDE_FTF_alarm = 1 THEN 'NDE_FTF'
+                WHEN tadp.DE_rms_alarm = 1 THEN 'DE_rms'
+                WHEN tadp.NDE_rms_alarm = 1 THEN 'NDE_rms'
+            END AS alarm_type
+        FROM TB_AI_DIAG_PUMP tadp
+        INNER JOIN TB_PUMP_INF tpi ON tadp.PUMP_ID = tpi.MOTOR_ID
+        WHERE
+            tadp.impeller_alarm = 1
+            OR tadp.cavitation_alarm = 1
+            OR tadp.DE_bpfo_alarm = 1
+            OR tadp.DE_BPFI_alarm = 1
+            OR tadp.DE_BSF_alarm = 1
+            OR tadp.DE_FTF_alarm = 1
+            OR tadp.NDE_BPFO_alarm = 1
+            OR tadp.NDE_BPFI_alarm = 1
+            OR tadp.NDE_BSF_alarm = 1
+            OR tadp.NDE_FTF_alarm = 1
+            OR tadp.DE_rms_alarm = 1
+            OR tadp.NDE_rms_alarm = 1
+
+        UNION ALL
+
+        SELECT
+            tpi.pump_nm AS pump_nm,
+            tadm.ACQ_DATE,
+            CASE
+                WHEN tadm.unbalance_alarm = 1 THEN 'unbalance'
+                WHEN tadm.misalignment_alarm = 1 THEN 'misalignment'
+                WHEN tadm.rotor_alarm = 1 THEN 'rotor'
+                WHEN tadm.de_bpfo_alarm = 1 THEN 'de_bpfo'
+                WHEN tadm.DE_BPFI_alarm = 1 THEN 'DE_BPFI'
+                WHEN tadm.DE_BSF_alarm = 1 THEN 'DE_BSF'
+                WHEN tadm.DE_FTF_alarm = 1 THEN 'DE_FTF'
+                WHEN tadm.NDE_BPFO_alarm = 1 THEN 'NDE_BPFO'
+                WHEN tadm.NDE_BPFI_alarm = 1 THEN 'NDE_BPFI'
+                WHEN tadm.NDE_BSF_alarm = 1 THEN 'NDE_BSF'
+                WHEN tadm.NDE_FTF_alarm = 1 THEN 'NDE_FTF'
+                WHEN tadm.DE_rms_alarm = 1 THEN 'DE_rms'
+                WHEN tadm.NDE_rms_alarm = 1 THEN 'NDE_rms'
+            END AS alarm_type
+        FROM TB_AI_DIAG_MOTOR tadm
+        INNER JOIN TB_PUMP_INF tpi ON tadm.motor_id = tpi.MOTOR_ID
+        WHERE
+            tadm.unbalance_alarm = 1
+            OR tadm.misalignment_alarm = 1
+            OR tadm.rotor_alarm = 1
+            OR tadm.de_bpfo_alarm = 1
+            OR tadm.DE_BPFI_alarm = 1
+            OR tadm.DE_BSF_alarm = 1
+            OR tadm.DE_FTF_alarm = 1
+            OR tadm.NDE_BPFO_alarm = 1
+            OR tadm.NDE_BPFI_alarm = 1
+            OR tadm.NDE_BSF_alarm = 1
+            OR tadm.NDE_FTF_alarm = 1
+            OR tadm.DE_rms_alarm = 1
+            OR tadm.NDE_rms_alarm = 1)
+            allAlarm, TB_SENSOR_INF tsi
+        WHERE allAlarm.alarm_type = sensor_name
+        and allAlarm.ACQ_DATE >= #{startDate} and allAlarm.ACQ_DATE <= CONCAT(#{endDate}, ' 23:59:59')
+        ORDER BY allAlarm.ACQ_DATE desc
+    ]]>
+  </select>
+
+
+</mapper>

@@ -1,0 +1,48 @@
+{
+    "ss_tot_pwi_24_cnn": {
+        "input_file": "",
+        "validation_file": "",
+
+        "connection": "maria-ems-db-ss",
+
+        "input_table": "ems_db.TB_RAWDATA",
+        "validation_table": "ems_db.TB_RAWDATA",
+
+        "model_output_name": "./models/ss_tot_pwi_24_cnn_24_cnn.md",
+        "scaler_output_name": "./models/ss_tot_pwi_24_cnn._scaler",
+
+        "model_name": "models.VanillaCNN",
+        "model_args": {
+            "num_filters": 4, 
+            "conv_width" : 24, 
+            "out_features": 24, 
+            "strides": 1, 
+            "padding": "valid",
+            "drop_rate": 0.35,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2023-10-01",
+            "ref_days": 40,
+            "label_col": "ss_tot_pwi"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 1440,
+            "output_time_min_unit": 60,
+            "output_min_time": 1440,
+            "shift_min": 0,
+            "slide_min": 60
+        },
+
+        "train_options": {
+            "epochs": 5
+        }
+    }
+}

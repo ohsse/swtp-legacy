@@ -1,0 +1,19 @@
+{
+  "db_key": "maria-ems-db-gs-dev",
+  "api": {
+    "host": "0.0.0.0",
+    "port": 30093
+  },
+  "prediction": {
+    "table": "tag_pred_l_test",
+    "history_table": "tag_pred_h",
+    "rawdata_table": "TB_RAWDATA",
+    "test_base_date": "2026-04-09",
+    "db_fetch_limit": 2160,
+    "upload_batch_size": 500
+  },
+  "pump_routing": {
+    "enabled": true,
+    "table": "tb_pump_rst"
+  }
+}

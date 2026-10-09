@@ -1,0 +1,3261 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<mapper namespace="kr.co.mindone.ems.ai.AiMapper">
+	
+	<select id="pumpPrdctSelectList" parameterType="hashMap" resultType="hashMap">
+		<![CDATA[
+			SELECT
+				a.PRDCT_TIME as 'DATE',
+				ROUND((a.PUMP_PWR_PRDCT*1.1) + (((d.ALL_AVG_PWR+COALESCE (f.SUN_AVG_PWR, 0)) - e.PUMP_AVG_PWR) * 0.9 ), 2) AS PRDCT_PWR,
+				COALESCE(c.all_pwq, 0) AS PWR,
+				CASE
+					WHEN a.PUMP_PWR_PRDCT >= b.peak THEN 'Y'
+					ELSE 'N'
+				END AS 'PEAK_YN'
+			FROM
+				(
+					SELECT
+						DATE_FORMAT(t.PRDCT_TIME, '%Y-%m-%d %H:%i') AS PRDCT_TIME,
+						SUM(t.PWR_PRDCT) AS PUMP_PWR_PRDCT
+					FROM TB_CTR_OPT_RST t
+					INNER JOIN (
+						SELECT PRDCT_TIME, PUMP_GRP, MAX(ANLY_TIME) AS MaxANLY_TIME
+						FROM TB_CTR_OPT_RST
+						GROUP BY PRDCT_TIME, PUMP_GRP
+					) AS max_times ON t.PRDCT_TIME = max_times.PRDCT_TIME
+						AND t.ANLY_TIME = max_times.MaxANLY_TIME AND t.PUMP_GRP = max_times.PUMP_GRP
+						WHERE t.PRDCT_TIME >= DATE_SUB(NOW(), INTERVAL 6 HOUR)
+						AND t.PRDCT_TIME < DATE_ADD(NOW(), INTERVAL 18 HOUR)
+					GROUP BY DATE_FORMAT(t.PRDCT_TIME, '%Y-%m-%d %H:%i')
+				) a
+				LEFT JOIN
+				(
+				SELECT
+					DATE_FORMAT(rhi.TS, '%Y-%m-%d %H:00') as TS,
+					ROUND(AVG(rhi.VALUE*pti.PWI_UNIT_VALUE),2) AS all_pwq
+				FROM
+					TB_RAWDATA rhi, TB_PEAK_TAG_INF pti
+				WHERE
+					rhi.tagname = pti.PWI_TAG AND pti.IS_ALL ='1' and rhi.value > 0
+					AND rhi.TS >= DATE_SUB(NOW(), INTERVAL 6 HOUR)
+					AND rhi.TS < DATE_ADD(NOW(), INTERVAL 0 HOUR)
+				GROUP BY
+					DATE_FORMAT(rhi.TS, '%Y-%m-%d %H:00:00')
+
+				) c ON a.PRDCT_TIME = c.TS
+				LEFT JOIN
+				(
+					SELECT
+						value AS 'peak'
+					FROM
+						TB_PTR_CTR_INF
+					WHERE
+						tag = (SELECT TAG FROM TB_WPP_TAG_CODE WHERE func_typ = 'selectPeakGoal')
+				) b ON 1=1
+				LEFT JOIN
+				(
+					SELECT
+						CONCAT(DATE_FORMAT(DATE, '%Y-%m-%d '), TIME)   as TS,
+						AveragePower as 'ALL_AVG_PWR'
+					FROM(
+						SELECT
+							DATE_FORMAT(DATETIME, '%H:00:00') as TIME,
+							MAX(DATE) as DATE,
+							ROUND(AVG(PWR), 2) as AveragePower
+						FROM
+						(
+							SELECT
+								concat(DATE_FORMAT(ts, '%Y-%m-%d %H') , ':00:00')  as DATETIME,
+								DATE_FORMAT(MAX(ts), '%Y-%m-%d') as DATE,
+								SUM(Y) PWR
+							FROM (
+								SELECT
+									ts,
+									tagname,
+									ROUND(rdh.VALUE*pti.PWI_UNIT_VALUE,2) AS y
+								FROM
+									TB_RAWDATA_HOUR rdh, TB_PEAK_TAG_INF pti
+								WHERE
+									rdh.tagname = pti.PWI_TAG and pti.IS_ALL ='1' AND rdh.VALUE > 0
+									AND rdh.ts >= DATE_SUB( DATE_SUB(NOW(), INTERVAL 15 DAY), INTERVAL 6 HOUR)
+									AND rdh.ts <= DATE_SUB( DATE_SUB(NOW(), INTERVAL 1 DAY), INTERVAL 18 HOUR)
+								) a
+							GROUP BY
+								ts
+						) a
+						GROUP BY
+							TIME
+					) aa
+
+				) d
+				ON DATE_FORMAT(a.PRDCT_TIME, '%H:%i')  =  DATE_FORMAT(d.TS, '%H:%i')
+				LEFT JOIN (
+					SELECT
+						DATE_FORMAT(DATETIME, '%H:00') as timeOnly,
+						MAX(DATE) as DATE,
+						ROUND(AVG(paa.PUMP_PWR), 2) as PUMP_AVG_PWR
+					FROM
+					(
+						SELECT
+							concat(DATE_FORMAT(pa.TS, '%Y-%m-%d %H') , ':00:00.000')  as DATETIME,
+							DATE_FORMAT(MAX(pa.TS), '%Y-%m-%d') as DATE,
+							SUM(pa.Y) as 'PUMP_PWR'
+						FROM
+						(
+							SELECT
+								rdh.TS,
+								rdh.TAGNAME,
+								ROUND(rdh.VALUE*pti.PWI_UNIT_VALUE,2) AS Y
+							FROM
+								TB_RAWDATA_HOUR rdh, TB_CTR_PRF_PUMPMST_INF cppi, TB_PEAK_TAG_INF pti
+							where
+								rdh.TAGNAME = cppi.PWI_TAG AND pti.PWQ_TAG = cppi.PWQ_TAG
+								AND rdh.VALUE > 0
+							AND rdh.ts >= DATE_SUB( DATE_SUB(NOW(), INTERVAL 15 DAY), INTERVAL 6 HOUR)
+								AND rdh.ts <= DATE_SUB( DATE_SUB(NOW(), INTERVAL 1 DAY), INTERVAL 18 HOUR)
+						) pa
+						GROUP BY TS
+					) paa
+					GROUP BY timeOnly
+				) e ON DATE_FORMAT(a.PRDCT_TIME, '%H:%i')  =  e.timeOnly
+				LEFT JOIN
+				(
+					SELECT
+						TIME as timeOnly,
+						IFNULL(AveragePower, 0) as SUN_AVG_PWR
+					FROM
+					(
+						SELECT
+							DATE_FORMAT(DATETIME, '%H:00') as TIME,
+							MAX(DATE) as DATE,
+							ROUND(AVG(PWR), 2) as AveragePower
+						FROM
+						(
+							SELECT
+								concat(DATE_FORMAT(ts, '%Y-%m-%d %H') , ':00') as DATETIME,
+								DATE_FORMAT(MAX(ts), '%Y-%m-%d') as DATE,
+								SUM(Y) PWR
+							FROM
+								(
+								SELECT
+									ts,
+									tagname,
+									ROUND(rdh.VALUE * pti.PWI_UNIT_VALUE, 2) AS y
+								FROM
+									TB_RAWDATA_HOUR rdh,
+									TB_PEAK_TAG_INF pti
+								WHERE
+									rdh.tagname = pti.PWI_TAG
+									and pti.CLSFC = '태양광'
+									AND rdh.ts >= DATE_SUB( DATE_SUB(NOW(), INTERVAL 15 DAY), INTERVAL 6 HOUR)
+									AND rdh.ts <= DATE_SUB( DATE_SUB(NOW(), INTERVAL 1 DAY), INTERVAL 18 HOUR)
+								) a
+							GROUP BY
+								ts
+							) a
+						GROUP BY
+							TIME
+					) a
+				)f ON DATE_FORMAT(a.PRDCT_TIME, '%H:%i')  =  f.timeOnly
+
+			ORDER BY a.PRDCT_TIME
+		]]>
+	</select>
+
+	<select id="pumpPrdctLSTMSelectList" parameterType="hashMap" resultType="hashMap">
+		<![CDATA[
+			SELECT
+				a.PRDCT_TIME as 'DATE',
+				ROUND(a.PUMP_PWR_PRDCT, 2) AS PRDCT_PWR,
+				COALESCE(c.all_pwq, 0) AS PWR,
+				CASE
+					WHEN a.PUMP_PWR_PRDCT >= b.peak THEN 'Y'
+					ELSE 'N'
+				END AS 'PEAK_YN'
+			FROM
+				(
+					SELECT
+						DATE_FORMAT(t.PRDCT_TIME, '%Y-%m-%d %H:%i') AS PRDCT_TIME,
+						SUM(t.PWR_PRDCT) AS PUMP_PWR_PRDCT
+					FROM TB_CTR_OPT_RST t
+					INNER JOIN (
+						SELECT PRDCT_TIME, PUMP_GRP, MAX(ANLY_TIME) AS MaxANLY_TIME
+						FROM TB_CTR_OPT_RST WHERE PUMP_GRP = 0
+						GROUP BY PRDCT_TIME, PUMP_GRP
+					) AS max_times ON t.PRDCT_TIME = max_times.PRDCT_TIME
+						AND t.ANLY_TIME = max_times.MaxANLY_TIME AND t.PUMP_GRP = max_times.PUMP_GRP
+						WHERE t.PRDCT_TIME >= DATE_SUB(NOW(), INTERVAL 6 HOUR)
+						AND t.PRDCT_TIME < DATE_ADD(NOW(), INTERVAL 18 HOUR)
+						AND t.PUMP_GRP = 0
+					GROUP BY DATE_FORMAT(t.PRDCT_TIME, '%Y-%m-%d %H:%i')
+				) a
+				LEFT JOIN
+				(
+				SELECT
+					DATE_FORMAT(rhi.TS, '%Y-%m-%d %H:00') as TS,
+					ROUND(AVG(rhi.VALUE*pti.PWI_UNIT_VALUE),2) AS all_pwq
+				FROM
+					TB_RAWDATA rhi, TB_PEAK_TAG_INF pti
+				WHERE
+					rhi.tagname = pti.PWI_TAG AND pti.IS_ALL ='1' and rhi.value > 0
+					AND rhi.TS >= DATE_SUB(NOW(), INTERVAL 6 HOUR)
+					AND rhi.TS < DATE_ADD(NOW(), INTERVAL 0 HOUR)
+				GROUP BY
+					DATE_FORMAT(rhi.TS, '%Y-%m-%d %H:00:00')
+
+				) c ON a.PRDCT_TIME = c.TS
+				LEFT JOIN
+				(
+					SELECT
+						value AS 'peak'
+					FROM
+						TB_PTR_CTR_INF
+					WHERE
+						tag = (SELECT TAG FROM TB_WPP_TAG_CODE WHERE func_typ = 'selectPeakGoal')
+				) b ON 1=1
+
+			ORDER BY a.PRDCT_TIME
+		]]>
+	</select>
+	
+	<select id="pumpPrdctAvgSelectList" parameterType="String" resultType="hashMap">
+		<![CDATA[
+				SELECT
+				a.PRDCT_TIME as 'DATE',
+				ROUND(d.ALL_AVG_PWR, 2) AS PRDCT_PWR,
+				ROUND(COALESCE(c.all_pwq, 0),2) AS PWR,
+				PEAK,
+				CASE
+					WHEN a.PUMP_PWR_PRDCT >= b.PEAK THEN 'Y'
+					ELSE 'N'
+				END AS 'PEAK_YN'
+			FROM
+				(
+					SELECT
+						DATE_FORMAT(t.PRDCT_TIME, '%Y-%m-%d %H:%i') AS PRDCT_TIME,
+						SUM(t.PWR_PRDCT) AS PUMP_PWR_PRDCT
+					FROM TB_CTR_OPT_RST t
+					INNER JOIN (
+						SELECT PRDCT_TIME, PUMP_GRP, MAX(ANLY_TIME) AS MaxANLY_TIME
+						FROM TB_CTR_OPT_RST
+						GROUP BY PRDCT_TIME, PUMP_GRP
+					) AS max_times ON t.PRDCT_TIME = max_times.PRDCT_TIME
+						AND t.ANLY_TIME = max_times.MaxANLY_TIME AND t.PUMP_GRP = max_times.PUMP_GRP
+						WHERE t.PRDCT_TIME >= DATE_SUB(#{nowDate}, INTERVAL 6 HOUR)
+						AND t.PRDCT_TIME < DATE_ADD(#{nowDate}, INTERVAL 18 HOUR)
+					GROUP BY DATE_FORMAT(t.PRDCT_TIME, '%Y-%m-%d %H:%i')
+				) a
+				LEFT JOIN
+				(
+				SELECT
+					DATE_FORMAT(rhi.TS, '%Y-%m-%d %H:00') as TS,
+					ROUND(AVG(rhi.VALUE*pti.PWI_UNIT_VALUE),2) AS all_pwq
+				FROM
+					TB_RAWDATA rhi, TB_PEAK_TAG_INF pti
+				WHERE
+					rhi.tagname = pti.PWI_TAG AND pti.IS_ALL ='1' and rhi.value > 0
+					AND rhi.TS >= DATE_SUB(#{nowDate}, INTERVAL 6 HOUR)
+					AND rhi.TS <= DATE_ADD(#{nowDate}, INTERVAL 1 MINUTE)
+				GROUP BY
+					DATE_FORMAT(rhi.TS, '%Y-%m-%d %H:00:00')
+
+				) c ON a.PRDCT_TIME = c.TS
+				LEFT JOIN
+				(
+					SELECT
+						value AS 'PEAK'
+					FROM
+						TB_PTR_CTR_INF
+					WHERE
+						tag = (SELECT TAG FROM TB_WPP_TAG_CODE WHERE func_typ = 'selectPeakGoal')
+				) b ON 1=1
+				LEFT JOIN
+				(
+					SELECT
+						CONCAT(DATE_FORMAT(DATE, '%Y-%m-%d '), TIME)   as TS,
+						AveragePower as 'ALL_AVG_PWR'
+					FROM(
+						SELECT
+							DATE_FORMAT(DATETIME, '%H:00:00') as TIME,
+							MAX(DATE) as DATE,
+							ROUND(AVG(PWR), 2) as AveragePower
+						FROM
+						(
+							SELECT
+								concat(DATE_FORMAT(ts, '%Y-%m-%d %H') , ':00:00')  as DATETIME,
+								DATE_FORMAT(MAX(ts), '%Y-%m-%d') as DATE,
+								SUM(Y) PWR
+							FROM (
+								SELECT
+									ts,
+									tagname,
+									ROUND(rdh.VALUE*pti.PWI_UNIT_VALUE,2) AS y
+								FROM
+									TB_RAWDATA_HOUR rdh, TB_PEAK_TAG_INF pti
+								WHERE
+									rdh.tagname = pti.PWI_TAG and pti.IS_ALL ='1' AND rdh.VALUE > 0
+									AND rdh.ts >= DATE_SUB( DATE_SUB(#{nowDate}, INTERVAL 15 DAY), INTERVAL 6 HOUR)
+									AND rdh.ts <= DATE_ADD( DATE_SUB(#{nowDate}, INTERVAL 1 DAY), INTERVAL 18 HOUR)
+								) a
+							GROUP BY
+								ts
+						) a
+						GROUP BY
+							TIME
+					) aa
+
+				) d ON DATE_FORMAT(a.PRDCT_TIME, '%H:%i')  =  DATE_FORMAT(d.TS, '%H:%i')
+
+			ORDER BY a.PRDCT_TIME
+		]]>
+	</select>
+
+	<select id="pumpPrdctAvgNowSelectList" parameterType="String" resultType="hashMap">
+		<![CDATA[
+				SELECT
+				a.PRDCT_TIME as 'DATE',
+				ROUND(d.ALL_AVG_PWR, 2) AS PRDCT_PWR,
+				ROUND(COALESCE(c.all_pwq, 0),2) AS PWR,
+				PEAK,
+				CASE
+					WHEN a.PUMP_PWR_PRDCT >= b.PEAK THEN 'Y'
+					ELSE 'N'
+				END AS 'PEAK_YN'
+			FROM
+				(
+					SELECT
+						DATE_FORMAT(t.PRDCT_TIME, '%Y-%m-%d %H:%i') AS PRDCT_TIME,
+						SUM(t.PWR_PRDCT) AS PUMP_PWR_PRDCT
+					FROM TB_CTR_OPT_RST t
+					INNER JOIN (
+						SELECT PRDCT_TIME, PUMP_GRP, MAX(ANLY_TIME) AS MaxANLY_TIME
+						FROM TB_CTR_OPT_RST
+						GROUP BY PRDCT_TIME, PUMP_GRP
+					) AS max_times ON t.PRDCT_TIME = max_times.PRDCT_TIME
+						AND t.ANLY_TIME = max_times.MaxANLY_TIME AND t.PUMP_GRP = max_times.PUMP_GRP
+						WHERE t.PRDCT_TIME >= DATE_SUB(now(), INTERVAL 6 HOUR)
+						AND t.PRDCT_TIME < DATE_ADD(now(), INTERVAL 18 HOUR)
+					GROUP BY DATE_FORMAT(t.PRDCT_TIME, '%Y-%m-%d %H:%i')
+				) a
+				LEFT JOIN
+				(
+				SELECT
+					DATE_FORMAT(rhi.TS, '%Y-%m-%d %H:00') as TS,
+					ROUND(AVG(rhi.VALUE*pti.PWI_UNIT_VALUE),2) AS all_pwq
+				FROM
+					TB_RAWDATA rhi, TB_PEAK_TAG_INF pti
+				WHERE
+					rhi.tagname = pti.PWI_TAG AND pti.IS_ALL ='1' and rhi.value > 0
+					AND rhi.TS >= DATE_SUB(now(), INTERVAL 6 HOUR)
+					AND rhi.TS <= DATE_ADD(now(), INTERVAL 1 MINUTE)
+				GROUP BY
+					DATE_FORMAT(rhi.TS, '%Y-%m-%d %H:00:00')
+
+				) c ON a.PRDCT_TIME = c.TS
+				LEFT JOIN
+				(
+					SELECT
+						value AS 'PEAK'
+					FROM
+						TB_PTR_CTR_INF
+					WHERE
+						tag = (SELECT TAG FROM TB_WPP_TAG_CODE WHERE func_typ = 'selectPeakGoal')
+				) b ON 1=1
+				LEFT JOIN
+				(
+					SELECT
+						CONCAT(DATE_FORMAT(DATE, '%Y-%m-%d '), TIME)   as TS,
+						AveragePower as 'ALL_AVG_PWR'
+					FROM(
+						SELECT
+							DATE_FORMAT(DATETIME, '%H:00:00') as TIME,
+							MAX(DATE) as DATE,
+							ROUND(AVG(PWR), 2) as AveragePower
+						FROM
+						(
+							SELECT
+								concat(DATE_FORMAT(ts, '%Y-%m-%d %H') , ':00:00')  as DATETIME,
+								DATE_FORMAT(MAX(ts), '%Y-%m-%d') as DATE,
+								SUM(Y) PWR
+							FROM (
+								SELECT
+									ts,
+									tagname,
+									ROUND(rdh.VALUE*pti.PWI_UNIT_VALUE,2) AS y
+								FROM
+									TB_RAWDATA_HOUR rdh, TB_PEAK_TAG_INF pti
+								WHERE
+									rdh.tagname = pti.PWI_TAG and pti.IS_ALL ='1' AND rdh.VALUE > 0
+									AND rdh.ts >= DATE_SUB( DATE_SUB(now(), INTERVAL 15 DAY), INTERVAL 6 HOUR)
+									AND rdh.ts <= DATE_ADD( DATE_SUB(now(), INTERVAL 1 DAY), INTERVAL 18 HOUR)
+								) a
+							GROUP BY
+								ts
+						) a
+						GROUP BY
+							TIME
+					) aa
+
+				) d ON DATE_FORMAT(a.PRDCT_TIME, '%H:%i')  =  DATE_FORMAT(d.TS, '%H:%i')
+
+			ORDER BY a.PRDCT_TIME
+		]]>
+	</select>
+
+
+	<select id="pumpPrdctCalSelectList"  resultType="hashMap">
+		<![CDATA[
+			SELECT
+				a.PRDCT_TIME as 'DATE',
+				CASE
+					WHEN c.all_pwq > 0 THEN ROUND(a.PUMP_PWR_PRDCT, 2)
+					ELSE ROUND(((d.ALL_AVG_PWR-a.PUMP_PWR_PRDCT)*0.98) +a.PUMP_PWR_PRDCT ,2)
+				END
+				AS PRDCT_PWR,
+				ROUND(COALESCE(c.all_pwq, 0),2) AS PWR,
+				PEAK,
+				CASE
+					WHEN a.PUMP_PWR_PRDCT >= b.PEAK THEN 'Y'
+					ELSE 'N'
+				END AS 'PEAK_YN'
+			FROM
+				(
+					WITH RankedResults AS (
+						SELECT
+							t.PRDCT_TIME,
+							t.PUMP_GRP,
+							t.PWR_PRDCT,
+							t.RGSTR_TIME,
+							t.PRDCT_TIME_DIFF,
+							ROW_NUMBER() OVER (PARTITION BY t.PRDCT_TIME, t.PUMP_GRP ORDER BY t.PRDCT_TIME_DIFF ASC) AS rn
+						FROM TB_CTR_OPT_RST t
+						INNER JOIN (
+							SELECT PRDCT_TIME, PUMP_GRP, MAX(RGSTR_TIME) AS MaxANLY_TIME
+							FROM TB_CTR_OPT_RST
+							WHERE PUMP_GRP = 0 AND FLAG = 2
+							GROUP BY PRDCT_TIME, PUMP_GRP
+						) AS max_times
+						ON t.PRDCT_TIME = max_times.PRDCT_TIME
+							AND t.RGSTR_TIME = max_times.MaxANLY_TIME
+							AND t.PUMP_GRP = max_times.PUMP_GRP
+						WHERE t.PRDCT_TIME >= DATE_SUB(now(), INTERVAL 6 HOUR)
+						  AND t.PUMP_GRP = 0
+						  AND t.PRDCT_TIME < DATE_ADD(NOW(), INTERVAL 18 HOUR)
+					)
+					SELECT
+						DATE_FORMAT(t.PRDCT_TIME, '%Y-%m-%d %H:%i') AS PRDCT_TIME,
+						ROUND(t.PWR_PRDCT, 2) AS PUMP_PWR_PRDCT
+					FROM RankedResults t
+					WHERE t.rn = 1
+					GROUP BY DATE_FORMAT(t.PRDCT_TIME, '%Y-%m-%d %H:%i')
+				) a
+				LEFT JOIN
+				(
+				SELECT
+					DATE_FORMAT(rhi.TS, '%Y-%m-%d %H:00') as TS,
+					ROUND(SUM(rhi.VALUE*pti.PWQ_UNIT_VALUE),2) AS all_pwq
+				FROM
+					TB_RAWDATA_HOUR_INGRT rhi, TB_PEAK_TAG_INF pti
+				WHERE
+					rhi.tagname = pti.PWQ_TAG AND pti.IS_ALL ='1' and rhi.value > 0
+					AND rhi.TS >= DATE_SUB(now(), INTERVAL 6 HOUR)
+					AND rhi.TS <= DATE_ADD(now(), INTERVAL 1 MINUTE)
+				GROUP BY
+					DATE_FORMAT(rhi.TS, '%Y-%m-%d %H:00:00')
+
+				) c ON a.PRDCT_TIME = c.TS
+				LEFT JOIN
+				(
+					SELECT
+						value AS 'PEAK'
+					FROM
+						TB_PTR_CTR_INF
+					WHERE
+						tag = (SELECT TAG FROM TB_WPP_TAG_CODE WHERE func_typ = 'selectPeakGoal')
+				) b ON 1=1
+				LEFT JOIN
+				(
+					SELECT
+						CONCAT(DATE_FORMAT(DATE, '%Y-%m-%d '), TIME)   as TS,
+						AveragePower as 'ALL_AVG_PWR'
+					FROM(
+						SELECT
+							DATE_FORMAT(DATETIME, '%H:00:00') as TIME,
+							MAX(DATE) as DATE,
+							ROUND(AVG(PWR), 2) as AveragePower
+						FROM
+						(
+							SELECT
+								concat(DATE_FORMAT(ts, '%Y-%m-%d %H') , ':00:00')  as DATETIME,
+								DATE_FORMAT(MAX(ts), '%Y-%m-%d') as DATE,
+								SUM(Y) PWR
+							FROM (
+								SELECT
+									ts,
+									tagname,
+									ROUND(rdh.VALUE*pti.PWI_UNIT_VALUE,2) AS y
+								FROM
+									TB_RAWDATA_HOUR rdh, TB_PEAK_TAG_INF pti
+								WHERE
+									rdh.tagname = pti.PWI_TAG and pti.IS_ALL ='1' AND rdh.VALUE > 0
+									AND rdh.ts >= DATE_SUB( DATE_SUB(now(), INTERVAL 15 DAY), INTERVAL 6 HOUR)
+									AND rdh.ts <= DATE_ADD( DATE_SUB(now(), INTERVAL 1 DAY), INTERVAL 18 HOUR)
+								) a
+							GROUP BY
+								ts
+						) a
+						GROUP BY
+							TIME
+					) aa
+
+				) d ON DATE_FORMAT(a.PRDCT_TIME, '%H:%i')  =  DATE_FORMAT(d.TS, '%H:%i')
+
+			ORDER BY a.PRDCT_TIME
+		]]>
+	</select>
+
+
+	<select id="pumpPrdctCalSelectListPwi"  resultType="hashMap">
+		<![CDATA[
+			SELECT
+				a.PRDCT_TIME as 'DATE',
+				CASE
+					WHEN c.all_pwq > 0 THEN ROUND(a.PUMP_PWR_PRDCT, 2)
+					ELSE ROUND(((d.ALL_AVG_PWR-a.PUMP_PWR_PRDCT)*0.98) +a.PUMP_PWR_PRDCT ,2)
+				END
+				AS PRDCT_PWR,
+				ROUND(COALESCE(c.all_pwq, 0),2) AS PWR,
+				PEAK,
+				CASE
+					WHEN a.PUMP_PWR_PRDCT >= b.PEAK THEN 'Y'
+					ELSE 'N'
+				END AS 'PEAK_YN'
+			FROM
+				(
+					WITH RankedResults AS (
+						SELECT
+							t.PRDCT_TIME,
+							t.PUMP_GRP,
+							t.PWR_PRDCT,
+							t.RGSTR_TIME,
+							t.PRDCT_TIME_DIFF,
+							ROW_NUMBER() OVER (PARTITION BY t.PRDCT_TIME, t.PUMP_GRP ORDER BY t.PRDCT_TIME_DIFF ASC) AS rn
+						FROM TB_CTR_OPT_RST t
+						INNER JOIN (
+							SELECT PRDCT_TIME, PUMP_GRP, MAX(RGSTR_TIME) AS MaxANLY_TIME
+							FROM TB_CTR_OPT_RST
+							WHERE PUMP_GRP = 0 AND FLAG = 2
+							GROUP BY PRDCT_TIME, PUMP_GRP
+						) AS max_times
+						ON t.PRDCT_TIME = max_times.PRDCT_TIME
+							AND t.RGSTR_TIME = max_times.MaxANLY_TIME
+							AND t.PUMP_GRP = max_times.PUMP_GRP
+						WHERE t.PRDCT_TIME >= DATE_SUB(now(), INTERVAL 6 HOUR)
+						  AND t.PUMP_GRP = 0
+						  AND t.PRDCT_TIME < DATE_ADD(NOW(), INTERVAL 18 HOUR)
+					)
+					SELECT
+						DATE_FORMAT(t.PRDCT_TIME, '%Y-%m-%d %H:%i') AS PRDCT_TIME,
+						ROUND(t.PWR_PRDCT, 2) AS PUMP_PWR_PRDCT
+					FROM RankedResults t
+					WHERE t.rn = 1
+					GROUP BY DATE_FORMAT(t.PRDCT_TIME, '%Y-%m-%d %H:%i')
+				) a
+				LEFT JOIN
+				(
+				SELECT
+					DATE_FORMAT(rhi.TS, '%Y-%m-%d %H:00') as TS,
+					ROUND(AVG(rhi.VALUE*pti.PWI_UNIT_VALUE),2) AS all_pwq
+				FROM
+					TB_RAWDATA rhi, TB_PEAK_TAG_INF pti
+				WHERE
+					rhi.tagname = pti.PWI_TAG AND pti.IS_ALL ='1' and rhi.value > 0
+					AND rhi.TS >= DATE_SUB(now(), INTERVAL 6 HOUR)
+					AND rhi.TS <= DATE_ADD(now(), INTERVAL 1 MINUTE)
+				GROUP BY
+					DATE_FORMAT(rhi.TS, '%Y-%m-%d %H:00:00')
+
+				) c ON a.PRDCT_TIME = c.TS
+				LEFT JOIN
+				(
+					SELECT
+						value AS 'PEAK'
+					FROM
+						TB_PTR_CTR_INF
+					WHERE
+						tag = (SELECT TAG FROM TB_WPP_TAG_CODE WHERE func_typ = 'selectPeakGoal')
+				) b ON 1=1
+				LEFT JOIN
+				(
+					SELECT
+						CONCAT(DATE_FORMAT(DATE, '%Y-%m-%d '), TIME)   as TS,
+						AveragePower as 'ALL_AVG_PWR'
+					FROM(
+						SELECT
+							DATE_FORMAT(DATETIME, '%H:00:00') as TIME,
+							MAX(DATE) as DATE,
+							ROUND(AVG(PWR), 2) as AveragePower
+						FROM
+						(
+							SELECT
+								concat(DATE_FORMAT(ts, '%Y-%m-%d %H') , ':00:00')  as DATETIME,
+								DATE_FORMAT(MAX(ts), '%Y-%m-%d') as DATE,
+								SUM(Y) PWR
+							FROM (
+								SELECT
+									ts,
+									tagname,
+									ROUND(rdh.VALUE*pti.PWI_UNIT_VALUE,2) AS y
+								FROM
+									TB_RAWDATA_HOUR rdh, TB_PEAK_TAG_INF pti
+								WHERE
+									rdh.tagname = pti.PWI_TAG and pti.IS_ALL ='1' AND rdh.VALUE > 0
+									AND rdh.ts >= DATE_SUB( DATE_SUB(now(), INTERVAL 15 DAY), INTERVAL 6 HOUR)
+									AND rdh.ts <= DATE_ADD( DATE_SUB(now(), INTERVAL 1 DAY), INTERVAL 18 HOUR)
+								) a
+							GROUP BY
+								ts
+						) a
+						GROUP BY
+							TIME
+					) aa
+
+				) d ON DATE_FORMAT(a.PRDCT_TIME, '%H:%i')  =  DATE_FORMAT(d.TS, '%H:%i')
+
+			ORDER BY a.PRDCT_TIME
+		]]>
+	</select>
+	
+	<select id="pumpPrdctSunEssSelectList" parameterType="hashMap" resultType="hashMap">
+		<![CDATA[
+			SELECT
+				a.PRDCT_TIME as 'DATE',
+				ROUND(a.PUMP_PWR_PRDCT+COALESCE(sunPWR,0)+COALESCE(essPWR,0) , 2) AS PRDCT_PWR,
+				COALESCE(c.all_pwq+g.ESS_VALUE+f.SUN_VALUE, 0) AS PWR,
+				CASE
+					WHEN a.PUMP_PWR_PRDCT >= b.peak THEN 'Y'
+					ELSE 'N'
+				END AS 'PEAK_YN'
+			FROM
+				(
+					SELECT
+						DATE_FORMAT(t.PRDCT_TIME, '%Y-%m-%d %H:%i') AS PRDCT_TIME,
+						SUM(t.PWR_PRDCT) AS PUMP_PWR_PRDCT
+					FROM TB_CTR_OPT_RST t
+						INNER JOIN
+						(
+							SELECT PRDCT_TIME, PUMP_GRP, MAX(ANLY_TIME) AS MaxANLY_TIME
+							FROM TB_CTR_OPT_RST
+							GROUP BY PRDCT_TIME, PUMP_GRP
+						) AS max_times ON t.PRDCT_TIME = max_times.PRDCT_TIME
+						AND t.ANLY_TIME = max_times.MaxANLY_TIME AND t.PUMP_GRP = max_times.PUMP_GRP
+						WHERE
+							t.PRDCT_TIME >= DATE_SUB(NOW(), INTERVAL 6 HOUR)
+							AND t.PRDCT_TIME < DATE_ADD(NOW(), INTERVAL 18 HOUR)
+					GROUP BY DATE_FORMAT(t.PRDCT_TIME, '%Y-%m-%d %H:%i')
+				) a
+				LEFT JOIN
+				(
+						SELECT
+					        DATE_FORMAT(rhi.TS, '%Y-%m-%d %H:00') as TS,
+					        SUM(rhi.VALUE*pti.PWI_UNIT_VALUE) AS all_pwq
+					    FROM
+					        TB_RAWDATA_HOUR rhi, TB_PEAK_TAG_INF pti
+					    WHERE
+					        rhi.tagname = pti.PWI_TAG AND pti.IS_ALL ='1'
+					        AND rhi.TS >= DATE_SUB(NOW(), INTERVAL 6 HOUR)
+							AND rhi.TS < DATE_ADD(NOW(), INTERVAL 0 HOUR)
+					    GROUP BY
+					       DATE_FORMAT(rhi.TS, '%Y-%m-%d %H:00:00')
+
+				) c ON a.PRDCT_TIME = c.TS
+				LEFT JOIN
+				(
+					SELECT
+						value AS 'peak'
+					FROM
+						TB_PTR_CTR_INF
+					WHERE
+						tag = (SELECT TAG FROM TB_WPP_TAG_CODE WHERE func_typ = 'selectPeakGoal')
+				) b ON 1=1
+				LEFT JOIN
+				(
+					SELECT
+						CONCAT(DATE_FORMAT(DATE, '%Y-%m-%d '), TIME)   as TS,
+						AveragePower as 'ALL_AVG_PWR'
+					FROM(
+						SELECT
+							DATE_FORMAT(DATETIME, '%H:00:00') as TIME,
+							MAX(DATE) as DATE,
+							ROUND(AVG(PWR), 2) as AveragePower
+						FROM
+						(
+							SELECT
+								concat(DATE_FORMAT(ts, '%Y-%m-%d %H') , ':00:00')  as DATETIME,
+								DATE_FORMAT(MAX(ts), '%Y-%m-%d') as DATE,
+								SUM(Y) PWR
+							FROM (
+								SELECT
+									ts,
+									tagname,
+									ROUND(rdh.VALUE*pti.PWI_UNIT_VALUE,2) AS y
+								FROM
+									TB_RAWDATA_HOUR rdh, TB_PEAK_TAG_INF pti
+								WHERE
+									rdh.tagname = pti.PWI_TAG and pti.IS_ALL ='1' AND rdh.VALUE > 0
+									AND rdh.ts >= DATE_SUB( DATE_SUB(NOW(), INTERVAL 15 DAY), INTERVAL 6 HOUR)
+									AND rdh.ts <= DATE_SUB( DATE_SUB(NOW(), INTERVAL 1 DAY), INTERVAL 18 HOUR)
+								) a
+							GROUP BY
+								ts
+						) a
+						GROUP BY
+							TIME
+					) aa
+				) d	ON DATE_FORMAT(a.PRDCT_TIME, '%H:%i')  =  DATE_FORMAT(d.TS, '%H:%i')
+
+				LEFT JOIN
+				(
+					SELECT
+						rdh.TAGNAME,
+						ROUND(rdh.VALUE,2) as 'SUN_VALUE',
+						DATE_FORMAT(rdh.ts , '%H:00') as timeOnly
+					FROM
+						TB_RAWDATA_HOUR rdh, TB_PEAK_TAG_INF pti
+					WHERE
+						rdh.tagname = pti.PWI_TAG AND pti.CLSFC ='태양광'
+						AND rdh.ts >= DATE_SUB(NOW(), INTERVAL 6 HOUR)
+						AND rdh.ts <= DATE_ADD(NOW(), INTERVAL 18 HOUR)
+				)f ON DATE_FORMAT(a.PRDCT_TIME, '%H:%i')  =  f.timeOnly
+
+				LEFT JOIN
+				(
+					SELECT
+						rdh.TAGNAME,
+						ROUND(ABS(rdh.VALUE),2) as 'ESS_VALUE',
+						DATE_FORMAT(rdh.ts , '%H:00') as timeOnly
+					FROM
+						TB_RAWDATA_HOUR rdh, TB_PEAK_TAG_INF pti
+					WHERE
+						rdh.tagname = pti.PWI_TAG AND pti.CLSFC ='ESS'
+						AND rdh.ts >= DATE_SUB(NOW(), INTERVAL 6 HOUR)
+						AND rdh.ts <= DATE_ADD(NOW(), INTERVAL 18 HOUR)
+				)g ON DATE_FORMAT(a.PRDCT_TIME, '%H:%i')  =  g.timeOnly
+
+				LEFT JOIN (
+					SELECT
+						TIME as TS,
+						AveragePower as sunPWR
+					FROM(
+						SELECT
+						    DATE_FORMAT(DATETIME, '%H:00:00') as TIME,
+						    MAX(DATE) as DATE,
+						    ROUND(AVG(PWR), 2) as AveragePower
+						FROM
+						(
+							SELECT
+								concat(DATE_FORMAT(ts, '%Y-%m-%d %H') , ':00:00.000')  as DATETIME,
+								DATE_FORMAT(MAX(ts), '%Y-%m-%d') as DATE,
+								SUM(Y) PWR
+							FROM (
+								SELECT
+									ts,
+									tagname,
+									ROUND(rdh.VALUE*pti.PWI_UNIT_VALUE,2) AS y
+								FROM
+									TB_RAWDATA_HOUR rdh, TB_PEAK_TAG_INF pti
+								WHERE
+									rdh.tagname = pti.PWI_TAG and pti.CLSFC ='태양광' AND rdh.VALUE > 0
+									AND rdh.ts >= DATE_SUB( DATE_SUB(NOW(), INTERVAL 15 DAY), INTERVAL 6 HOUR)
+									AND rdh.ts <= DATE_SUB( DATE_SUB(NOW(), INTERVAL 1 DAY), INTERVAL 18 HOUR)
+									) a
+								GROUP BY
+									DATETIME
+							) a
+							GROUP BY
+								TIME
+						) t5a
+					) t5_1 on DATE_FORMAT(a.PRDCT_TIME, '%H:%i:00') = t5_1.TS
+
+					LEFT JOIN (
+						SELECT
+							TIME   as TS,
+						AveragePower as essPWR
+					FROM(
+						SELECT
+						   DATE_FORMAT(DATETIME, '%H:00:00') as TIME,
+						    MAX(DATE) as DATE,
+						    ROUND(AVG(PWR), 2) as AveragePower
+						FROM
+						(
+							SELECT
+								concat(DATE_FORMAT(ts, '%Y-%m-%d %H') , ':00:00.000')  as DATETIME,
+								DATE_FORMAT(MAX(ts), '%Y-%m-%d') as DATE,
+								SUM(Y) PWR
+							FROM (
+								SELECT
+									ts,
+									tagname,
+									ROUND(rdh.VALUE*pti.PWI_UNIT_VALUE,2) AS y
+								FROM
+									TB_RAWDATA_HOUR rdh, TB_PEAK_TAG_INF pti
+								WHERE
+									rdh.tagname = pti.PWI_TAG and pti.CLSFC ='ESS'
+									AND rdh.ts >= DATE_SUB( DATE_SUB(NOW(), INTERVAL 15 DAY), INTERVAL 6 HOUR)
+									AND rdh.ts <= DATE_SUB( DATE_SUB(NOW(), INTERVAL 1 DAY), INTERVAL 18 HOUR)
+									) a
+								GROUP BY
+									DATETIME
+							) a
+							GROUP BY
+								TIME
+						) t5a
+					) t5_2 on DATE_FORMAT(a.PRDCT_TIME, '%H:%i:00') = t5_2.TS
+
+			ORDER BY a.PRDCT_TIME
+		]]>
+	</select>
+	
+	<select id="pumpPrdctSunSelectList" parameterType="hashMap" resultType="hashMap">
+		<![CDATA[
+			SELECT
+				a.PRDCT_TIME as 'DATE',
+				ROUND((a.PUMP_PWR_PRDCT*1.1) + (((d.ALL_AVG_PWR+COALESCE (f.SUN_AVG_PWR, 0)) - e.PUMP_AVG_PWR)* 0.9 ) - COALESCE (f.SUN_AVG_PWR, 0), 2) AS PRDCT_PWR,
+				COALESCE(c.all_pwq, 0) AS PWR,
+				CASE
+					WHEN a.PUMP_PWR_PRDCT = b.peak THEN 'Y'
+					ELSE 'N'
+				END AS 'PEAK_YN'
+			FROM
+				(
+					SELECT
+						DATE_FORMAT(t.PRDCT_TIME, '%Y-%m-%d %H:%i') AS PRDCT_TIME,
+						SUM(t.PWR_PRDCT) AS PUMP_PWR_PRDCT
+					FROM TB_CTR_OPT_RST t
+					INNER JOIN (
+						SELECT PRDCT_TIME, PUMP_GRP, MAX(ANLY_TIME) AS MaxANLY_TIME
+						FROM TB_CTR_OPT_RST
+						GROUP BY PRDCT_TIME, PUMP_GRP
+					) AS max_times ON t.PRDCT_TIME = max_times.PRDCT_TIME
+						AND t.ANLY_TIME = max_times.MaxANLY_TIME AND t.PUMP_GRP = max_times.PUMP_GRP
+						WHERE t.PRDCT_TIME >= DATE_SUB(NOW(), INTERVAL 6 HOUR)
+						AND t.PRDCT_TIME <= DATE_ADD(NOW(), INTERVAL 18 HOUR)
+					GROUP BY DATE_FORMAT(t.PRDCT_TIME, '%Y-%m-%d %H:%i')
+				) a
+				LEFT JOIN
+				(
+				SELECT
+					DATE_FORMAT(rhi.TS, '%Y-%m-%d %H:00') as TS,
+					ROUND(AVG(rhi.VALUE * pti.PWI_UNIT_VALUE),2) AS all_pwq
+				FROM
+					TB_RAWDATA rhi, TB_PEAK_TAG_INF pti
+				WHERE
+					rhi.tagname = pti.PWI_TAG AND pti.IS_ALL ='1' and rhi.value != 0
+					AND rhi.TS >= DATE_SUB(NOW(), INTERVAL 6 HOUR)
+					AND rhi.TS <= DATE_ADD(NOW(), INTERVAL 0 HOUR)
+				GROUP BY
+					DATE_FORMAT(rhi.TS, '%Y-%m-%d %H:00:00')
+
+				) c ON a.PRDCT_TIME = c.TS
+				LEFT JOIN
+				(
+					SELECT
+						value AS 'peak'
+					FROM
+						TB_PTR_CTR_INF
+					WHERE
+						tag = (SELECT TAG FROM TB_WPP_TAG_CODE WHERE func_typ = 'selectPeakGoal')
+				) b ON 1=1
+				LEFT JOIN
+				(
+					SELECT
+						CONCAT(DATE_FORMAT(DATE, '%Y-%m-%d '), TIME)   as TS,
+						AveragePower as 'ALL_AVG_PWR'
+					FROM(
+						SELECT
+							DATE_FORMAT(DATETIME, '%H:00:00') as TIME,
+							MAX(DATE) as DATE,
+							ROUND(AVG(PWR), 2) as AveragePower
+						FROM
+						(
+							SELECT
+								concat(DATE_FORMAT(ts, '%Y-%m-%d %H') , ':00:00')  as DATETIME,
+								DATE_FORMAT(MAX(ts), '%Y-%m-%d') as DATE,
+								SUM(Y) PWR
+							FROM (
+								SELECT
+									ts,
+									tagname,
+									ROUND(rdh.VALUE * pti.PWI_UNIT_VALUE,2) AS y
+								FROM
+									TB_RAWDATA_HOUR rdh, TB_PEAK_TAG_INF pti
+								WHERE
+									rdh.tagname = pti.PWI_TAG and pti.IS_ALL ='1' AND rdh.VALUE != 0
+									AND rdh.ts >= DATE_SUB( DATE_SUB(NOW(), INTERVAL 15 DAY), INTERVAL 6 HOUR)
+									AND rdh.ts <= DATE_SUB( DATE_SUB(NOW(), INTERVAL 1 DAY), INTERVAL 18 HOUR)
+								) a
+							GROUP BY
+								ts
+						) a
+						GROUP BY
+							TIME
+					) aa
+
+				) d
+				ON DATE_FORMAT(a.PRDCT_TIME, '%H:%i')  =  DATE_FORMAT(d.TS, '%H:%i')
+				LEFT JOIN (
+					SELECT
+						DATE_FORMAT(DATETIME, '%H:00') as timeOnly,
+						MAX(DATE) as DATE,
+						ROUND(AVG(paa.PUMP_PWR), 2) as PUMP_AVG_PWR
+					FROM
+					(
+						SELECT
+							concat(DATE_FORMAT(pa.TS, '%Y-%m-%d %H') , ':00:00.000')  as DATETIME,
+							DATE_FORMAT(MAX(pa.TS), '%Y-%m-%d') as DATE,
+							SUM(pa.Y) as 'PUMP_PWR'
+						FROM
+						(
+							SELECT
+								rdh.TS,
+								rdh.TAGNAME,
+								ROUND(rdh.VALUE * pti.PWI_UNIT_VALUE,2) AS Y
+							FROM
+								TB_RAWDATA_HOUR rdh, TB_CTR_PRF_PUMPMST_INF cppi, TB_PEAK_TAG_INF pti
+							where
+								rdh.TAGNAME = cppi.PWI_TAG AND pti.PWQ_TAG = cppi.PWQ_TAG
+								AND rdh.VALUE != 0
+							AND rdh.ts >= DATE_SUB( DATE_SUB(NOW(), INTERVAL 15 DAY), INTERVAL 6 HOUR)
+								AND rdh.ts <= DATE_SUB( DATE_SUB(NOW(), INTERVAL 1 DAY), INTERVAL 18 HOUR)
+						) pa
+						GROUP BY TS
+					) paa
+					GROUP BY timeOnly
+				) e ON DATE_FORMAT(a.PRDCT_TIME, '%H:%i')  =  e.timeOnly
+				LEFT JOIN
+				(
+					SELECT
+						TIME as timeOnly,
+						IFNULL(AveragePower, 0) as SUN_AVG_PWR
+					FROM
+					(
+						SELECT
+							DATE_FORMAT(DATETIME, '%H:00') as TIME,
+							MAX(DATE) as DATE,
+							ROUND(AVG(PWR), 2) as AveragePower
+						FROM
+						(
+							SELECT
+								concat(DATE_FORMAT(ts, '%Y-%m-%d %H') , ':00') as DATETIME,
+								DATE_FORMAT(MAX(ts), '%Y-%m-%d') as DATE,
+								SUM(Y) PWR
+							FROM
+								(
+								SELECT
+									ts,
+									tagname,
+									ROUND(rdh.VALUE * pti.PWI_UNIT_VALUE, 2) AS y
+								FROM
+									TB_RAWDATA_HOUR rdh,
+									TB_PEAK_TAG_INF pti
+								WHERE
+									rdh.tagname = pti.PWI_TAG
+									and pti.CLSFC = '태양광'
+									AND rdh.ts >= DATE_SUB( DATE_SUB(NOW(), INTERVAL 15 DAY), INTERVAL 6 HOUR)
+									AND rdh.ts <= DATE_SUB( DATE_SUB(NOW(), INTERVAL 1 DAY), INTERVAL 18 HOUR)
+								) a
+							GROUP BY
+								ts
+							) a
+						GROUP BY
+							TIME
+					) a
+				)f ON DATE_FORMAT(a.PRDCT_TIME, '%H:%i')  =  f.timeOnly
+
+			ORDER BY a.PRDCT_TIME
+		]]>
+	</select>
+	
+	<select id="pumpPrdctEssSelectList" parameterType="hashMap" resultType="hashMap">
+		<![CDATA[
+			SELECT
+				a.PRDCT_TIME as 'DATE',
+				ROUND(a.PUMP_PWR_PRDCT+COALESCE(sunPWR,0)+COALESCE(essPWR,0) , 2) AS PRDCT_PWR,
+				COALESCE(c.all_pwq+g.ESS_VALUE+f.SUN_VALUE, 0) AS PWR,
+				CASE
+					WHEN a.PUMP_PWR_PRDCT >= b.peak THEN 'Y'
+					ELSE 'N'
+				END AS 'PEAK_YN'
+			FROM
+				(
+					SELECT
+						DATE_FORMAT(t.PRDCT_TIME, '%Y-%m-%d %H:%i') AS PRDCT_TIME,
+						SUM(t.PWR_PRDCT) AS PUMP_PWR_PRDCT
+					FROM TB_CTR_OPT_RST t
+						INNER JOIN
+						(
+							SELECT PRDCT_TIME, PUMP_GRP, MAX(ANLY_TIME) AS MaxANLY_TIME
+							FROM TB_CTR_OPT_RST
+							GROUP BY PRDCT_TIME, PUMP_GRP
+						) AS max_times ON t.PRDCT_TIME = max_times.PRDCT_TIME
+						AND t.ANLY_TIME = max_times.MaxANLY_TIME AND t.PUMP_GRP = max_times.PUMP_GRP
+						WHERE
+							t.PRDCT_TIME >= DATE_SUB(NOW(), INTERVAL 6 HOUR)
+							AND t.PRDCT_TIME < DATE_ADD(NOW(), INTERVAL 18 HOUR)
+					GROUP BY DATE_FORMAT(t.PRDCT_TIME, '%Y-%m-%d %H:%i')
+				) a
+				LEFT JOIN
+				(
+						SELECT
+					        DATE_FORMAT(rhi.TS, '%Y-%m-%d %H:00') as TS,
+					        SUM(rhi.VALUE*pti.PWI_UNIT_VALUE) AS all_pwq
+					    FROM
+					        TB_RAWDATA_HOUR rhi, TB_PEAK_TAG_INF pti
+					    WHERE
+					        rhi.tagname = pti.PWI_TAG AND pti.IS_ALL ='1'
+					        AND rhi.TS >= DATE_SUB(NOW(), INTERVAL 6 HOUR)
+							AND rhi.TS < DATE_ADD(NOW(), INTERVAL 0 HOUR)
+					    GROUP BY
+					       DATE_FORMAT(rhi.TS, '%Y-%m-%d %H:00:00')
+
+				) c ON a.PRDCT_TIME = c.TS
+				LEFT JOIN
+				(
+					SELECT
+						value AS 'peak'
+					FROM
+						TB_PTR_CTR_INF
+					WHERE
+						tag = (SELECT TAG FROM TB_WPP_TAG_CODE WHERE func_typ = 'selectPeakGoal')
+				) b ON 1=1
+				LEFT JOIN
+				(
+					SELECT
+						CONCAT(DATE_FORMAT(DATE, '%Y-%m-%d '), TIME)   as TS,
+						AveragePower as 'ALL_AVG_PWR'
+					FROM(
+						SELECT
+							DATE_FORMAT(DATETIME, '%H:00:00') as TIME,
+							MAX(DATE) as DATE,
+							ROUND(AVG(PWR), 2) as AveragePower
+						FROM
+						(
+							SELECT
+								concat(DATE_FORMAT(ts, '%Y-%m-%d %H') , ':00:00')  as DATETIME,
+								DATE_FORMAT(MAX(ts), '%Y-%m-%d') as DATE,
+								SUM(Y) PWR
+							FROM (
+								SELECT
+									ts,
+									tagname,
+									ROUND(rdh.VALUE*pti.PWI_UNIT_VALUE,2) AS y
+								FROM
+									TB_RAWDATA_HOUR rdh, TB_PEAK_TAG_INF pti
+								WHERE
+									rdh.tagname = pti.PWI_TAG and pti.IS_ALL ='1' AND rdh.VALUE > 0
+									AND rdh.ts >= DATE_SUB( DATE_SUB(NOW(), INTERVAL 15 DAY), INTERVAL 6 HOUR)
+									AND rdh.ts <= DATE_SUB( DATE_SUB(NOW(), INTERVAL 1 DAY), INTERVAL 18 HOUR)
+								) a
+							GROUP BY
+								ts
+						) a
+						GROUP BY
+							TIME
+					) aa
+				) d	ON DATE_FORMAT(a.PRDCT_TIME, '%H:%i')  =  DATE_FORMAT(d.TS, '%H:%i')
+
+				LEFT JOIN
+				(
+					SELECT
+						rdh.TAGNAME,
+						ROUND(rdh.VALUE,2) as 'SUN_VALUE',
+						DATE_FORMAT(rdh.ts , '%H:00') as timeOnly
+					FROM
+						TB_RAWDATA_HOUR rdh, TB_PEAK_TAG_INF pti
+					WHERE
+						rdh.tagname = pti.PWI_TAG AND pti.CLSFC ='태양광'
+						AND rdh.ts >= DATE_SUB(NOW(), INTERVAL 6 HOUR)
+						AND rdh.ts <= DATE_ADD(NOW(), INTERVAL 18 HOUR)
+				)f ON DATE_FORMAT(a.PRDCT_TIME, '%H:%i')  =  f.timeOnly
+
+				LEFT JOIN
+				(
+					SELECT
+						rdh.TAGNAME,
+						ROUND(ABS(rdh.VALUE),2) as 'ESS_VALUE',
+						DATE_FORMAT(rdh.ts , '%H:00') as timeOnly
+					FROM
+						TB_RAWDATA_HOUR rdh, TB_PEAK_TAG_INF pti
+					WHERE
+						rdh.tagname = pti.PWI_TAG AND pti.CLSFC ='ESS'
+						AND rdh.ts >= DATE_SUB(NOW(), INTERVAL 6 HOUR)
+						AND rdh.ts <= DATE_ADD(NOW(), INTERVAL 18 HOUR)
+				)g ON DATE_FORMAT(a.PRDCT_TIME, '%H:%i')  =  g.timeOnly
+
+				LEFT JOIN (
+					SELECT
+						TIME as TS,
+						AveragePower as sunPWR
+					FROM(
+						SELECT
+						    DATE_FORMAT(DATETIME, '%H:00:00') as TIME,
+						    MAX(DATE) as DATE,
+						    ROUND(AVG(PWR), 2) as AveragePower
+						FROM
+						(
+							SELECT
+								concat(DATE_FORMAT(ts, '%Y-%m-%d %H') , ':00:00.000')  as DATETIME,
+								DATE_FORMAT(MAX(ts), '%Y-%m-%d') as DATE,
+								SUM(Y) PWR
+							FROM (
+								SELECT
+									ts,
+									tagname,
+									ROUND(rdh.VALUE*pti.PWI_UNIT_VALUE,2) AS y
+								FROM
+									TB_RAWDATA_HOUR rdh, TB_PEAK_TAG_INF pti
+								WHERE
+									rdh.tagname = pti.PWI_TAG and pti.CLSFC ='태양광' AND rdh.VALUE > 0
+									AND rdh.ts >= DATE_SUB( DATE_SUB(NOW(), INTERVAL 15 DAY), INTERVAL 6 HOUR)
+									AND rdh.ts <= DATE_SUB( DATE_SUB(NOW(), INTERVAL 1 DAY), INTERVAL 18 HOUR)
+									) a
+								GROUP BY
+									DATETIME
+							) a
+							GROUP BY
+								TIME
+						) t5a
+					) t5_1 on DATE_FORMAT(a.PRDCT_TIME, '%H:%i:00') = t5_1.TS
+
+					LEFT JOIN (
+						SELECT
+							TIME   as TS,
+						AveragePower as essPWR
+					FROM(
+						SELECT
+						   DATE_FORMAT(DATETIME, '%H:00:00') as TIME,
+						    MAX(DATE) as DATE,
+						    ROUND(AVG(PWR), 2) as AveragePower
+						FROM
+						(
+							SELECT
+								concat(DATE_FORMAT(ts, '%Y-%m-%d %H') , ':00:00.000')  as DATETIME,
+								DATE_FORMAT(MAX(ts), '%Y-%m-%d') as DATE,
+								SUM(Y) PWR
+							FROM (
+								SELECT
+									ts,
+									tagname,
+									ROUND(rdh.VALUE*pti.PWI_UNIT_VALUE,2) AS y
+								FROM
+									TB_RAWDATA_HOUR rdh, TB_PEAK_TAG_INF pti
+								WHERE
+									rdh.tagname = pti.PWI_TAG and pti.CLSFC ='ESS'
+									AND rdh.ts >= DATE_SUB( DATE_SUB(NOW(), INTERVAL 15 DAY), INTERVAL 6 HOUR)
+									AND rdh.ts <= DATE_SUB( DATE_SUB(NOW(), INTERVAL 1 DAY), INTERVAL 18 HOUR)
+									) a
+								GROUP BY
+									DATETIME
+							) a
+							GROUP BY
+								TIME
+						) t5a
+					) t5_2 on DATE_FORMAT(a.PRDCT_TIME, '%H:%i:00') = t5_2.TS
+
+			ORDER BY a.PRDCT_TIME
+		]]>
+	</select>
+	
+	<select id="peakSelect" parameterType="hashMap" resultType="hashMap">
+		<![CDATA[
+				SELECT
+					DATE_FORMAT(a.DATE,'%Y-%m-%d %H:%i') DATE,
+					b.PRDCT_PWR,
+					IFNULL(b.PEAK_YN,0) PEAK_YN,
+					c.GNRTD_PWR
+				FROM(
+					SELECT
+						DATE(#{date}) + INTERVAL (a.h) HOUR AS DATE
+					FROM (
+							WITH RECURSIVE cte AS
+								(
+								SELECT 0 AS h UNION ALL
+									SELECT h+1
+									FROM cte
+								WHERE h <23
+								)
+						SELECT * FROM cte)
+						a )
+					a LEFT JOIN (
+
+						SELECT
+		    c.CNFRM_TIME,
+			FORMAT (c.PRDCT_PWR,0) PRDCT_PWR,
+			case
+				when (NOW()  > c.cnfrm_time then '0'
+				else PEAK_YN
+			END  PEAK_YN
+		FROM
+		    TB_PEAK_PWR_PRDCT_RST c
+		INNER JOIN (
+		    SELECT
+		        CNFRM_TIME,
+		        MAX(ANLY_TIME) AS MaxANLY_TIME
+		    FROM
+		        TB_PEAK_PWR_PRDCT_RST
+		    WHERE
+		        CNFRM_TIME >= CONCAT(#{date}, ' 00:00:00')
+		        AND CNFRM_TIME <= CONCAT(#{date}, ' 23:59:59')
+		    GROUP BY
+		        CNFRM_TIME
+		) b ON c.CNFRM_TIME = b.CNFRM_TIME AND c.ANLY_TIME = b.MaxANLY_TIME
+		ORDER BY
+		    c.CNFRM_TIME
+
+
+					) b ON a.DATE = b.CNFRM_TIME LEFT JOIN
+					(
+						SELECT
+							CNFRM_TIME,
+							FORMAT (GNRTD_PWR,0) GNRTD_PWR
+						FROM
+							TB_PEAK_GNRTD_RST
+						WHERE
+							CNFRM_TIME >= CONCAT(#{date}, ' 00:00:00')
+							AND CNFRM_TIME <= CONCAT(#{date}, ' 23:59:59')
+					) c ON a.DATE = c.CNFRM_TIME
+				ORDER BY
+					date
+		]]>
+	</select>
+	
+	<select id="selectHourPwrList" parameterType="hashMap" resultType="hashMap">
+		<![CDATA[
+			SELECT
+				concat(DATE_FORMAT(ts, '%m-%d %H') , ':00')  as DATE,
+				DATE_FORMAT(ts, '%H')   as TIME,
+				SUM(Y) PWR
+			FROM (
+				SELECT
+					ts,
+					ROUND(rdh.VALUE*PWQ_UNIT_VALUE,2) AS y
+				FROM
+					TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+				WHERE
+					rdh.tagname = pti.PWQ_TAG and pti.mntr_yn = '1' and pti.IS_ALL ='1'
+					AND rdh.ts >= #{start_date}
+					AND rdh.ts <= #{end_date}
+				) a
+			GROUP BY
+				ts
+			]]>
+	</select>
+	
+	<select id="selectHourAvgPwrList" parameterType="hashMap" resultType="hashMap">
+		<![CDATA[
+			SELECT
+				TIME as DATE,
+				AveragePower as PWR
+			FROM(
+				SELECT
+				    DATE_FORMAT(DATETIME, '%H:00') as TIME,
+				    MAX(DATE) as DATE,
+				    ROUND(AVG(PWR), 2) as AveragePower
+				FROM
+				(
+					SELECT
+						concat(DATE_FORMAT(ts, '%Y-%m-%d %H') , ':00')  as DATETIME,
+						DATE_FORMAT(MAX(ts), '%Y-%m-%d') as DATE,
+						SUM(Y) PWR
+					FROM (
+						SELECT
+							ts,
+							tagname,
+							ROUND(rdh.VALUE*pti.PWQ_UNIT_VALUE,2) AS y
+						FROM
+							TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+						WHERE
+							rdh.tagname = pti.PWQ_TAG and pti.mntr_yn = '1' and pti.IS_ALL ='1' AND rdh.VALUE > 0
+							AND rdh.ts >= DATE_SUB( DATE_SUB(NOW(), INTERVAL 15 DAY), INTERVAL 6 HOUR)
+							AND rdh.ts <= DATE_SUB( DATE_SUB(NOW(), INTERVAL 1 DAY), INTERVAL 18 HOUR)
+						) a
+					GROUP BY
+						ts
+				) a
+				GROUP BY
+					TIME
+			) b
+			]]>
+	</select>
+	<select id="selectHourPwrPrdctList" parameterType="hashMap" resultType="hashMap">
+		<![CDATA[
+			SELECT
+				concat(DATE_FORMAT(DATE_ADD(ts, INTERVAL 1 day), '%Y-%m-%d %H') , ':00')  as DATE,
+				SUM(Y) PWR
+			FROM (
+				SELECT
+					ts,
+					ROUND(rdh.VALUE*pti.PWQ_UNIT_VALUE,2) AS y
+				FROM
+					TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+				WHERE
+					rdh.tagname = pti.PWQ_TAG and pti.mntr_yn = '1' and pti.IS_ALL ='1'
+					and rdh.ts >=concat(DATE_FORMAT(DATE_ADD(#{date}, INTERVAL -1 day), '%Y-%m-%d') ,' 00:00:00')
+					AND rdh.ts <= concat(DATE_FORMAT(DATE_ADD(#{date}, INTERVAL -1 day), '%Y-%m-%d'),' 23:59:00')
+				) a
+			GROUP BY
+				ts
+			]]>
+	</select>
+	<!-- 최적요금제분석 -->
+	<select id="selectRtRate" parameterType="hashMap" resultType="hashMap">
+		select
+		rtr.ANLY_DATE,
+		rtr.DATA_BS_YMNTH,
+		rtr.RATE_IDX,
+		rtr.DATA_MSN_PRCNT,
+		FORMAT (rtr.TOT_PWR,0) TOT_PWR,
+		FORMAT (rtr.TOT_FEE,0) TOT_FEE,
+		FORMAT (rtr.BASE_FEE,0) BASE_FEE,
+		FORMAT (rtr.ETC_FEE,0) ETC_FEE,
+		FORMAT (rtr.L_PWR,0) L_PWR,
+		FORMAT (rtr.M_PWR,0) M_PWR,
+		FORMAT (rtr.H_PWR,0) H_PWR,
+		FORMAT (rtr.L_ELCTR_FEE,0) L_ELCTR_FEE,
+		FORMAT (rtr.M_ELCTR_FEE,0) M_ELCTR_FEE,
+		FORMAT (rtr.H_ELCTR_FEE,0) H_ELCTR_FEE,
+		rtr.DC_NMB,
+		DATE_FORMAT(rtr.RGSTR_TIME,'%Y-%m-%d %H:%i') as RGSTR_TIME,
+		rtr.FLAG,
+		rmi.LARGE_CTGRY,
+		rmi.MIDDLE_CTGRY,
+		rmi.SMALL_CTGRY,
+		FORMAT (rpr.PWR,0) PWR
+		from
+		TB_RT_RATE_RST rtr,
+		TB_RT_MSTR_INF rmi,
+		TB_RT_POWER_RST rpr
+		where
+		rtr.rate_idx = rmi.rate_idx AND rtr.DATA_BS_YMNTH = rpr.DATA_BS_YMNTH AND rtr.ANLY_DATE = rpr.ANLY_DATE AND
+		rmi.USE_YN = '1'
+		<![CDATA[
+    	 	AND rtr.ANLY_DATE = (SELECT MAX(ANLY_DATE) ANLY FROM TB_RT_RATE_RST WHERE DATA_BS_YMNTH = #{ymnth})
+    	 	and rtr.DATA_BS_YMNTH=#{ymnth}
+    	  	]]>
+	</select>
+	
+	<select id="pumpSelect_new" parameterType="hashMap" resultType="hashMap">
+		<![CDATA[
+		select
+			cppi.PUMP_IDX,
+			cppi.PUMP_NM,
+			cppi.PUMP_GRP,
+			cppi.PUMP_GRP_IDX,
+			cppi.PUMP_GRP_NM,
+			cppi.PUMP_GRP_DSC,
+			(select value from TB_RAWDATA_HOUR
+			where tagname = cppi.PRI_D_TAG order by ts desc limit 1) * 0.85 as TUBE_PRSR_PRDCT,
+			(select value from TB_RAWDATA_HOUR
+			where tagname = cppi.FRI_TAG order by ts desc limit 1) * 1.08 as PRDCT_MEAN,
+			(select value from TB_RAWDATA_HOUR
+			where tagname = cppi.PWI_TAG order by ts desc limit 1) * 0.92 as PWR_PRDCT,
+			1440 as PRDCT_TIME_DIFF,
+			0 as PUMP_YN,
+			0 as FREQ,
+			DATE_FORMAT(NOW(), '%Y-%m-%d %H:%I') as ANLY_TIME,
+			DATE_FORMAT(NOW(), '%Y-%m-%d %H:%I') as PRDCT_TIME
+		from
+			TB_CTR_PRF_PUMPMST_INF cppi
+		where cppi.PUMP_GRP = #{pump_grp}
+		]]>
+	</select>
+	
+	<select id="pumpPrdctSelect" parameterType="hashMap" resultType="hashMap">
+		<![CDATA[
+			select
+				ctr.OPT_IDX,
+				cppi.PUMP_IDX,
+				cppi.PUMP_NM,
+				ctr.PUMP_GRP,
+				cppi.PUMP_GRP_IDX,
+				cppi.PUMP_GRP_NM,
+				cppi.PUMP_GRP_DSC,
+				DATE_FORMAT(ctr.ANLY_TIME, '%Y-%m-%d %H:%i')  ANLY_TIME,
+				DATE_FORMAT(ctr.PRDCT_TIME, '%Y-%m-%d %H:%i') PRDCT_TIME,
+				ctr.PRDCT_TIME_DIFF,
+				ctr.PRDCT_MEAN,
+				ctr.PRDCT_STD,
+				ROUND(ctr.TUBE_PRSR_PRDCT, 2)                 TUBE_PRSR_PRDCT,
+				ROUND(ctr.PWR_PRDCT, 2)                       PWR_PRDCT,
+				DATE_FORMAT(ctr.RGSTR_TIME, '%Y-%m-%d %H:%i') RGSTR_TIME,
+				ctr.PUMP_YN,
+				ctr.FREQ,
+				ctr.FLAG,
+				ctr.DC_NMB
+			from
+				TB_CTR_PRF_PUMPMST_INF cppi,
+				(
+									SELECT
+						cor.OPT_IDX,
+						cpr.PUMP_IDX,
+						cor.ANLY_TIME,
+						cor.PRDCT_TIME,
+						cor.PRDCT_TIME_DIFF,
+						cor.PUMP_GRP,
+						cor.PRDCT_MEAN,
+						cor.PRDCT_STD,
+						cor.TUBE_PRSR_PRDCT,
+						cor.PWR_PRDCT,
+						cor.RGSTR_TIME,
+						cor.DC_NMB,
+						cor.FLAG,
+						cpr.PUMP_YN,
+						cpr.FREQ
+					FROM
+						TB_CTR_PUMPYN_RST cpr,  TB_CTR_OPT_RST cor
+					where
+						cor.OPT_IDX  = cpr.OPT_IDX
+						AND cor.PUMP_GRP = cpr.PUMP_GRP
+						AND cor.PRDCT_TIME > concat(DATE_FORMAT(NOW(), '%Y-%m-%d'),' 00:00:00')
+						AND cor.PRDCT_TIME < concat(DATE_FORMAT(DATE_ADD(NOW(), INTERVAL 1 DAY), '%Y-%m-%d'),' 00:00:00')
+						AND cor.PUMP_GRP = #{pump_grp}
+						AND cor.ANLY_TIME =
+						(
+							SELECT MAX(ANLY_TIME) FROM TB_CTR_OPT_RST
+							WHERE
+							PRDCT_TIME > concat(DATE_FORMAT(NOW(), '%Y-%m-%d'),' 00:00:00')
+							AND PRDCT_TIME < concat(DATE_FORMAT(DATE_ADD(NOW(), INTERVAL 1 DAY), '%Y-%m-%d'),' 00:00:00')
+							AND PUMP_GRP = #{pump_grp}
+						)
+						AND cor.PRDCT_TIME =
+						(
+							SELECT MAX(PRDCT_TIME) FROM TB_CTR_OPT_RST
+							WHERE
+							PRDCT_TIME >= DATE_SUB(NOW(), INTERVAL 60 MINUTE)
+								AND PRDCT_TIME <= DATE_ADD(NOW(), INTERVAL 60 MINUTE)
+								AND PRDCT_TIME > concat(DATE_FORMAT(NOW(), '%Y-%m-%d'),' 00:00:00')
+							AND PRDCT_TIME < concat(DATE_FORMAT(DATE_ADD(NOW(), INTERVAL 1 DAY), '%Y-%m-%d'),' 00:00:00')
+
+							AND PUMP_GRP = #{pump_grp}
+						)
+				) ctr
+			where
+				ctr.PUMP_IDX = cppi.PUMP_IDX
+				AND cppi.PUMP_GRP = #{pump_grp}
+				AND LEI_IDX = 1
+			ORDER BY
+				ctr.ANLY_TIME,ctr.PRDCT_TIME_DIFF
+			]]>
+	</select>
+	
+	<select id="pumpUsageList" resultType="hashMap">
+		<![CDATA[
+			SELECT
+				DISTINCT cor.PUMP_GRP,
+				tcppi.PUMP_GRP_DSC
+			FROM
+					TB_CTR_OPT_RST cor
+				JOIN
+					TB_CTR_PRF_PUMPMST_INF tcppi
+					ON cor.PUMP_GRP = tcppi.PUMP_GRP
+			WHERE
+					cor.PRDCT_TIME > CONCAT(DATE_FORMAT(#{nowDate}, '%Y-%m-%d'), ' 00:00:00')
+				AND
+					cor.PRDCT_TIME < CONCAT(DATE_FORMAT(DATE_ADD(#{nowDate}, INTERVAL 1 DAY), '%Y-%m-%d'), ' 00:00:00')
+			order by
+				cor.PUMP_GRP
+		]]>
+	</select>
+	
+	<select id="pumpUsageYnList" resultType="hashMap">
+		<![CDATA[
+			SELECT
+				DISTINCT cpr.PUMP_GRP,
+				tcppi.PUMP_GRP_DSC
+			FROM
+					TB_CTR_PUMPYN_RST cpr
+				JOIN
+					TB_CTR_PRF_PUMPMST_INF tcppi
+					ON cpr.PUMP_GRP = tcppi.PUMP_GRP
+			WHERE
+					cpr.RGSTR_TIME > CONCAT(DATE_FORMAT(#{nowDate}, '%Y-%m-%d'), ' 00:00:00')
+				AND
+					cpr.RGSTR_TIME < CONCAT(DATE_FORMAT(DATE_ADD(#{nowDate}, INTERVAL 1 DAY), '%Y-%m-%d'), ' 00:00:00')
+			order by
+				cpr.PUMP_GRP
+		]]>
+	</select>
+	
+	<select id="pumpSelectList" parameterType="hashMap" resultType="hashMap">
+		<![CDATA[
+		select
+			ctr.OPT_IDX,
+			cppi.PUMP_IDX,
+			cppi.PUMP_NM,
+			ctr.PUMP_GRP,
+			cppi.PUMP_GRP_IDX,
+			cppi.PUMP_GRP_NM,
+			cppi.PUMP_GRP_DSC,
+			DATE_FORMAT(ctr.ANLY_TIME, '%Y-%m-%d %H:%i')  ANLY_TIME,
+			DATE_FORMAT(ctr.PRDCT_TIME, '%Y-%m-%d %H:%i') PRDCT_TIME,
+			ctr.PRDCT_TIME_DIFF,
+			ctr.PRDCT_MEAN,
+			ctr.PRDCT_STD,
+			ROUND(ctr.TUBE_PRSR_PRDCT, 2)                 TUBE_PRSR_PRDCT,
+			ROUND(ctr.PWR_PRDCT, 2)                       PWR_PRDCT,
+			DATE_FORMAT(ctr.RGSTR_TIME, '%Y-%m-%d %H:%i') RGSTR_TIME,
+			ctr.PUMP_YN,
+			ctr.FREQ,
+			ctr.FLAG,
+			ctr.DC_NMB
+		from
+			TB_CTR_PRF_PUMPMST_INF cppi,
+			(
+								SELECT
+					cor.OPT_IDX,
+					cpr.PUMP_IDX,
+					cor.ANLY_TIME,
+					cor.PRDCT_TIME,
+					cor.PRDCT_TIME_DIFF,
+					cor.PUMP_GRP,
+					cor.PRDCT_MEAN,
+					cor.PRDCT_STD,
+					cor.TUBE_PRSR_PRDCT,
+					cor.PWR_PRDCT,
+					cor.RGSTR_TIME,
+					cor.DC_NMB,
+					cor.FLAG,
+					cpr.PUMP_YN,
+					cpr.FREQ
+				FROM
+					TB_CTR_PUMPYN_RST cpr,  TB_CTR_OPT_RST cor
+				where
+					cor.OPT_IDX  = cpr.OPT_IDX
+					AND cor.PUMP_GRP = cpr.PUMP_GRP
+					AND cor.PRDCT_TIME > concat(DATE_FORMAT(NOW(), '%Y-%m-%d'),' 00:00:00')
+					AND cor.PRDCT_TIME < concat(DATE_FORMAT(DATE_ADD(NOW(), INTERVAL 1 DAY), '%Y-%m-%d'),' 00:00:00')
+					AND cor.PUMP_GRP = #{pump_grp}
+					AND cor.ANLY_TIME =
+					(
+						SELECT MAX(ANLY_TIME) FROM TB_CTR_OPT_RST
+						WHERE
+						PRDCT_TIME > concat(DATE_FORMAT(NOW(), '%Y-%m-%d'),' 00:00:00')
+						AND PRDCT_TIME < concat(DATE_FORMAT(DATE_ADD(NOW(), INTERVAL 1 DAY), '%Y-%m-%d'),' 00:00:00')
+						AND PUMP_GRP = #{pump_grp}
+					)
+			) ctr
+		where
+			ctr.PUMP_IDX = cppi.PUMP_IDX
+			AND cppi.PUMP_GRP = #{pump_grp}
+			AND LEI_IDX = 1
+		ORDER BY
+			ctr.ANLY_TIME,ctr.PRDCT_TIME_DIFF
+		]]>
+	</select>
+	
+	<select id="pumpSelectList_1" parameterType="hashMap" resultType="hashMap">
+		<![CDATA[
+		select
+			cppi.PUMP_IDX,
+			cppi.PUMP_NM,
+			cppi.PUMP_GRP,
+			cppi.PUMP_GRP_IDX,
+			cppi.PUMP_GRP_NM,
+			cppi.PUMP_GRP_DSC,
+			concat(DATE_FORMAT(DATE_ADD(rdh.ts, INTERVAL 1 day), '%Y-%m-%d %H') , ':00')  as PRDCT_TIME,
+			format(SUM(rdh.value * 1.08), 2) as PRDCT_MEAN
+		from
+			TB_CTR_PRF_PUMPMST_INF cppi, TB_RAWDATA_HOUR rdh
+		where
+			cppi.FRI_TAG = rdh.tagname
+			and rdh.ts >=concat(DATE_FORMAT(DATE_ADD(NOW(), INTERVAL -1 day), '%Y-%m-%d') ,' 00:00:00') AND rdh.ts <= concat(DATE_FORMAT(DATE_ADD(NOW(), INTERVAL -1 day), '%Y-%m-%d'),' 23:59:00')
+			AND cppi.PUMP_GRP = #{pump_grp}
+		group by cppi.PUMP_GRP ,rdh.ts
+		]]>
+	</select>
+	<select id="pumpSelectList_2" parameterType="hashMap" resultType="hashMap">
+		<![CDATA[
+		select
+			cppi.PUMP_IDX,
+			cppi.PUMP_NM,
+			cppi.PUMP_GRP,
+			cppi.PUMP_GRP_IDX,
+			cppi.PUMP_GRP_NM,
+			cppi.PUMP_GRP_DSC,
+			concat(DATE_FORMAT(DATE_ADD(rdh.ts, INTERVAL 1 day), '%Y-%m-%d %H') , ':00')  as PRDCT_TIME,
+			format(SUM(rdh.value * 0.85), 2) as TUBE_PRSR_PRDCT
+		from
+			TB_CTR_PRF_PUMPMST_INF cppi, TB_RAWDATA_HOUR rdh
+		where
+			cppi.PRI_D_TAG = rdh.tagname
+			and rdh.ts >=concat(DATE_FORMAT(DATE_ADD(NOW(), INTERVAL -1 day), '%Y-%m-%d') ,' 00:00:00') AND rdh.ts <= concat(DATE_FORMAT(DATE_ADD(NOW(), INTERVAL -1 day), '%Y-%m-%d'),' 23:59:00')
+			AND cppi.PUMP_GRP = #{pump_grp}
+		group by cppi.PUMP_GRP ,rdh.ts
+		]]>
+	</select>
+	
+	<select id="pumpSelectList_3" parameterType="hashMap" resultType="hashMap">
+		<![CDATA[
+		select
+			cppi.PUMP_IDX,
+			cppi.PUMP_NM,
+			cppi.PUMP_GRP,
+			cppi.PUMP_GRP_IDX,
+			cppi.PUMP_GRP_NM,
+			cppi.PUMP_GRP_DSC,
+			concat(DATE_FORMAT(DATE_ADD(rdh.ts, INTERVAL 1 day), '%Y-%m-%d %H') , ':00')  as PRDCT_TIME,
+			format(SUM(rdh.value * 0.92), 2) as PWR_PRDCT
+		from
+			TB_CTR_PRF_PUMPMST_INF cppi, TB_RAWDATA_HOUR rdh
+		where
+			cppi.PWI_TAG = rdh.tagname
+			and rdh.ts >=concat(DATE_FORMAT(DATE_ADD(NOW(), INTERVAL -1 day), '%Y-%m-%d') ,' 00:00:00') AND rdh.ts <= concat(DATE_FORMAT(DATE_ADD(NOW(), INTERVAL -1 day), '%Y-%m-%d'),' 23:59:00')
+			AND cppi.PUMP_GRP = #{pump_grp}
+		group by cppi.PUMP_GRP ,rdh.ts
+		]]>
+	</select>
+	
+	<select id="selectTnkTagValueList" parameterType="hashMap" resultType="hashMap">
+		select
+		tgi.TNK_GRP_IDX,
+		tgi.TNK_IDX,
+		tgi.VLV_IDX,
+		tgi.TNK_GRP_NM,
+		tgi.TNK_NM,
+		tgi.PUMP_GRP,
+		tgi.PUMP_GRP_NM,
+		DATE_FORMAT(rd.ts,'%Y-%m-%d %H:%i') AS ts,
+		rd.tagname,
+		CASE
+		WHEN rd.tagname = tgi.IN_FO_TAG THEN '유입밸브 열림'
+		WHEN rd.tagname = tgi.OUT_FO_TAG THEN '유출밸브 열림'
+		WHEN rd.tagname = tgi.IN_FC_TAG THEN '유입밸브 닫힘'
+		WHEN rd.tagname = tgi.OUT_FC_TAG THEN '유출밸브 닫힘'
+		WHEN rd.tagname = tgi.IN_POI_TAG THEN '유입밸브 개도율'
+		WHEN rd.tagname = tgi.OUT_POI_TAG THEN '유출밸브 개도율'
+		WHEN rd.tagname = tgi.LEI_TAG THEN '수위'
+		WHEN rd.tagname = tgi.IN_FLW_TAG THEN '유입유량'
+		WHEN rd.tagname = tgi.OUT_FLW_TAG THEN '유출유량'
+		ELSE ''
+		END as tag_dcs,
+		rd.value,
+		tgi.DMD_PRI,
+		tgi.LWL_LIM,
+		tgi.HWL_LIM,
+		tgi.MIN_LOAD_LWL,
+		tgi.MAX_LOAD_LWL,
+		tgi.VLM,
+		tgi.LWL,
+		tgi.HWL,
+		tgi.BASE_AREA,
+		tgi.USE_YN
+		FROM
+		TB_RAWDATA rd, TB_TNK_GRP_INF tgi
+		where
+		rd.tagname in (tgi.IN_FO_TAG, tgi.OUT_FO_TAG, tgi.IN_FC_TAG, tgi.OUT_FC_TAG, tgi.IN_POI_TAG, tgi.OUT_POI_TAG,
+		tgi.LEI_TAG, tgi.IN_FLW_TAG, tgi.OUT_FLW_TAG)
+		AND rd.ts = (SELECT MAX(ts) FROM TB_RAWDATA WHERE ts >= DATE_ADD(NOW(), INTERVAL -1 DAY))
+		AND tgi.USE_YN='1' AND tgi.TNK_TYP='1'
+		GROUP BY rd.tagname
+		ORDER BY tgi.TNK_GRP_IDX, tgi.TNK_IDX ASC
+	</select>
+	
+	<select id="selectPumpTagValueList" parameterType="hashMap" resultType="hashMap">
+		select
+		cppi.PUMP_GRP,
+		cppi.PUMP_GRP_IDX,
+		cppi.PUMP_GRP_NM,
+		cppi.PUMP_IDX,
+		cppi.PUMP_NM,
+		DATE_FORMAT(rd.ts,'%Y-%m-%d %H:%i') AS ts,
+		rd.tagname,
+		CASE
+		WHEN rd.tagname LIKE '%PMB%' THEN '펌프가동상태'
+		WHEN rd.tagname LIKE '%SPI%' THEN '펌프주파수SPI'
+		WHEN rd.tagname LIKE '%CTI%' THEN '펌프주파수CTI'
+		WHEN rd.tagname LIKE '%PRI%' THEN '펌프관압'
+		WHEN rd.tagname LIKE '%FRI%' THEN '펌프유량'
+		WHEN rd.tagname LIKE '%PWI%' THEN '펌프소비전력(kW)'
+		WHEN rd.tagname = cppi.EMS_MIN_WPP_TAG THEN '최소요구관압정수장'
+		WHEN rd.tagname = cppi.EMS_MIN_WPJ_TAG THEN '최소요구관압분기점'
+		ELSE ''
+		END as tag_dcs,
+		CASE
+		WHEN rd.tagname LIKE '%PMB%' THEN 'PMB'
+		WHEN rd.tagname LIKE '%SPI%' THEN 'SPI'
+		WHEN rd.tagname LIKE '%CTI%' THEN 'CTI'
+		WHEN rd.tagname LIKE '%PRI%' THEN 'PRI'
+		WHEN rd.tagname LIKE '%FRI%' THEN 'FRI'
+		WHEN rd.tagname LIKE '%PWI%' THEN 'PWI'
+		WHEN rd.tagname = cppi.EMS_MIN_WPP_TAG THEN 'EMS_MIN_WPP_TAG'
+		WHEN rd.tagname = cppi.EMS_MIN_WPJ_TAG THEN 'EMS_MIN_WPJ_TAG'
+		ELSE 'None'
+		END as tag_typ,
+		ROUND(rd.VALUE*pti.PWI_UNIT_VALUE,2) AS value
+		FROM
+		TB_RAWDATA rd, TB_CTR_PRF_PUMPMST_INF cppi, TB_PEAK_TAG_INF pti
+		where
+		rd.tagname in ( cppi.PRI_D_TAG, cppi.SPI_TAG,cppi.CTI_TAG, cppi.FRI_TAG, cppi.FRQ_TAG, cppi.TEI_TAG,
+		cppi.PMB_TAG, cppi.PWI_TAG, cppi.EMS_MIN_WPP_TAG, cppi.EMS_MIN_WPJ_TAG)
+		AND pti.PWI_TAG = cppi.PWI_TAG
+		AND rd.ts = (SELECT MAX(ts) FROM TB_RAWDATA WHERE ts >= DATE_ADD(NOW(), INTERVAL -1 DAY))
+		AND cppi.USE_YN='1'
+		AND cppi.LEI_IDX= 1
+		and pti.mntr_yn = '1'
+	</select>
+	
+	
+	<select id="aiOnOffList" parameterType="hashMap" resultType="hashMap">
+		SELECT * FROM (
+		
+		SELECT VALUE ai_onoff FROM TB_PTR_CTR_INF WHERE tag IN ('745-617-EMS-1001' ) )a,(
+		
+		SELECT VALUE ai_onoff_auto FROM TB_PTR_CTR_INF WHERE tag IN ('745-617-EMS-1002' ) )b,(
+		
+		SELECT VALUE ai_onoff_auto_ban FROM TB_PTR_CTR_INF WHERE tag IN ('745-617-EMS-1003' ) )c,(
+		
+		SELECT VALUE ai_onoff_auto_ban_result FROM TB_PTR_CTR_INF WHERE tag IN ('745-617-EMS-1004' ) )d,(
+		
+		SELECT VALUE song_ai_onoff FROM TB_PTR_CTR_INF WHERE tag IN ('745-617-EMS-2001' ) )e
+	</select>
+	
+	
+	<select id="sujiCombo" parameterType="hashMap" resultType="hashMap">
+		SELECT *
+		FROM TB_TNK_GRP_INF GROUP BY TNK_GRP_NM order by DMD_PRI desc
+	</select>
+	
+	<select id="selectWpTnkTagRangeList" parameterType="hashMap" resultType="hashMap"> <!-- 수위 -->
+		select
+		<if test='time_type =="h"'>DATE_FORMAT(ts,'%Y-%m-%d %H:%i')</if>
+		<if test='time_type =="d"'>DATE_FORMAT(ts,'%Y-%m-%d')</if>
+		<if test='time_type =="m"'>DATE_FORMAT(ts,'%Y-%m')</if>
+		<if test='time_type =="y"'>DATE_FORMAT(ts,'%Y')</if>
+		ts,
+		tagname,
+		FORMAT (sum(value) , 2) value
+		FROM
+		TB_RAWDATA_HOUR
+		WHERE
+		<if test='time_type =="h" or time_type =="d"'>
+			<![CDATA[ts >=concat(#{start_date},' 00:00:00') AND ts <= concat(#{end_date},' 23:59:00')]]>
+		</if>
+		<if test='time_type =="m"'>
+			<![CDATA[ts >=concat(#{start_date},'-01 00:00:00') AND ts <= concat(#{end_date},'-31 23:59:00')]]>
+		</if>
+		<if test='time_type =="y"'>
+			<![CDATA[ts >=concat(#{start_date},'-01-01 00:00:00') AND ts <= concat(#{end_date},'-12-31 23:59:00')]]>
+		</if>
+		and tagname in (
+		SELECT
+		<if test='tag_type =="LEI"'>LEI_TAG</if>
+		<if test='tag_type =="IN_FLW"'>IN_FLW_TAG</if>
+		<if test='tag_type =="OUT_FLW"'>OUT_FLW_TAG</if>
+		<if test='tag_type =="IN_FC"'>IN_FC_TAG</if>
+		<if test='tag_type =="OUT_FC"'>OUT_FC_TAG</if>
+		<if test='tag_type =="IN_FO"'>IN_FO_TAG</if>
+		<if test='tag_type =="OUT_FO"'>OUT_FO_TAG</if>
+		<if test='tag_type =="PRI"'>PRI_D_TAG</if>
+		<if test='tag_type =="PMB"'>PMB_TAG</if>
+		FROM
+		<if test='value_type =="tnk"'>
+			TB_TNK_GRP_INF
+		</if>
+		<if test='value_type =="pump"'>
+			TB_CTR_PRF_PUMPMST_INF
+		</if>
+		WHERE
+		TNK_GRP_IDX = #{tnk_grp_idx}
+		GROUP BY
+		<if test='tag_type =="LEI"'>LEI_TAG</if>
+		<if test='tag_type =="IN_FLW"'>IN_FLW_TAG</if>
+		<if test='tag_type =="OUT_FLW"'>OUT_FLW_TAG</if>
+		<if test='tag_type =="IN_FC"'>IN_FC_TAG</if>
+		<if test='tag_type =="OUT_FC"'>OUT_FC_TAG</if>
+		<if test='tag_type =="IN_FO"'>IN_FO_TAG</if>
+		<if test='tag_type =="OUT_FO"'>OUT_FO_TAG</if>
+		<if test='tag_type =="PRI"'>PRI_D_TAG</if>
+		<if test='tag_type =="PMB"'>PMB_TAG</if>
+		)
+		GROUP BY
+		<if test='time_type =="h"'>ts</if>
+		<if test='time_type =="d"'>date(ts)</if>
+		<if test='time_type =="m"'>month(ts)</if>
+		<if test='time_type =="y"'>year(ts)</if>
+	</select>
+	
+	<select id="selectTankDataHourList" parameterType="hashMap" resultType="hashMap">
+		
+		SELECT
+		TNK_idx,
+		TNK_NM,
+		TNK_GRP_NM,
+		TNK_GRP_IDX,
+		ts,
+		tagname,
+		SUM(value) as value
+		FROM (
+		select
+		tgi.TNK_idx,
+		tgi.TNK_NM,
+		tgi.TNK_GRP_NM,
+		tgi.TNK_GRP_IDX,
+		DATE_FORMAT(ts, '%Y-%m-%d %H:%i') ts,
+		tagname,
+		FORMAT (value ,0) value
+		from
+		TB_RAWDATA_HOUR rdh, TB_TNK_GRP_INF tgi
+		WHERE
+		rdh.tagname = tgi.LEI_TAG
+		<![CDATA[AND ts >=concat(#{date},' 00:00:00') AND ts <= concat(#{date},' 23:59:00')]]>
+		and tnk_typ = '1'
+		and tgi.USE_YN='1'
+		) a
+		GROUP BY TNK_GRP_NM, ts
+	</select>
+	
+	<select id="selectTankDataHourSumList" parameterType="hashMap" resultType="hashMap">
+		SELECT
+		TNK_idx,
+		TNK_NM,
+		TNK_GRP_IDX,
+		TNK_GRP_NM,
+		(
+		SELECT
+		SUM(VALUE)
+		FROM
+		TB_RAWDATA_HOUR
+		WHERE
+		tagname = LEI_TAG
+		<![CDATA[AND ts >=concat(#{date},' 00:00:00') AND ts <= concat(#{date},' 23:59:00')]]>
+		) value,
+		LEI_TAG
+		FROM
+		TB_TNK_GRP_INF
+		WHERE USE_YN = '1' AND TNK_TYP = '1'
+		GROUP BY
+		TNK_GRP_NM
+	</select>
+	<select id="tankInstantaneous" parameterType="hashMap" resultType="hashMap">
+		SELECT
+		TNK_idx,
+		TNK_NM,
+		TNK_GRP_IDX,
+		TNK_GRP_NM,
+		(
+		SELECT
+		SUM( FORMAT (value, 0)) '수위'
+		FROM
+		TB_RAWDATA a
+		WHERE
+		ts = (
+		select
+		DATE_FORMAT(max(ts),'%Y-%m-%d %H:%i:00')
+		from
+		TB_RAWDATA
+		where
+		<![CDATA[ts >= DATE_ADD(#{date}, INTERVAL -1 MINUTE) AND ts <= (NOW()]]>
+		)
+		AND tagname IN
+		(
+		SELECT
+		LEI_TAG
+		FROM
+		TB_TNK_GRP_INF
+		WHERE
+		TNK_GRP_NM = tkgi.TNK_GRP_NM
+		GROUP BY
+		LEI_TAG
+		)
+		GROUP BY
+		ts
+		) LEI
+		FROM
+		TB_TNK_GRP_INF tkgi
+		WHERE
+		USE_YN = '1' AND TNK_TYP = '1'
+		GROUP BY
+		TNK_GRP_NM
+	</select>
+	<select id="selectPumpPwqList" parameterType="hashMap" resultType="hashMap">
+		SELECT
+		<if test='time_type =="h"'>DATE_FORMAT(rdh.ts,'%Y-%m-%d %H:%i')</if>
+		<if test='time_type =="d"'>DATE_FORMAT(rdh.ts,'%Y-%m-%d')</if>
+		<if test='time_type =="m"'>DATE_FORMAT(rdh.ts,'%Y-%m')</if>
+		<if test='time_type =="y"'>DATE_FORMAT(rdh.ts,'%Y')</if>
+		ts,
+		sum(ROUND(rdh.VALUE*pti.PWQ_UNIT_VALUE,2)) AS value
+		FROM
+		TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti, TB_CTR_PRF_PUMPMST_INF cppi
+		WHERE
+		rdh.tagname = pti.PWQ_TAG AND pti.PWQ_TAG = cppi.PWQ_TAG and pti.mntr_yn = '1'
+		<if test='time_type =="h" or time_type =="d"'>
+			<![CDATA[AND rdh.ts >=concat(#{start_date},' 00:00:00') AND rdh.ts <= concat(#{end_date},' 23:59:00')]]>
+		</if>
+		<if test='time_type =="m"'>
+			<![CDATA[AND rdh.ts >=concat(#{start_date},'-01 00:00:00') AND rdh.ts <= concat(#{end_date},'-31 23:59:00')]]>
+		</if>
+		<if test='time_type =="y"'>
+			<![CDATA[AND rdh.ts >=concat(#{start_date},'-01-01 00:00:00') AND rdh.ts <= concat(#{end_date},'-12-31 23:59:00')]]>
+		</if>
+		GROUP BY
+		<if test='time_type =="h"'>rdh.ts</if>
+		<if test='time_type =="d"'>date(rdh.ts)</if>
+		<if test='time_type =="m"'>month(rdh.ts)</if>
+		<if test='time_type =="y"'>year(rdh.ts)</if>
+	</select>
+	
+	<select id="selectElcPwqList" parameterType="hashMap" resultType="hashMap">
+		SELECT
+		<if test='time_type =="h"'>DATE_FORMAT(rdh.ts,'%Y-%m-%d %H:%i')</if>
+		<if test='time_type =="d"'>DATE_FORMAT(rdh.ts,'%Y-%m-%d')</if>
+		<if test='time_type =="m"'>DATE_FORMAT(rdh.ts,'%Y-%m')</if>
+		<if test='time_type =="y"'>DATE_FORMAT(rdh.ts,'%Y')</if>
+		ts,
+		ROUND(rdh.VALUE*pti.PWI_UNIT_VALUE,2) AS value
+		FROM
+		TB_RAWDATA_HOUR rdh, TB_PEAK_TAG_INF pti
+		WHERE
+		rdh.tagname = pti.PWI_TAG AND pti.IS_ALL ='1' and pti.mntr_yn = '1'
+		and rdh.value != 0
+		<if test='time_type =="h" or time_type =="d"'>
+			<![CDATA[AND rdh.ts >=concat(#{start_date},' 00:00:00') AND rdh.ts <= concat(#{end_date},' 23:59:00')]]>
+		</if>
+		<if test='time_type =="m"'>
+			<![CDATA[AND rdh.ts >=concat(#{start_date},'-01 00:00:00') AND rdh.ts <= concat(#{end_date},'-31 23:59:00')]]>
+		</if>
+		<if test='time_type =="y"'>
+			<![CDATA[AND rdh.ts >=concat(#{start_date},'-01-01 00:00:00') AND rdh.ts <= concat(#{end_date},'-12-31 23:59:00')]]>
+		</if>
+		GROUP BY
+		<if test='time_type =="h"'>rdh.ts</if>
+		<if test='time_type =="d"'>date(rdh.ts)</if>
+		<if test='time_type =="m"'>month(rdh.ts)</if>
+		<if test='time_type =="y"'>year(rdh.ts)</if>
+	</select>
+	
+	
+	<select id="peak_max" resultType="hashMap">
+		select
+		DATE_FORMAT(ts, '%Y.%m') as peak_date,
+		max(value) as value,
+		PWI_UNIT as unit
+		from
+		(
+		select
+		date_format(rdh.ts, '%Y-%m-%d %H:%i:00') AS ts,
+		ROUND(rdh.VALUE*pti.PWI_UNIT_VALUE,2) AS value,
+		pti.PWI_UNIT
+		from
+		TB_RAWDATA_HOUR rdh
+		join
+		TB_PEAK_TAG_INF pti ON rdh.tagname = pti.PWI_TAG
+		where
+		pti.IS_ALL = '1' and pti.mntr_yn = '1' and rdh.value != 0
+		AND
+		<![CDATA[
+						rdh.ts >= DATE_FORMAT(NOW() - INTERVAL 12 MONTH, '%Y-%m-01 00:00:00')
+					AND
+						rdh.ts <= LAST_DAY(NOW())
+				]]>
+		group by
+		rdh.ts
+		) a
+		GROUP by
+		peak_date
+		order by
+		peak_date
+	</select>
+	
+	<select id="selectPwrSumList" parameterType="hashMap" resultType="hashMap">
+		SELECT
+		round(sum(rdh.value * pti.PWQ_UNIT_VALUE), 2) AS value,
+		<if test='range == "dayAgo"'>
+			'dayAgo' AS 'range',
+		</if>
+		<if test='range == "day"'>
+			'day' AS 'range',
+		</if>
+		<if test='range == "week"'>
+			'week' AS 'range',
+		</if>
+		<if test='range == "month"'>
+			'month' AS 'range',
+		</if>
+		<if test='range == "year"'>
+			'year' AS 'range',
+		</if>
+		rri.TIMEZONE as 'timezone',
+		rri.ELCTR_RATE as 'rate',
+		ROUND(sum(rdh.value * pti.PWQ_UNIT_VALUE *rri.ELCTR_RATE), 2) AS cost
+		FROM
+		TB_RAWDATA_HOUR_INGRT rdh, TB_RT_RATE_INF rri, TB_PEAK_TAG_INF pti
+		WHERE
+		rdh.tagname = pti.PWQ_TAG AND pti.IS_ALL = '1' and pti.mntr_yn = '1'
+		AND SUBstring(rdh.ts,12,2) = rri.STN_TM and rri.RATE_IDX ='1' and rri.MNTH = month(CURDATE())
+		<if test='range == "dayAgo"'>
+			AND rdh.ts BETWEEN CONCAT(DATE_SUB(CURDATE(), INTERVAL 1 DAY), ' 00:00:00')
+			AND CONCAT(DATE_SUB(CURDATE(), INTERVAL 1 DAY), ' 23:59:59')
+		</if>
+		<if test='range == "day"'>
+			AND rdh.ts BETWEEN CONCAT(CURDATE(), ' 00:00:00')
+			AND CONCAT(CURDATE(), ' 23:59:59')
+		</if>
+		<if test='range == "week"'>
+			<![CDATA[AND rdh.ts >= ADDDATE( CURDATE(), - WEEKDAY(CURDATE()) + 0 ) AND rdh.ts <= ADDDATE( CURDATE(), - WEEKDAY(CURDATE()) + 6 )]]>
+		</if>
+		<if test='range == "month"'>
+			AND rdh.ts BETWEEN DATE_FORMAT(CURDATE(), '%Y-%m-01') AND LAST_DAY(CURDATE())
+		</if>
+		<if test='range == "year"'>
+			AND rdh.ts BETWEEN CONCAT(YEAR(CURDATE()), '-01-01 00:00:00')
+			AND CONCAT(YEAR(CURDATE()), '-12-31 23:59:59')
+		</if>
+		GROUP BY
+		rri.TIMEZONE
+	</select>
+	
+	<select id="selectPumpStatus" parameterType="String" resultType="java.util.LinkedHashMap">
+		SELECT (SELECT concat(PUMP_GRP_DSC,PUMP_GRP_IDX)
+		FROM TB_CTR_PRF_PUMPMST_INF b WHERE a.tagname = b.PMB_TAG) NAME,value as VALUE FROM TB_RAWDATA a
+		WHERE ts = (select DATE_FORMAT(max(ts),'%Y-%m-%d %H:%i:00') from TB_RAWDATA) AND tagname IN (
+		SELECT pmb_tag FROM TB_CTR_PRF_PUMPMST_INF)
+	</select>
+	
+	<select id="selectPumpPRITagStatus" resultType="java.util.LinkedHashMap">
+		SELECT
+		DATE_FORMAT(ts,'%Y-%m-%d %H:%i:00') ts,
+		cppi.PUMP_IDX,
+		cppi.PUMP_GRP,
+		cppi.PUMP_GRP_IDX,
+		cppi.PUMP_GRP_NM,
+		cppi.PUMP_NM,
+		cppi.PRI_T_TAG,
+		rd.value
+		FROM
+		TB_RAWDATA rd, TB_CTR_PRF_PUMPMST_INF cppi
+		WHERE
+		rd.tagname = cppi.PRI_T_TAG and cppi.USE_YN='1'
+		<![CDATA[and ts = (SELECT MAX(ts) FROM TB_RAWDATA WHERE ts >= DATE_ADD(NOW(),INTERVAL -1 DAY) )]]>
+		GROUP BY cppi.PRI_T_TAG, cppi.PUMP_GRP
+	</select>
+	
+	<select id="selectPumpFRITagStatus" resultType="java.util.LinkedHashMap">
+		SELECT
+		DATE_FORMAT(ts,'%Y-%m-%d %H:%i:00') ts,
+		cppi.PUMP_IDX,
+		cppi.PUMP_GRP,
+		cppi.PUMP_GRP_IDX,
+		cppi.PUMP_GRP_NM,
+		cppi.PUMP_NM,
+		cppi.FRI_TAG,
+		rd.value
+		FROM
+		TB_RAWDATA rd, TB_CTR_PRF_PUMPMST_INF cppi
+		WHERE
+		rd.tagname = cppi.FRI_TAG and cppi.USE_YN='1'
+		<![CDATA[and ts = (SELECT MAX(ts) FROM TB_RAWDATA WHERE ts >= DATE_ADD(NOW(),INTERVAL -1 DAY) )]]>
+		GROUP BY cppi.FRI_TAG, cppi.PUMP_GRP
+	</select>
+	
+	<select id="selectPumpSPITagStatus" resultType="java.util.LinkedHashMap">
+		SELECT
+		DATE_FORMAT(ts,'%Y-%m-%d %H:%i:00') ts,
+		cppi.PUMP_IDX,
+		cppi.PUMP_GRP,
+		cppi.PUMP_GRP_IDX,
+		cppi.PUMP_GRP_NM,
+		cppi.PUMP_NM,
+		cppi.SPI_TAG,
+		rd.value
+		FROM
+		TB_RAWDATA rd, TB_CTR_PRF_PUMPMST_INF cppi
+		WHERE
+		rd.tagname = cppi.SPI_TAG and cppi.USE_YN='1'
+		<![CDATA[and ts = (SELECT MAX(ts) FROM TB_RAWDATA WHERE ts >= DATE_ADD(NOW(),INTERVAL -1 DAY) )]]>
+		GROUP BY cppi.SPI_TAG, cppi.PUMP_GRP
+	</select>
+	
+	
+	<select id="selectPumpPwiStatus" resultType="java.util.LinkedHashMap">
+		SELECT
+		DATE_FORMAT(ts,'%Y-%m-%d %H:%i:00') ts,
+		cppi.PUMP_IDX,
+		cppi.PUMP_GRP,
+		cppi.PUMP_GRP_IDX,
+		cppi.PUMP_GRP_NM,
+		cppi.PUMP_NM,
+		COALESCE(ROUND(rd.VALUE*pti.PWI_UNIT_VALUE,2),0) AS 'kW'
+		FROM
+		TB_RAWDATA rd, TB_PEAK_TAG_INF pti, TB_CTR_PRF_PUMPMST_INF cppi
+		WHERE
+		rd.tagname = cppi.PWI_TAG AND rd.tagname = pti.PWI_TAG AND pti.PWI_TAG = cppi.PWI_TAG and pti.mntr_yn = '1'
+		<![CDATA[AND rd.ts = (select DATE_FORMAT(max(ts),'%Y-%m-%d %H:%i:00') from TB_RAWDATA) ]]>
+	</select>
+	
+	<select id="selectPumpPwiList" resultType="java.util.LinkedHashMap">
+		SELECT
+		DATE_FORMAT(ts,'%Y-%m-%d %H:%i:00') ts,
+		cppi.PUMP_IDX,
+		cppi.PUMP_GRP,
+		cppi.PUMP_GRP_IDX,
+		cppi.PUMP_GRP_NM,
+		cppi.PUMP_NM,
+		COALESCE(
+		COALESCE(ROUND(rd.VALUE*pti.PWI_UNIT_VALUE,2),0) AS 'kW'
+		FROM
+		TB_RAWDATA rd, TB_PEAK_TAG_INF pti, TB_CTR_PRF_PUMPMST_INF cppi
+		WHERE
+		rd.tagname = cppi.PWI_TAG AND rd.tagname = pti.PWI_TAG AND pti.PWI_TAG = cppi.PWI_TAG and pti.mntr_yn = '1'
+		<![CDATA[AND rd.ts = (select DATE_FORMAT(max(ts),'%Y-%m-%d %H:%i:00') from TB_RAWDATA) ]]>
+	</select>
+	
+	<select id="selectValve" resultType="java.util.LinkedHashMap">
+		SELECT
+		TNK_GRP_IDX,
+		TNK_IDX,
+		TNK_GRP_NM,
+		TNK_NM,
+		group_concat(IN_FO_TAG) as 'IN_FO_TAG',
+		group_concat((select value FROM TB_RAWDATA WHERE tagname = IN_FO_TAG AND ts = (select
+		DATE_FORMAT(max(ts),'%Y-%m-%d %H:%i:00') from TB_RAWDATA) ) ) 'IN_FO',
+		group_concat(OUT_FO_TAG) 'OUT_FO_TAG',
+		group_concat((select value FROM TB_RAWDATA WHERE tagname = OUT_FO_TAG AND ts = (select
+		DATE_FORMAT(max(ts),'%Y-%m-%d %H:%i:00') from TB_RAWDATA) ) ) 'OUT_FO',
+		group_concat(IN_FC_TAG) as 'IN_FC_TAG',
+		group_concat((select value FROM TB_RAWDATA WHERE tagname = IN_FC_TAG AND ts = (select
+		DATE_FORMAT(max(ts),'%Y-%m-%d %H:%i:00') from TB_RAWDATA) )) 'IN_FC',
+		group_concat(OUT_FC_TAG) as 'OUT_FC_TAG',
+		group_concat((select value FROM TB_RAWDATA WHERE tagname = OUT_FC_TAG AND ts = (select
+		DATE_FORMAT(max(ts),'%Y-%m-%d %H:%i:00') from TB_RAWDATA) )) 'OUT_FC',
+		group_concat(IN_POI_TAG) as 'IN_POI_TAG',
+		group_concat((select value FROM TB_RAWDATA WHERE tagname = IN_POI_TAG AND ts = (select
+		DATE_FORMAT(max(ts),'%Y-%m-%d %H:%i:00') from TB_RAWDATA) )) 'IN_POI',
+		group_concat(OUT_POI_TAG) 'OUT_POI_TAG',
+		group_concat((select value FROM TB_RAWDATA WHERE tagname = OUT_POI_TAG AND ts = (select
+		DATE_FORMAT(max(ts),'%Y-%m-%d %H:%i:00') from TB_RAWDATA) )) 'OUT_POI',
+		LEI_TAG,
+		(select value FROM TB_RAWDATA WHERE tagname = LEI_TAG AND ts = (select DATE_FORMAT(max(ts),'%Y-%m-%d %H:%i:00')
+		from TB_RAWDATA) ) '수위',
+		IN_FLW_TAG,
+		(select value FROM TB_RAWDATA WHERE tagname = IN_FLW_TAG AND ts =(select DATE_FORMAT(max(ts),'%Y-%m-%d
+		%H:%i:00') from TB_RAWDATA) ) '유입유량',
+		OUT_FLW_TAG,
+		(select value FROM TB_RAWDATA WHERE tagname = OUT_FLW_TAG AND ts = (select DATE_FORMAT(max(ts),'%Y-%m-%d
+		%H:%i:00') from TB_RAWDATA) ) '유출유량',
+		DMD_PRI '최소요구관압',
+		LWL_LIM '운영수위하한',
+		HWL_LIM '운영수위 상한',
+		MIN_LOAD_LWL '경부하운영수위하한',
+		MAX_LOAD_LWL '경부하운영수위상한',
+		VLM '수저체적',
+		LWL '수조저수위',
+		HWL '수조고수위'
+		FROM TB_TNK_GRP_INF WHERE USE_YN = '1' AND TNK_TYP='1'
+		<if test='pump_grp != null and pump_grp != ""'>
+			AND PUMP_GRP = #{pump_grp}
+		</if>
+		GROUP BY lei_tag ORDER BY TNK_GRP_IDX,TNK_IDX,DMD_PRI desc
+	</select>
+	<select id="selectPeakControl" resultType="java.util.LinkedHashMap">
+		<![CDATA[
+		SELECT
+			*
+		FROM
+			(
+				select COALESCE(
+				(SELECT
+					SUM(ROUND(rd.VALUE * pti.PWI_UNIT_VALUE,2)) AS 'pumpPwi'
+				FROM
+					TB_RAWDATA rd, TB_PEAK_TAG_INF pti, TB_CTR_PRF_PUMPMST_INF cppi
+				WHERE
+					rd.tagname = pti.PWI_TAG AND cppi.PWI_TAG = pti.PWI_TAG
+					AND pti.MNTR_YN ='1' and rd.value != 0
+					AND ts >= (NOW() - INTERVAL 15 MINUTE) AND ts <= NOW()
+				GROUP by
+					rd.ts
+				ORDER BY
+					ts DESC
+				LIMIT 1) ,0) AS 'pumpPwi'
+			) a,
+			(
+				select COALESCE(
+				(select
+					SUM(ROUND(rd.value*pti.PWI_UNIT_VALUE, 2)) AS 'allPwi'
+				FROM
+					TB_RAWDATA rd, TB_PEAK_TAG_INF pti
+				WHERE
+					rd.tagname = pti.PWI_TAG
+					AND pti.MNTR_YN ='1' AND pti.IS_ALL='1' and rd.value != 0
+					AND ts >= (NOW() - INTERVAL 15 MINUTE) AND ts <= NOW()
+				GROUP by
+					rd.ts
+				ORDER BY
+					ts DESC
+				LIMIT 1) ,0) AS 'allPwi'
+			) b,
+			(
+				SELECT
+					pwr as 'costPwr'
+				FROM
+					TB_RT_POWER_RST
+				ORDER BY
+					anly_date DESC
+				limit 1
+			) c,
+			(
+				select
+					value AS 'goalPeak'
+				from
+					TB_PTR_CTR_INF
+				where
+					tag = (select tag from TB_WPP_TAG_CODE where FUNC_TYP='selectPeakGoal')
+			) d
+		]]>
+	</select>
+	
+	<select id="selectPumpOnOffStatus" parameterType="hashMap" resultType="hashMap">
+		SELECT
+			DATE_FORMAT(ts,'%Y-%m-%d %H:%i:00') ts,
+<!--			cppi.PUMP_IDX,-->
+			cppi.PUMP_GRP,
+			cppi.PUMP_GRP_IDX as PUMP_IDX,
+			cppi.PUMP_GRP_NM,
+			cppi.PUMP_NM,
+			cppi.PUMP_TYP,
+			CASE
+				WHEN rd.value = 1 THEN "On"
+				ELSE "Off"
+			END as value
+		FROM
+			TB_RAWDATA rd, TB_CTR_PRF_PUMPMST_INF cppi
+		WHERE
+			rd.tagname = cppi.PMB_TAG
+			AND rd.ts = (SELECT MAX(TS) FROM TB_RAWDATA WHERE TS  &gt;= DATE_SUB(NOW(), INTERVAL 10 MINUTE) )
+		ORDER BY cppi.PUMP_GRP, cppi.PUMP_IDX ASC
+	</select>
+	
+	<select id="selectPumpPrdctOnOffStatus" parameterType="hashMap" resultType="hashMap">
+		<!--
+		SELECT
+			tcpr.OPT_IDX,
+			tcpr.PUMP_GRP as PUMP_GRP,
+			tcppi.PUMP_GRP_IDX as PUMP_GRP_IDX,
+			tcpr.PUMP_IDX as PUMP_IDX,
+			tcppi.PUMP_GRP_NM,
+			tcppi.PUMP_NM,
+			tcppi.PUMP_TYP as PUMP_TYP,
+			IFNULL(tcpr.FREQ, 0) as FREQ,
+			tcppi.CTR_AUTO_TAG,
+			tcppi.CTR_AUTO_STOP_TAG,
+			DATE_FORMAT(tcpr.RGSTR_TIME, '%Y-%m-%d %H:%i') AS PRDCT_TIME ,
+			CASE
+				WHEN tcpr.PUMP_YN = 1 THEN "On"
+				ELSE "Off"
+			END AS PUMP_YN,
+			CASE
+				WHEN tcpr.PUMP_YN = 1 THEN "On"
+				ELSE "Off"
+			END as value,
+			CASE
+				WHEN tcpr.PUMP_YN = 1 THEN 0
+				ELSE 1
+			END as PUMP_YN_VALUE,
+			'0' as 'FLAG',
+			'' as RATE_CTGRY,
+			'' as FLOW_CTR
+		FROM
+			TB_CTR_PUMPYN_RST tcpr
+		join TB_CTR_PRF_PUMPMST_INF tcppi
+			on tcpr.PUMP_IDX = tcppi.PUMP_IDX
+		<if test="pump_grp != null and pump_grp != ''">
+			and tcppi.PUMP_GRP = #{pump_grp}
+		</if>
+		where
+			1=1
+		<choose>
+			<when test="pump_grp != null and pump_grp != ''">
+				AND tcpr.RGSTR_TIME = (SELECT max(RGSTR_TIME) from TB_CTR_PUMPYN_RST where RGSTR_TIME >= DATE_SUB(RGSTR_TIME, INTERVAL 6 MINUTE) AND PUMP_GRP = #{pump_grp})
+			</when>
+			<otherwise>
+				AND tcpr.RGSTR_TIME = (SELECT max(RGSTR_TIME) from TB_CTR_PUMPYN_RST where RGSTR_TIME >= DATE_SUB(RGSTR_TIME, INTERVAL 6 MINUTE))
+			</otherwise>
+		</choose>
+			AND tcpr.PRDCT_TIME_DIFF = 5
+			AND tcpr.FLAG = 0
+		ORDER BY tcpr.PUMP_IDX ASC-->
+
+		WITH RankedPumps AS (
+		SELECT
+		COALESCE(cpi.OPT_IDX, cpr.OPT_IDX) as OPT_IDX,
+		COALESCE(cpi.PUMP_GRP, cpr.PUMP_GRP ) as PUMP_GRP,
+		cppi.PUMP_GRP_IDX as PUMP_GRP_IDX,
+		COALESCE(cpi.PUMP_IDX, cpr.PUMP_IDX ) as PUMP_IDX,
+		cppi.PUMP_GRP_NM,
+		cppi.PUMP_NM,
+		cppi.PUMP_TYP as PUMP_TYP,
+		IFNULL(COALESCE(cpi.FREQ, cpr.FREQ), 0)  as FREQ,
+		ROUND(IFNULL( COALESCE(cpi.TUBE_PRSR_PRDCT , cpr.TUBE_PRSR_PRDCT) , 0),2) as TUBE_PRSR_PRDCT,
+		cppi.CTR_AUTO_TAG,
+		cppi.CTR_AUTO_STOP_TAG,
+		cppi.CTR_AUTO_FREQ_TAG,
+		DATE_FORMAT(COALESCE(cpi.RGSTR_TIME, cpr.RGSTR_TIME), '%Y-%m-%d %H:%i') AS PRDCT_TIME ,
+		CASE
+		WHEN COALESCE(cpi.PUMP_YN, cpr.PUMP_YN)  = 1 THEN "On"
+		ELSE "Off"
+		END AS PUMP_YN,
+		CASE
+		WHEN COALESCE(cpi.PUMP_YN, cpr.PUMP_YN) = 1 THEN "On"
+		ELSE "Off"
+		END as value,
+		CASE
+		WHEN COALESCE(cpi.PUMP_YN, cpr.PUMP_YN)  = 1 THEN 0
+		ELSE 1
+		END as PUMP_YN_VALUE,
+		CASE
+		WHEN cpi.OPT_IDX is not null THEN 1
+		ELSE 0
+		END as FLAG,
+		COALESCE(cpi.RATE_CTGRY, '') as RATE_CTGRY,
+		COALESCE(cpi.FLOW_CTR, '') as FLOW_CTR,
+		ROW_NUMBER() OVER (PARTITION BY COALESCE(cpi.PUMP_IDX, cpr.PUMP_IDX )
+		ORDER BY COALESCE(cpi.RGSTR_TIME, cpr.RGSTR_TIME) DESC) as rn
+		FROM
+		TB_CTR_PUMPYN_RST cpr
+		LEFT JOIN TB_CTR_PUMPYN_INQUIRY cpi
+		on cpr.OPT_IDX = cpr.OPT_IDX
+		AND cpi.RGSTR_TIME >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+		AND cpr.PUMP_IDX = cpi.PUMP_IDX
+		JOIN TB_CTR_PRF_PUMPMST_INF cppi
+		ON cpr.PUMP_IDX = cppi.PUMP_IDX
+		<if test="pump_grp != null and pump_grp != ''">
+			and cppi.PUMP_GRP = #{pump_grp}
+		</if>
+		WHERE
+		cpr.PRDCT_TIME_DIFF = 5
+		AND cpr.FLAG = 0
+		AND cpr.RGSTR_TIME >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+		)
+		SELECT *
+		FROM RankedPumps
+		WHERE rn = 1
+		ORDER BY PRDCT_TIME DESC, PUMP_IDX ASC;
+	</select>
+
+	<select id="selectPumpPrdctInquiryOnOffStatus" parameterType="hashMap" resultType="hashMap">
+		SELECT
+			tcpr.OPT_IDX,
+			tcpr.PUMP_GRP as PUMP_GRP,
+			tcppi.PUMP_GRP_IDX as PUMP_GRP_IDX,
+			tcpr.PUMP_IDX as PUMP_IDX,
+			tcppi.PUMP_GRP_NM,
+			tcppi.PUMP_NM,
+			tcppi.PUMP_TYP as PUMP_TYP,
+			IFNULL(tcpr.FREQ, 0) as FREQ,
+			tcppi.CTR_AUTO_TAG,
+			tcppi.CTR_AUTO_STOP_TAG,
+			DATE_FORMAT(tcpr.RGSTR_TIME, '%Y-%m-%d %H:%i') AS PRDCT_TIME ,
+			CASE
+				WHEN tcpr.PUMP_YN = 1 THEN "On"
+				ELSE "Off"
+			END AS PUMP_YN,
+			CASE
+				WHEN tcpr.PUMP_YN = 1 THEN "On"
+				ELSE "Off"
+			END as value,
+			CASE
+				WHEN tcpr.PUMP_YN = 1 THEN 0
+				ELSE 1
+			END as PUMP_YN_VALUE,
+			'1' as 'FLAG',
+			RATE_CTGRY as RATE_CTGRY,
+			FLOW_CTR as FLOW_CTR
+		FROM
+			TB_CTR_PUMPYN_INQUIRY tcpr
+		join TB_CTR_PRF_PUMPMST_INF tcppi
+			on tcpr.PUMP_IDX = tcppi.PUMP_IDX
+		<if test="pump_grp != null and pump_grp != ''">
+			and tcppi.PUMP_GRP = #{pump_grp}
+		</if>
+		where
+			1=1
+		<choose>
+			<when test="pump_grp != null and pump_grp != ''">
+				AND tcpr.RGSTR_TIME = (SELECT max(RGSTR_TIME) from TB_CTR_PUMPYN_INQUIRY where RGSTR_TIME >= DATE_SUB(NOW(), INTERVAL 6 MINUTE) AND PUMP_GRP = #{pump_grp})
+			</when>
+			<otherwise>
+				AND tcpr.RGSTR_TIME = (SELECT max(RGSTR_TIME) from TB_CTR_PUMPYN_INQUIRY where RGSTR_TIME >= DATE_SUB(NOW(), INTERVAL 6 MINUTE))
+			</otherwise>
+		</choose>
+			AND tcpr.PRDCT_TIME_DIFF = 5
+			AND tcpr.FLAG = 0
+		ORDER BY tcpr.PUMP_IDX ASC
+	</select>
+
+<select id="selectPumpPrdctOnOffStatus_old_20240523" parameterType="hashMap" resultType="hashMap">
+    SELECT
+    tcpr.OPT_IDX,
+    tcpr.PUMP_GRP as PUMP_GRP,
+    tcppi.PUMP_GRP_IDX as PUMP_GRP_IDX,
+    tcpr.PUMP_IDX as PUMP_IDX,
+    tcppi.PUMP_TYP as PUMP_TYP,
+    IFNULL(tcpr.FREQ, 0) as FREQ,
+    tcppi.CTR_AUTO_TAG,
+    DATE_FORMAT(tcpr.RGSTR_TIME, '%Y-%m-%d %H:%i') AS PRDCT_TIME ,
+    CASE
+    WHEN tcpr.PUMP_YN = 1 THEN "On"
+    ELSE "Off"
+    END as value
+    FROM
+    TB_CTR_PUMPYN_RST tcpr
+    join TB_CTR_PRF_PUMPMST_INF tcppi
+    on tcpr.PUMP_IDX = tcppi.PUMP_IDX
+    and tcppi.PUMP_GRP = #{pump_grp}
+    where
+    tcpr.RGSTR_TIME = (SELECT max(RGSTR_TIME) from TB_CTR_PUMPYN_RST where PUMP_GRP = #{pump_grp})
+    AND tcpr.PRDCT_TIME_DIFF = 5
+    order by tcpr.PUMP_IDX asc
+</select>
+
+<select id="getPumpUseStatus" resultType="hashMap">
+    SELECT
+    cppi.PUMP_IDX,
+    cppi.PUMP_GRP,
+    cppi.PUMP_GRP_IDX,
+    cppi.PUMP_GRP_NM,
+    cppi.PUMP_NM,
+    CASE
+    WHEN cppi.USE_YN != cppi.PMS_USE_YN THEN "false"
+    ELSE "true"
+    END as flag
+    FROM
+    TB_CTR_PRF_PUMPMST_INF cppi
+</select>
+
+<select id="selectAlarm" resultType="hashMap">
+    <![CDATA[
+    SELECT * FROM TB_EMS_ALARM where TIME > date_add(NOW(),interval -1 MINUTE) AND TIME < (NOW() group by alarm_id;
+    ]]>
+</select>
+<select id="getTop3" resultType="hashMap" parameterType="hashMap">
+    <![CDATA[
+    select
+        dsc as dcs,
+        value
+    FROM
+        (SELECT
+            fc.dsc,
+            ROUND(rdh.VALUE * pti.PWI_UNIT_VALUE, 2) AS value
+        FROM
+            TB_RAWDATA rdh, TB_TAGINFO ti, TB_FAC fc, TB_PEAK_TAG_INF pti
+        WHERE
+            rdh.tagname = ti.tagname
+            AND pti.MNTR_YN ='1'
+            AND ti.USE_YN = '1'
+            AND pti.PWI_TAG  = ti.tagname
+            AND ti.fac_code = fc.fac_code
+            AND rdh.ts  = (SELECT MAX(TS) FROM TB_RAWDATA WHERE TS >= DATE_SUB(NOW(), INTERVAL 30 MINUTE) )
+            AND ti.zone_code = #{zone_code}
+        GROUP BY dsc) a
+    ORDER BY
+        value DESC
+    ]]>
+</select>
+
+<select id="selectTankList" parameterType="hashMap" resultType="hashMap">
+    select
+    *
+    from
+    TB_TNK_GRP_INF
+    where
+    USE_YN = '1'
+    AND tnk_typ = #{tnk_typ}
+</select>
+
+<select id="selectPumpList"  resultType="hashMap">
+    select
+    PUMP_IDX,
+    PUMP_GRP,
+    TNK_GRP_IDX,
+    PUMP_GRP_IDX,
+    PUMP_GRP_NM,
+    PUMP_GRP_DSC,
+    PUMP_NM,
+    PUMP_TYP,
+    PUMP_TYP_DSC,
+    EMS_MIN_WPP_TAG,
+    EMS_MIN_WPJ_TAG,
+    DUTY_H,
+    DUTY_Q
+    from
+    TB_CTR_PRF_PUMPMST_INF
+    order by PUMP_GRP_IDX, PUMP_IDX
+</select>
+
+
+<select id="getOptMode" resultType="string">
+    select
+    CASE
+    when(
+    case
+    WHEN HOUR(NOW())= 0 THEN C0
+    WHEN HOUR(NOW())= 1 THEN C1
+    WHEN HOUR(NOW())= 2 THEN C2
+    WHEN HOUR(NOW())= 3 THEN C3
+    WHEN HOUR(NOW())= 4 THEN C4
+    WHEN HOUR(NOW())= 5 THEN C5
+    WHEN HOUR(NOW())= 6 THEN C6
+    WHEN HOUR(NOW())= 7 THEN C7
+    WHEN HOUR(NOW())= 8 THEN C8
+    WHEN HOUR(NOW())= 9 THEN C9
+    WHEN HOUR(NOW())= 10 THEN C10
+    WHEN HOUR(NOW())= 11 THEN C11
+    WHEN HOUR(NOW())= 12 THEN C12
+    WHEN HOUR(NOW())= 13 THEN C13
+    WHEN HOUR(NOW())= 14 THEN C14
+    WHEN HOUR(NOW())= 15 THEN C15
+    WHEN HOUR(NOW())= 16 THEN C16
+    WHEN HOUR(NOW())= 17 THEN C17
+    WHEN HOUR(NOW())= 18 THEN C18
+    WHEN HOUR(NOW())= 19 THEN C19
+    WHEN HOUR(NOW())= 20 THEN C20
+    WHEN HOUR(NOW())= 21 THEN C21
+    WHEN HOUR(NOW())= 22 THEN C22
+    WHEN HOUR(NOW())= 23 THEN C23
+    end
+    ) = 1 then '고압'
+    else '저압'
+    END as opt_mode
+    FROM TB_OPER_INF
+    where
+    ssn = (
+    SELECT
+    CASE
+    WHEN MONTH(NOW()) BETWEEN 3 AND 5 THEN '봄철'
+    WHEN MONTH(NOW()) BETWEEN 6 AND 8 THEN '여름철'
+    WHEN MONTH(NOW()) BETWEEN 9 AND 11 THEN '가을철'
+    ELSE '겨울철'
+    END
+    )
+</select>
+
+<select id="getPressureData" resultType="hashMap">
+    SELECT
+    *
+    from
+    TB_WPP_TAG_CODE
+    WHERE display_id IN ('BP_PRSR', 'MIN_RQRD_TUB')
+</select>
+
+<select id="selectPumpMaster" resultType="hashMap">
+    SELECT PUMP_GRP, PUMP_GRP_NM
+    FROM TB_CTR_PRF_PUMPMST_INF group by PUMP_GRP order by PUMP_GRP;
+</select>
+<select id="selectDrvnPumpMaster" resultType="hashMap">
+    SELECT PUMP_GRP, PUMP_GRP_NM
+    FROM TB_CTR_PRF_PUMPMST_INF WHERE USE_YN = 1 AND PUMP_GRP != 5 group by PUMP_GRP order by PUMP_GRP;
+</select>
+
+<select id="selectPrdctPumpPwrItem" parameterType="hashMap" resultType="hashMap">
+    <![CDATA[
+        select
+        DATE_FORMAT(PRDCT_TIME, '%m-%d %H:%i') AS  PRDCT_TIME ,
+        PWR_PRDCT
+        from
+        TB_CTR_OPT_RST
+        where
+        DATE_FORMAT(PRDCT_TIME, '%m-%d %H:%i') = #{DATE_TIME}
+        AND RGSTR_TIME = (
+        SELECT MAX(RGSTR_TIME) FROM TB_CTR_OPT_RST where DATE_FORMAT(PRDCT_TIME, '%m-%d %H:%i') = #{DATE_TIME} and PUMP_GRP= #{pump_grp}
+        ) and PUMP_GRP= #{pump_grp}
+
+    ]]>
+</select>
+
+<select id="pumpSelect" parameterType="hashMap" resultType="hashMap">
+    <![CDATA[
+            select
+            DATE_FORMAT(MIN(PRDCT_TIME), '%y-%m-%d %H:%i') AS  PRDCT_TIME ,
+            PRDCT_MEAN,
+            PWR_PRDCT,
+            TUBE_PRSR_PRDCT
+            from
+            TB_CTR_OPT_RST
+            where RGSTR_TIME = (
+            SELECT MAX(RGSTR_TIME) FROM TB_CTR_OPT_RST where PUMP_GRP= #{pump_grp}
+            ) and PUMP_GRP= #{pump_grp}
+    ]]>
+</select>
+
+<select id="pumpSelectYn" parameterType="hashMap" resultType="hashMap">
+    <![CDATA[
+        select
+            DATE_FORMAT(cpr.RGSTR_TIME, '%m-%d %H:%i') AS  PRDCT_TIME ,
+            cpr.PRDCT_MEAN,
+            cpr.TUBE_PRSR_PRDCT,
+            cpr.PWR_PRDCT
+        from
+            TB_CTR_PUMPYN_RST cpr
+        where
+        cpr.RGSTR_TIME = #{combDate}
+        and cpr.PUMP_GRP = #{pump_grp} and PRDCT_TIME_DIFF = '5'
+        limit 1
+    ]]>
+</select>
+
+<select id="pumpGrpSelect" parameterType="hashMap" resultType="hashMap">
+    <![CDATA[
+            select
+            DATE_FORMAT(PRDCT_TIME, '%y-%m-%d %H:%i') AS  PRDCT_TIME ,
+            PRDCT_MEAN,
+            ROUND(PWR_PRDCT * 1.1 ,2) as 'PWR_PRDCT',
+            TUBE_PRSR_PRDCT
+            from
+            TB_CTR_OPT_RST
+            where RGSTR_TIME = (
+            SELECT MAX(RGSTR_TIME) FROM TB_CTR_OPT_RST where PUMP_GRP= #{pump_grp}
+            ) and PUMP_GRP= #{pump_grp}
+            ]]>
+</select>
+
+
+<select id="pumpStatusSelect" parameterType="hashMap" resultType="hashMap">
+    <![CDATA[
+        select
+		   DATE_FORMAT(cpr.RGSTR_TIME, '%m-%d %H:%i') AS PRDCT_TIME,
+		   cpr.PUMP_IDX,
+		   cpr.PUMP_YN
+		from
+		   TB_CTR_PUMPYN_RST cpr
+		where
+		   cpr.RGSTR_TIME =
+		   (
+			  SELECT
+				 MAX(RGSTR_TIME)
+			  FROM
+				 TB_CTR_OPT_RST
+			  WHERE
+				 PUMP_GRP = # {pump_grp}
+		   )
+		   and cpr.PUMP_GRP = # {pump_grp}
+            ]]>
+</select>
+
+<select id="pumpStatusSelectYn" parameterType="hashMap" resultType="hashMap">
+    <![CDATA[
+            select
+                DATE_FORMAT(cpr.RGSTR_TIME, '%m-%d %H:%i') AS  PRDCT_TIME ,
+                cpr.PUMP_IDX,
+                cpr.PUMP_YN
+            from
+                TB_CTR_PUMPYN_RST cpr
+            where
+            cpr.RGSTR_TIME = #{combDate}
+            and cpr.PUMP_GRP = #{pump_grp} and PRDCT_TIME_DIFF = '5'
+            ]]>
+</select>
+
+<select id="wppTagList" parameterType="hashMap" resultType="hashMap">
+    <![CDATA[
+        select
+            row_number() over(order by TAG asc) as SORT,
+            TAG,
+            TAG_KOR_NM,
+            DEFAULT_VALUE
+        from
+            TB_WPP_TAG_CODE
+        where
+            FUNC_TYP =  #{func_type}
+        ]]>
+</select>
+
+<select id="selectPrdctAnlyTime" parameterType="hashMap" resultType="hashMap">
+    <![CDATA[
+        SELECT
+        DATE_FORMAT(MAX(ANLY_TIME), '%Y-%m-%d %H:%i:%s') AS  ANLY_TIME
+        FROM TB_CTR_OPT_RST
+    ]]>
+</select>
+
+<select id="selectPrdctYnAnlyTime" parameterType="hashMap" resultType="hashMap">
+    <![CDATA[
+        SELECT
+        DATE_FORMAT(MAX(RGSTR_TIME), '%Y-%m-%d %H:%i:%s') AS  ANLY_TIME
+        FROM TB_CTR_PUMPYN_RST
+    ]]>
+</select>
+
+<select id="selectCostPwr" parameterType="hashMap" resultType="hashMap">
+    <![CDATA[
+        SELECT
+            pwr as 'COST_PWR',
+            DATE_FORMAT(MAX(anly_date), '%Y-%m-%d %H:%i:%s') AS  ANLY_DATE
+        FROM
+            TB_RT_POWER_RST
+        ORDER BY
+            anly_date DESC
+        limit 1
+    ]]>
+</select>
+
+<select id="selectPumpPrdctScadaList" parameterType="hashMap" resultType="hashMap">
+
+    SELECT
+    DATE_FORMAT(PRDCT_TIME, '%y-%m-%d %H:%i') AS PRDCT_TIME ,
+    <if test='data_type =="fri"'>PRDCT_MEAN as VALUE,</if>
+    <if test='data_type =="pri"'>TUBE_PRSR_PRDCT as VALUE ,</if>
+    <if test='data_type =="pwr"'>ROUND(PWR_PRDCT*1.1,2) as VALUE,</if>
+    PUMP_GRP
+    FROM TB_CTR_OPT_RST
+    WHERE RGSTR_TIME = (SELECT MAX(RGSTR_TIME) FROM TB_CTR_OPT_RST WHERE PUMP_GRP= #{pump_grp})
+    AND PUMP_GRP= #{pump_grp}
+
+</select>
+
+<select id="selectPumpPrdctScadaOne" parameterType="hashMap" resultType="hashMap">
+
+    SELECT
+    DATE_FORMAT(PRDCT_TIME, '%y-%m-%d %H:%i') AS PRDCT_TIME ,
+
+    <if test='data_type =="fri"'>PRDCT_MEAN as VALUE,</if>
+    <if test='data_type =="pri"'>TUBE_PRSR_PRDCT as VALUE ,</if>
+    <if test='data_type =="pwr"'>ROUND(PWR_PRDCT*1.1,2) as VALUE,</if>
+
+    PUMP_GRP
+    FROM TB_CTR_OPT_RST
+    WHERE RGSTR_TIME = (SELECT MAX(RGSTR_TIME) FROM TB_CTR_OPT_RST WHERE PUMP_GRP= #{pump_grp})
+    AND PUMP_GRP= #{pump_grp}
+    AND PRDCT_TIME_DIFF=1
+
+</select>
+
+<select id="selectAiStatus" resultType="hashMap">
+    SELECT
+    TAG_GRP as PUMP_GRP,
+    DEFAULT_VALUE as AI_STATUS
+    FROM
+    TB_WPP_TAG_CODE
+    WHERE
+    FUNC_TYP = 'PumpStatus'
+    ORDER BY PUMP_GRP
+</select>
+
+<update id="updateAiStatus" parameterType="hashMap">
+    UPDATE
+    TB_WPP_TAG_CODE
+    SET
+    DEFAULT_VALUE = #{STATUS}
+    WHERE
+    TAG_GRP = #{PUMP_GRP}
+    AND
+    FUNC_TYP = 'PumpStatus'
+</update>
+
+
+<select id="selectSavingResult" parameterType="hashMap" resultType="hashMap">
+    SELECT
+    DATE,
+    TYPE,
+    ROUND(SAVINGCOST, 2) as SAVINGCOST,
+    ROUND(SAVINGKWH, 2) as SAVINGKWH,
+    ROUND(SAVINGCO2, 2) as SAVINGCO2,
+    ROUND(SAVINGUNIT, 2) as SAVINGUNIT
+    FROM
+    TB_RST_SAVINGS_TARGET
+    WHERE
+    DATE = DATE_FORMAT(NOW(), '%Y-%m-%d')
+    AND TYPE != 'mm'
+</select>
+
+<select id="selectPumpEmergencyStatus" parameterType="String" resultType="String">
+    select
+    DEFAULT_VALUE
+    from
+    TB_WPP_TAG_CODE
+    where
+    TAG_GRP = 'EMS'
+    and
+    TAG_DSC = 'emerStatus'
+    and
+    TAG_UNIT = #{pumpGrp}
+</select>
+
+<select id="selectAIPumpData" resultType="hashMap" parameterType="int">
+    SELECT
+    tcor.PUMP_GRP as PUMP_GRP,
+    COALESCE(tcor.PRDCT_MEAN, 0) as PRDCT_MEAN,
+    COALESCE(tcor.TUBE_PRSR_PRDCT, 0) as TUBE_PRSR_PRDCT,
+    ROUND(COALESCE(tcor.PWR_PRDCT*1.1, 0),2) as PWR_PRDCT
+    FROM
+    TB_CTR_OPT_RST tcor
+    where
+    tcor.RGSTR_TIME = (SELECT max(RGSTR_TIME) from TB_CTR_OPT_RST WHERE PUMP_GRP = #{pump_grp})
+    AND
+    tcor.PRDCT_TIME_DIFF = 1
+    AND tcor.PUMP_GRP = #{pump_grp};
+</select>
+
+
+<select id="selectAIPumpYnData" resultType="hashMap" parameterType="int">
+    SELECT
+    tcpr.PUMP_GRP as PUMP_GRP,
+    tcppi.PUMP_GRP_IDX as PUMP_GRP_IDX,
+    tcpr.PUMP_IDX as PUMP_IDX,
+    COALESCE(tcpr.FREQ, 0) as FREQ,
+    tcpr.PUMP_TYP as PUMP_TYP,
+    tcpr.PUMP_YN as PUMP_YN
+    FROM
+    TB_CTR_PUMPYN_RST tcpr
+
+    join TB_CTR_PRF_PUMPMST_INF tcppi
+    on tcpr.PUMP_IDX = tcppi.PUMP_IDX
+    where
+    tcpr.RGSTR_TIME = (SELECT max(RGSTR_TIME) from TB_CTR_PUMPYN_RST WHERE PUMP_GRP = #{pump_grp})
+    AND tcpr.PRDCT_TIME_DIFF = 5
+    AND tcpr.PUMP_GRP = #{pump_grp};
+</select>
+<select id="setLastCurPumpUse" parameterType="hashMap" resultType="hashMap">
+        SELECT
+        tr.TS,
+        tr.TAGNAME,
+        tr.VALUE as value,
+        tcppi.PUMP_IDX,
+        tcppi.PUMP_GRP_NM,
+        tcppi.PUMP_NM
+        FROM
+        TB_RAWDATA tr,
+        TB_CTR_PRF_PUMPMST_INF tcppi
+        WHERE
+        tr.TAGNAME = tcppi.PMB_TAG
+		<if test="pump_grp != null and pump_grp != ''">
+			and tcppi.PUMP_GRP = #{pump_grp}
+		</if>
+        AND
+        tr.TS = (SELECT MAX(ts) from TB_RAWDATA where TS &gt;= DATE_SUB(NOW(), INTERVAL 10 MINUTE))
+        order by tcppi.PUMP_IDX
+</select>
+
+<select id="setLastCurPumpUseFreq" parameterType="hashMap" resultType="hashMap">
+	SELECT
+		cppi.PUMP_IDX,
+		cppi.PUMP_GRP,
+		cppi.PUMP_GRP_NM,
+		cppi.PUMP_NM,
+		rd_pmb.TAGNAME AS PMB_TAGNAME,
+		rd_spi.TAGNAME AS SPI_TAGNAME,
+		MAX(rd_pmb.ts) AS PMB_TS,
+		MAX(rd_spi.ts) AS SPI_TS,
+		rd_pmb.value as PMB_VALUE,
+		IFNULL(rd_spi.value, 0.0) as SPI_VALUE,
+		CASE
+			WHEN rd_pmb.value = 1 THEN "On"
+			ELSE "Off"
+		END AS PUMP_YN,
+		IFNULL(rd_spi.value, 0.0) as 'FREQ'
+	FROM
+		TB_CTR_PRF_PUMPMST_INF cppi
+	LEFT JOIN TB_RAWDATA rd_pmb ON cppi.PMB_TAG = rd_pmb.TAGNAME
+		AND rd_pmb.TS &gt; DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+		AND rd_pmb.TS &lt;= DATE_ADD(NOW(), INTERVAL 10 MINUTE)
+	LEFT JOIN TB_RAWDATA rd_spi ON cppi.SPI_TAG = rd_spi.TAGNAME
+		AND rd_spi.TS &gt; DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+		AND rd_spi.TS &lt;= DATE_ADD(NOW(), INTERVAL 10 MINUTE)
+	WHERE
+		cppi.USE_YN = 1
+		<if test="pump_grp != null and pump_grp != ''">
+			and cppi.PUMP_GRP = #{pump_grp}
+		</if>
+	GROUP BY
+		cppi.PUMP_IDX, rd_pmb.TAGNAME, rd_spi.TAGNAME;
+</select>
+
+<select id="setLastCurPumpUsePri" parameterType="hashMap" resultType="hashMap">
+	SELECT
+	cppi.PUMP_IDX,
+	cppi.PUMP_GRP,
+	cppi.PUMP_GRP_NM,
+	cppi.PUMP_NM,
+	rd_pmb.TAGNAME AS PMB_TAGNAME,
+	rd_pri.TAGNAME AS PRI_TAGNAME,
+	MAX(rd_pmb.ts) AS PMB_TS,
+	MAX(rd_pri.ts) AS PRI_TS,
+	rd_pmb.value as PMB_VALUE,
+	CASE
+	WHEN rd_pmb.value = 1 THEN "On"
+	ELSE "Off"
+	END AS PUMP_YN,
+	ROUND(rd_pri.value, 2) AS 'PRI'
+	FROM
+	TB_CTR_PRF_PUMPMST_INF cppi
+	LEFT JOIN TB_RAWDATA rd_pmb ON cppi.PMB_TAG = rd_pmb.TAGNAME
+	AND rd_pmb.TS &gt; DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+	AND rd_pmb.TS &lt;= DATE_ADD(NOW(), INTERVAL 10 MINUTE)
+	LEFT JOIN TB_RAWDATA rd_pri ON cppi.PRI_T_TAG = rd_pri.TAGNAME
+	AND rd_pri.TS &gt; DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+	AND rd_pri.TS &lt;= DATE_ADD(NOW(), INTERVAL 10 MINUTE)
+	WHERE
+	cppi.USE_YN = 1
+	<if test="pump_grp != null and pump_grp != ''">
+		and cppi.PUMP_GRP = #{pump_grp}
+	</if>
+	GROUP BY
+	cppi.PUMP_IDX, rd_pmb.TAGNAME, rd_pri.TAGNAME;
+</select>
+
+<select id="selectPumpCtrHistoryList" parameterType="hashMap" resultType="hashMap">
+	<![CDATA[
+	select * from (
+	select
+		DATE_FORMAT(hct.TIME, '%Y-%m-%d %H:%i:%s') as 'ORDER_TIME' ,
+		cppi.PUMP_NM,
+		hct.TAG,
+		CASE
+			WHEN hct.ANLY_CD = 'RUN' THEN '가동'
+			WHEN hct.ANLY_CD = 'STOP' THEN '중지'
+			WHEN hct.ANLY_CD = 'FREQ' THEN CONCAT('주파수(', CAST(hct.VALUE AS CHAR), ')')
+			ELSE 'None'
+		END as ANLY_CD,
+		CASE
+			WHEN hct.FLAG = '0' THEN '전송 등록'
+			WHEN hct.FLAG = '1' THEN '전송 완료'
+			WHEN hct.FLAG = '2' THEN '제어 완료'
+			ELSE '취소'
+		END as FLAG,
+		DATE_FORMAT(hct.UPDT_TIME, '%Y-%m-%d %H:%i:%s') as UPDT_TIME,
+		CASE
+			WHEN wtc.DEFAULT_VALUE = 0 THEN 'AI운전'
+			WHEN wtc.DEFAULT_VALUE = 1 THEN 'AI추천'
+			ELSE 'AI분석'
+		END AS 'AI_STATUS',
+		cppi.PUMP_GRP,
+		hct.RGSTR_TIME
+	from
+		TB_HMI_CTR_TAG hct,
+		TB_CTR_PRF_PUMPMST_INF cppi,
+		TB_WPP_TAG_CODE wtc
+	where
+		hct.TAG in (cppi.CTR_AUTO_TAG, cppi.CTR_AUTO_STOP_TAG, cppi.CTR_AUTO_FREQ_TAG)
+		and hct.ANLY_CD in ('RUN','STOP','FREQ')
+		and wtc.DISPLAY_ID='EMSPumpControl'
+		and wtc.FUNC_TYP ='PumpStatus'
+		and wtc.TAG_GRP = cppi.PUMP_GRP
+		and hct.TIME>= CONCAT(#{startDate}, ' 00:00:00')
+		and hct.TIME <= CONCAT(#{endDate}, ' 23:59:59')
+	union all
+	-- 군산 5분 제어 판단의 밸브 명령(VOP 개도 설정, VPL OPENC 펄스, VPC CLOSEC 펄스). 펌프 마스터에 없는 태그라 따로 붙인다
+	select
+		DATE_FORMAT(hct.TIME, '%Y-%m-%d %H:%i:%s') as 'ORDER_TIME' ,
+		hct.CTR_NM as PUMP_NM,
+		hct.TAG,
+		CASE
+			WHEN hct.ANLY_CD = 'VOP' THEN CONCAT('밸브 개도(', CAST(hct.VALUE AS CHAR), ')')
+			WHEN hct.ANLY_CD = 'VPC' THEN '밸브 닫힘 펄스(CLOSEC)'
+			ELSE '밸브 열림 펄스(OPENC)'
+		END as ANLY_CD,
+		CASE
+			WHEN hct.FLAG = '0' THEN '전송 등록'
+			WHEN hct.FLAG = '1' THEN '전송 완료'
+			WHEN hct.FLAG = '2' THEN '제어 완료'
+			ELSE '취소'
+		END as FLAG,
+		DATE_FORMAT(hct.UPDT_TIME, '%Y-%m-%d %H:%i:%s') as UPDT_TIME,
+		CASE
+			WHEN hct.AI_STATUS = '0' THEN 'AI운전'
+			WHEN hct.AI_STATUS = '1' THEN 'AI추천'
+			ELSE 'AI분석'
+		END AS 'AI_STATUS',
+		1 as PUMP_GRP,
+		hct.RGSTR_TIME
+	from
+		TB_HMI_CTR_TAG hct
+	where
+		hct.ANLY_CD in ('VOP','VPL','VPC')
+		and hct.TIME>= CONCAT(#{startDate}, ' 00:00:00')
+		and hct.TIME <= CONCAT(#{endDate}, ' 23:59:59')
+	) h
+	order by h.ORDER_TIME DESC
+	LIMIT 60 OFFSET #{offset}
+	]]>
+</select>
+
+<select id="selectAiModeList" parameterType="hashmap" resultType="hashmap">
+	<![CDATA[
+	SELECT RGSTR_TIME, PUMP_GRP, AI_MODE, IS_WORK, CUR_PUMP, PRE_PUMP, FLOW_CTR
+	FROM TB_AI_MODE_RST
+	WHERE
+	RGSTR_TIME >= CONCAT(#{startDate}, ' 00:00:00')
+	and RGSTR_TIME <= CONCAT(#{endDate}, ' 23:59:59')
+	ORDER BY RGSTR_TIME
+	;
+	]]>
+</select>
+
+<select id="selectPumpCtrHistoryCount" parameterType="hashMap" resultType="int">
+	<![CDATA[
+ 		SELECT (
+ 		SELECT COUNT(*)
+        FROM
+            TB_HMI_CTR_TAG hct,
+            TB_CTR_PRF_PUMPMST_INF cppi,
+            TB_WPP_TAG_CODE wtc
+        WHERE
+            hct.TAG in (cppi.CTR_AUTO_TAG, cppi.CTR_AUTO_STOP_TAG)
+            AND hct.ANLY_CD in ('RUN','STOP')
+            AND wtc.DISPLAY_ID='EMSPumpControl'
+            AND wtc.FUNC_TYP ='PumpStatus'
+            AND wtc.TAG_GRP = cppi.PUMP_GRP
+            AND hct.TIME>= CONCAT(#{startDate}, ' 00:00:00')
+            AND hct.TIME <= CONCAT(#{endDate}, ' 23:59:59')
+        ) + (
+        -- 군산 5분 제어 판단의 밸브 명령
+        SELECT COUNT(*)
+        FROM TB_HMI_CTR_TAG hct
+        WHERE hct.ANLY_CD in ('VOP','VPL','VPC')
+            AND hct.TIME>= CONCAT(#{startDate}, ' 00:00:00')
+            AND hct.TIME <= CONCAT(#{endDate}, ' 23:59:59')
+        )
+]]>
+</select>
+
+	<select id="selectPrdctTimeGrp" parameterType="hashMap" resultType="hashMap">
+		select
+			OPT_IDX,
+			PRDCT_TIME,
+			PRDCT_TIME_DIFF,
+			PUMP_GRP,
+			PWR_PRDCT,
+			FLAG
+		from
+			TB_CTR_OPT_RST
+		where
+			PRDCT_TIME = #{date}
+			AND PUMP_GRP = #{pump_grp}
+			AND FLAG != '2'
+	</select>
+
+	<select id="selectHourUsePwr" parameterType="hashMap" resultType="hashMap">
+		SELECT
+			DATE_FORMAT(TS, '%Y-%m-%d %H:00:00') as TS,
+			ROUND(SUM(rhi.VALUE*pti.PWQ_UNIT_VALUE), 2) AS PWR
+		FROM
+			TB_RAWDATA_HOUR_INGRT rhi
+		JOIN
+			TB_PEAK_TAG_INF pti ON rhi.tagname = pti.PWQ_TAG
+		WHERE
+			rhi.value > 0
+			AND pti.IS_ALL = '1'
+			AND rhi.TS = #{date}
+		GROUP BY DATE_FORMAT(TS, '%Y-%m-%d %H:00:00')
+	</select>
+
+	<select id="selectHourUsePwrPwi" parameterType="hashMap" resultType="hashMap">
+		SELECT
+		DATE_FORMAT(TS, '%Y-%m-%d %H:00:00') as TS,
+		ROUND(SUM(rhi.VALUE*pti.PWI_UNIT_VALUE), 2) AS PWR
+		FROM
+		TB_RAWDATA_HOUR rhi
+		JOIN
+		TB_PEAK_TAG_INF pti ON rhi.tagname = pti.PWI_TAG
+		WHERE
+		rhi.value > 0
+		AND pti.IS_ALL = '1'
+		AND rhi.TS = #{date}
+		GROUP BY DATE_FORMAT(TS, '%Y-%m-%d %H:00:00')
+	</select>
+
+	<select id="selectHourUsePwrMin" parameterType="hashMap" resultType="hashMap">
+		SELECT
+		DATE_FORMAT(MIN(TS), '%Y-%m-%d %H:00:00') as TS,
+		ROUND(AVG(rhi.VALUE*pti.PWI_UNIT_VALUE), 2) AS PWR
+		FROM
+		TB_RAWDATA rhi
+		JOIN
+		TB_PEAK_TAG_INF pti ON rhi.tagname = pti.PWI_TAG
+		WHERE
+		rhi.value > 0
+		AND pti.IS_ALL = '1'
+		AND rhi.TS &lt;= #{date}
+		AND rhi.TS &gt;= DATE_SUB(#{date}, INTERVAL 1 HOUR)
+	</select>
+
+
+	<insert id="insertPrdctResult" parameterType="hashMap" >
+		INSERT IGNORE INTO TB_CTR_OPT_RST
+		(WPP_CODE,
+		OPT_IDX,
+		ANLY_TIME,
+		PRDCT_TIME,
+		PRDCT_TIME_DIFF,
+		PUMP_GRP,
+		PRDCT_MEAN,
+		PRDCT_STD,
+		TUBE_PRSR_PRDCT,
+		PWR_PRDCT,
+		DC_NMB,
+		FLAG)
+		VALUES
+		(#{WPP_CODE},
+		#{OPT_IDX},
+		#{ANLY_TIME},
+		#{PRDCT_TIME},
+		#{PRDCT_TIME_DIFF},
+		#{PUMP_GRP},
+		#{PRDCT_MEAN},
+		#{PRDCT_STD},
+		#{TUBE_PRSR_PRDCT},
+		#{PWR_PRDCT},
+		#{DC_NMB},
+		#{FLAG});
+	</insert>
+	
+	
+	<select id="pumpDrvnMinute" parameterType="hashmap" resultType="hashmap">
+		SELECT
+		DATE_FORMAT(rst.RGSTR_TIME, '%Y-%m-%d %H:%i:%s') as rgstr_time,
+		rst.PUMP_YN_RST as 'pre_comb',
+		raw.PUMP_USE_RST as 'cur_comb',
+		rst.FREQ_VALUES as 'pre_freq',
+		raw.SPI_USE_RST as 'cur_freq',
+		rst.FLOW_CTR
+		FROM
+		(
+		SELECT
+		A.RGSTR_TIME,
+		GROUP_CONCAT(CASE WHEN A.PUMP_YN = 1 THEN A.PUMP_IDX END ORDER BY A.PUMP_IDX ASC) AS PUMP_YN_RST,
+		GROUP_CONCAT(CASE WHEN A.FREQ != 0 THEN ROUND(A.FREQ) END ORDER BY A.FREQ ASC) AS FREQ_VALUES,
+		A.FLOW_CTR
+		FROM (
+		SELECT
+		t1.PUMP_IDX,
+		COALESCE(t2.PUMP_YN, t1.PUMP_YN) AS PUMP_YN,
+		COALESCE(t2.RGSTR_TIME, t1.RGSTR_TIME) AS RGSTR_TIME,
+		COALESCE(t2.RATE_CTGRY, 'None') AS RATE_CTGRY,
+		COALESCE(t2.FREQ, t1.FREQ) AS FREQ,
+		COALESCE(t2.FLOW_CTR, 'None') AS FLOW_CTR,
+		CASE
+		WHEN t2.OPT_IDX is not null THEN 1
+		ELSE 0
+		END AS FLAG
+		FROM
+		TB_CTR_PUMPYN_RST t1
+		LEFT JOIN
+		TB_CTR_PUMPYN_INQUIRY t2
+		ON
+		t1.OPT_IDX = t2.OPT_IDX
+		AND
+		t1.PUMP_IDX = t2.PUMP_IDX
+		AND
+		t1.RGSTR_TIME = t2.RGSTR_TIME
+		WHERE
+		t1.PUMP_GRP = #{pump_grp}
+		AND
+		t1.RGSTR_TIME = (
+				select max(RGSTR_TIME) from TB_CTR_PUMPYN_RST where RGSTR_TIME &lt;= #{nowDate} and RGSTR_TIME &gt; DATE_SUB(#{nowDate}, interval 15 minute)
+			)
+		) A
+		GROUP BY
+		A.RGSTR_TIME
+		) rst
+		LEFT JOIN
+		(
+		SELECT
+		tr.TS as TS,
+		GROUP_CONCAT(CASE WHEN tr.VALUE = 1 THEN tc.PUMP_IDX END ORDER BY tc.PUMP_IDX ASC) AS PUMP_USE_RST,
+		GROUP_CONCAT(
+		CASE
+		WHEN tr.TAGNAME = tc.SPI_TAG AND ROUND(tr.VALUE) != 0 THEN ROUND(tr.VALUE)
+		END
+		ORDER BY tc.PUMP_IDX ASC SEPARATOR ','
+		) AS SPI_USE_RST
+		FROM
+		TB_RAWDATA tr
+		JOIN
+		TB_CTR_PRF_PUMPMST_INF tc
+		ON
+		tr.TAGNAME = tc.PMB_TAG
+		OR
+		tr.TAGNAME = tc.SPI_TAG
+		WHERE
+		tc.PUMP_GRP = #{pump_grp}
+		AND
+		tr.TS = (select max(TS) from TB_RAWDATA where TS &lt;= #{nowDate} and TS &gt; DATE_SUB(#{nowDate}, interval 15 minute))
+		GROUP BY
+		tr.TS
+		) raw
+		ON rst.RGSTR_TIME = raw.TS
+		GROUP BY
+		rst.RGSTR_TIME
+		ORDER BY
+		rst.RGSTR_TIME;
+	</select>
+	
+	<select id="getAIPumpTime" resultType="String">
+		SELECT
+			MAX(tcpr.RGSTR_TIME)
+		FROM
+			TB_CTR_PUMPYN_RST tcpr
+			LEFT JOIN
+			TB_RAWDATA tr
+			ON
+			tcpr.RGSTR_TIME = tr.TS
+		WHERE
+			tr.TS = (
+				SELECT
+				MAX(tr2.TS)
+				FROM
+				TB_RAWDATA tr2
+				WHERE
+				tr2.TS &lt;= NOW()
+				AND tr2.TS &gt; DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+			);
+	</select>
+
+	<select id="selectAiModeRstList" parameterType="hashmap" resultType="hashmap">
+		SELECT
+		*
+		from
+		TB_AI_MODE_RST
+		where
+		RGSTR_TIME <![CDATA[>=]]> #{date} AND PUMP_GRP = #{pump_grp}
+	</select>
+
+	<select id="selectAiModeRstItem" parameterType="hashmap" resultType="hashmap">
+		SELECT
+		DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:%i:00.000') AS 'RGSTR_TIME',
+		PUMP_GRP,
+		AI_MODE,
+		IS_WORK,
+		CUR_PUMP,
+		PRE_PUMP,
+		FLOW_CTR
+		from
+		TB_AI_MODE_RST
+		where
+		RGSTR_TIME = #{date} AND PUMP_GRP = #{pump_grp}
+	</select>
+
+	<update id="updateAiModeRst" parameterType="hashmap">
+		UPDATE
+		TB_AI_MODE_RST
+		SET PRE_PUMP = #{PRE_PUMP}, IS_WORK = #{IS_WORK}
+		where RGSTR_TIME = #{NOW_DATE} and PUMP_GRP = #{PUMP_GRP}
+	</update>
+	
+	<select id="getAiModeCount" parameterType="String" resultType="String">
+		<![CDATA[
+		SELECT
+		AI_MODE
+		FROM TB_AI_MODE_RST
+		WHERE
+		PUMP_GRP = #{pump_grp}
+		AND
+		RGSTR_TIME >= CONCAT(#{startDate}, ' 00:00:00')
+		AND
+		RGSTR_TIME <= CONCAT(#{endDate}, ' 23:59:00')
+		GROUP BY
+		DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00');
+		]]>
+	</select>
+</mapper>

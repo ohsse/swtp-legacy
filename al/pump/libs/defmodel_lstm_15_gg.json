@@ -1,0 +1,186 @@
+{
+    "891-365-FRI-8950_lstm_10": {
+        "input_file": "../data/GSSCADA.891-365-FRI-8950.F_CV.csv",
+        "validation_file": "../data/GSSCADA.891-365-FRI-8950.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/565-339-FRI-4000_lstm_15.md",
+        "scaler_output_name": "./models/565-339-FRI-4000_lstm_15._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2022-05-01",
+            "ref_days": 200,
+            "label_col": "891-365-FRI-8950"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 10
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "892-360-FRI-4500_lstm_10": {
+        "input_file": "../data/DBAWGS0.892-360-FRI-4500.F_CV.csv",
+        "validation_file": "../data/DBAWGS0.892-360-FRI-4500.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/892-360-FRI-4500_lstm_10.md",
+        "scaler_output_name": "./models/892-360-FRI-4500_lstm_10._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2022-05-01",
+            "ref_days": 200,
+            "label_col": "892-360-FRI-4500"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 10
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "701-367-FRI-4004_lstm_10": {
+        "input_file": "../data/KSSCADA.701-367-FRI-4004.F_CV.csv",
+        "validation_file": "../data/KSSCADA.701-367-FRI-4004.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/701-367-FRI-4004_cnn_10.md",
+        "scaler_output_name": "./models/701-367-FRI-4004_cnn_10._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2022-05-01",
+            "ref_days": 200,
+            "label_col": "701-367-FRI-4004"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 10
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "701-363-FRI-4001_lstm_10": {
+        "input_file": "../data/DJEPGS0.701-363-FRI-4001.F_CV.csv",
+        "validation_file": "../data/DJEPGS0.701-363-FRI-4001.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/701-363-FRI-4001_cnn_10.md",
+        "scaler_output_name": "./models/701-363-FRI-4001_cnn_10._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2022-05-01",
+            "ref_days": 200,
+            "label_col": "701-363-FRI-4001"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 10
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    }
+
+
+
+
+}

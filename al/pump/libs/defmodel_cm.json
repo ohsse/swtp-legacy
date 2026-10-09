@@ -1,0 +1,40 @@
+{
+    "cm_60_1h": {
+        "input_file": "cm_input.csv",
+        "validation_file": "cm_input.csv",
+        "model_output_name": "./models/cm_60_1h",
+        "scaler_output_name": "./models/cm_60_1h._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-01",
+            "ref_days": 1100,
+            "label_col": "FRI-8017"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 60,
+            "output_min_time": 60,
+            "shift_min": 0,
+            "slide_min": 60
+        },
+
+        "train_options": {
+            "epochs": 10
+        }
+
+    }
+}

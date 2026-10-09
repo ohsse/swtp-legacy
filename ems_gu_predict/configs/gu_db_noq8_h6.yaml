@@ -1,0 +1,117 @@
+# gu_db_noq8.yaml과 데이터 전처리는 동일하고, window.horizon만 30분(6스텝)에서
+# 6시간(72스텝)으로 늘린 버전 — Stage 1(O7 수요 예측) 실험용.
+#
+# 배경: "유출(O7) 예측 -> 수위(H7) 예측 -> 목표수위 대비 부족 시 정수장 추천"
+# 3단계 파이프라인에서, 부족을 몇 시간 전에 미리 알아야 정수장 조작이
+# 의미가 있다(H7이 반응하는 데 4~6시간 걸린다는 걸 path-lag 분석으로 이미
+# 확인함). 지금(30분 horizon) 모델은 그 리드타임에 못 미친다.
+#
+# 재학습 전에 baseline(persistence/seasonal_naive/moving_average)으로 먼저
+# "horizon을 늘리면 얼마나 더 어려워지는지"부터 실측 확인했다(2026-09-10):
+#   - persistence MAE가 1h~6h 사이 거의 안 나빠짐(304.7 -> 309.6 -> 313.3,
+#     3% 미만) — O7이 평균회귀하는 유계 신호라 6시간 앞도 30분 앞과 비슷한
+#     난이도. horizon을 늘려도 문제가 폭발적으로 어려워지진 않을 신호.
+#   - 의외로 seasonal_naive(전날 같은 시각)가 persistence보다 못함(skill
+#     -0.03~0.0003) — 일별 변동이 커서 어제 값을 그대로 베끼는 게 오히려
+#     손해. moving_average(최근 1시간 평균)가 셋 중 가장 강함(skill
+#     0.13~0.19) — 최근 국소 추세가 24시간 주기 반복보다 더 쓸모 있는
+#     신호라는 뜻. attn_transformer_residual은 최근 추세(attention)와
+#     시간대(hour_sin/cos)를 둘 다 적응적으로 쓸 수 있는 구조라 이 baseline
+#     들보다 나을 것으로 기대 — 이 config로 실측 확인한다.
+#
+# gu_db_noq8.yaml 대비 바뀐 값과 이유:
+#  - window.horizon: 6 -> 72 (30분 -> 6시간)
+#  - window.min_segment_minutes: 3000 -> 3600 (window_size+horizon =
+#    288+72=360스텝=1800분보다 넉넉히 크게, 기존과 같은 비율의 여유)
+#  - split.purge_minutes: 1470 -> 1800 ( = (window_size+horizon)*freq =
+#    360*5분, train/val/test 경계에서 라벨 누수 방지)
+#  - window.stride: 1 -> 6(30분 간격) — horizon이 12배로 늘어 스텝당 연산량
+#    (특히 디코더 출력 horizon*n_targets 차원)이 커지므로, 학습 윈도우 수를
+#    줄여 한 epoch을 감당 가능한 시간 안에 돌리기 위한 실용적 타협이다.
+#    stride=1(241,930윈도우)이었던 30분 모델과 달리 이건 처음부터 탐색용
+#    파일럿이라 데이터 증강 밀도를 낮췄다 — 결과가 좋으면 stride를 다시
+#    줄여 정식으로 재학습하는 걸 고려.
+#  - model.decoder_hidden: 96 -> 192 (출력 차원이 horizon*n_targets=72*12=864로
+#    기존(6*12=72)의 12배가 돼서, 마지막 레이어 직전 병목이 너무 좁지 않도록
+#    늘림 — 근거 있는 정밀 튜닝이 아니라 상식적인 안전 마진)
+#  - output.dir/analysis_dir: 기존 30분 모델 결과와 안 섞이게 _h6 접미사
+#
+# 나머지(target_loss_weighting, outlier, data 전처리 등)는 gu_db_noq8.yaml과
+# 동일 — cap=3.0이 이 horizon에서도 맞는지는 이 학습 결과로 같이 확인한다.
+
+data:
+  taglist_path: "./taglist/GU_taglist.xlsx"
+  sheet: GU
+  mode: BOTH
+  freq: "5min"
+  ffill_limit_minutes: 10
+  stuck_value_min_minutes: 360
+  stuck_value_impute_columns: [P6, P9]
+  stuck_value_impute_method: linear   # 근거는 gu_db.yaml 참고 (2026-09-10)
+  exclude_vars: [Q8]
+  combine_max_columns:
+    H3: [H3_1, H3_2]
+    H7: [H7_1, H7_2]
+  linear_interp_columns: [P_GunS, P1, P_Ham, P2, P4, P5, P6]
+  time_features: [hour_sin, hour_cos]
+  # 2026-09-11 실측: 후보 모델 8종 전부가 Q7의 급격한 낙폭을 놓쳤는데,
+  # 그 구간이 V2 밸브 조작 시점과 정확히 일치했다(레버 값 자체는 이미
+  # feature에 있지만 "방금 움직이기 시작했다"는 신호는 암묵적이었음).
+  # V2/V4/Q_GunS 세 레버의 diff를 명시적 feature로 추가해 후속 horizon
+  # 예측이 나아지는지 시험한다(scripts/DEVNOTES.md 참고).
+  lever_diff_columns: [V2, V4, Q_GunS]
+  lever_diff_steps: [1, 3, 6]
+
+  source: db
+  start_date: "2023-01-01"
+  end_date: null
+
+  db_connections_path: "./configs/db_connections.json"
+  db_environment: dev        # prod로 바꿀 땐 반드시 명시적으로 지정할 것
+  db_connection_key: "maria-ems-db-gs"
+
+window:
+  window_size: 288      # 5분 리샘플링에서 과거 24시간 (기존과 동일)
+  horizon: 72              # 미래 6시간
+  stride: 6                 # train 데이터 증강 간격 30분 (위 설명 참고)
+  eval_stride: null       # val/test는 기본값(horizon=72)을 써서 겹치는 윈도우를 반복 평가하지 않음
+  min_segment_minutes: 3600
+
+split:
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  purge_minutes: 1800
+
+outlier:
+  enabled: true
+  lower_quantile: 0.01
+  upper_quantile: 0.99
+  apply_to_splits: ["train", "val"]
+  column_overrides:
+    P6: [0.0, 1.0]   # 사실상 clip 끔 — gu_db.yaml 참고
+
+model:
+  type: attn_transformer_residual
+  d_model: 160          # 입력 21채널 — gu_db_noq8.yaml과 동일
+  nhead: 8
+  num_encoder_layers: 2
+  dim_feedforward: 320
+  decoder_hidden: 192    # 출력 864차원(horizon 72 * target 12)에 맞춰 확대 — 위 설명 참고
+  dropout: 0.1
+  non_negative_output: true
+
+train:
+  batch_size: 1024   # gu_db_noq8.yaml과 동일하게 시작 — horizon이 늘어 메모리가 더 필요하면 줄일 것(인코더 비용은 window_size 기준이라 안 바뀜)
+  epochs: 200
+  patience: 15
+  lr: 0.001
+  weight_decay: 0.0
+  seed: 42
+  device: auto
+  target_loss_weighting: inverse_persistence_mae
+  target_loss_weight_cap: 3.0   # gu_db_noq8.yaml과 동일 출발점 — 이 horizon에서도 적절한지 재확인 필요(위 설명 참고)
+
+output:
+  dir: "./runs/gu_db_noq8_h6"
+  analysis_dir: "./analysis/{sheet}_db_noq8_h6"

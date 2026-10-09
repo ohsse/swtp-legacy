@@ -1,0 +1,253 @@
+.monitoring {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    .top-bar {
+        width: 100%;
+        height: 85px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 1;
+        gap: 10px;
+
+        .logo {
+            height: 60%;
+            cursor: pointer;
+        }
+        .title {
+            font-size: 35px;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+        }
+
+        .top-line {
+            position: absolute;
+            bottom: -10px;
+            right: 0;
+            height: 32.5px;
+        }
+    }
+    .header {
+        width: 100%;
+        height: 80px;
+    }
+    
+    
+    .chart-box {
+        flex: 1;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+
+        .chart-area {
+            position: relative;
+            width: 100%;
+            height: 50%;
+            background: rgba(0, 0, 0, 0.25);
+
+            .chart-con {
+                position: relative;
+                float: left;
+                width: 100%;
+                height: 100%;
+                margin-right: 10px;
+                border: 1px solid #2660ab;
+                border-radius: 12px;
+                .titlebox {
+                    margin-bottom: 10px;
+                    color: white;
+                    img {
+                        margin-right: 8px;
+                    }
+                }
+                .chart {
+                    width: 100%;
+                    height: 100%;
+                    padding: 10px;
+                    display: flex;
+                    flex-direction: column;
+                    font-size: 14px;
+                }
+            }
+            .chart-con.nomargin {
+                width: 422px;
+                margin-right: 0;
+            }
+        }
+    }
+    .chart-box.error {
+        border: 1px solid #ab2626;
+        animation: error 2s infinite;
+        box-shadow: 0 0 8px #c20b0ba8;
+        .box-edge {
+            border-color: #f12929;
+        }
+
+        @keyframes error {
+            from {
+                background: #500e0e5e;
+            }
+            50% {
+                background: #af0c0c5e;
+            }
+            to {
+                background: #500e0e5e;
+            }
+        }
+    }
+    .content {
+        width: 100%;
+        height: calc(100% - 80px);
+        display: flex;
+        padding: 20px;
+        flex-direction: column;
+
+        .section {
+            position: relative;
+            display: flex;
+            width: 100%;
+            .box {
+                width: 100%;
+                height: 100%;
+                display: block;
+                position: absolute;
+                top: 0;
+                left: 0;
+                z-index: 0;
+            }
+
+            .box-edge {
+                width: 12px;
+                height: 12px;
+                position: absolute;
+            }
+            .top-L {
+                top: -1px;
+                left: -1px;
+                border-top: 2px solid #2c80ff;
+                border-left: 2px solid #2c80ff;
+                border-top-left-radius: 10px;
+            }
+            .top-R {
+                top: -1px;
+                right: -1px;
+                border-top: 2px solid #2c80ff;
+                border-right: 2px solid #2c80ff;
+                border-top-right-radius: 10px;
+            }
+            .bottom-L {
+                bottom: -1px;
+                left: -1px;
+                border-bottom: 2px solid #2c80ff;
+                border-left: 2px solid #2c80ff;
+                border-bottom-left-radius: 10px;
+            }
+            .bottom-R {
+                bottom: -1px;
+                right: -1px;
+                border-bottom: 2px solid #2c80ff;
+                border-right: 2px solid #2c80ff;
+                border-bottom-right-radius: 10px;
+            }
+
+            .blur {
+                filter: blur(2px);
+                -webkit-filter: blur(3px);
+                border-color: #24d3ff;
+            }
+        }
+
+        .s-top {
+            height: 70%;
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .s-bottom {
+            display: flex;
+            gap: 20px;
+        }
+    }
+}
+
+.back-btn {
+    position: relative;
+    left: 40px;
+    padding: 5px 10px;
+    color: #fff;
+    background: #3c4fff33;
+    border-radius: 4px;
+    border: 1px solid #3c4fff;
+    cursor: pointer;
+   
+}
+.location {
+    position: relative;
+    height: 30px;
+    right: 20px;
+    display: flex;
+    justify-content: end;
+    gap: 10px;
+    align-items: center;
+
+   
+    .button {
+        outline: none;
+        border: none;
+        background: linear-gradient(to right bottom, #0f77ff, #07418d);
+        color: white;
+        border-radius: 8px;
+        font-size: 14px;
+        cursor: pointer;
+    }
+}
+.topContent{
+    top: 83px;
+    z-index: 10;
+    position: absolute;
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+}
+
+
+
+
+.q-dialog--modal {
+    .q-card {
+        background: url('../assets/alert_box.png') !important;
+        background-size: 100% 100% !important;
+        padding: 30px;
+        color: #b4dffb !important;
+        font-family: 'KHNPHUotfR', sans-serif !important;
+        font-size: 18px !important;
+        line-height: 28px ip !important;
+        .large {
+            font-size: 20px;
+        }
+        .text-h6 {
+            font-size: 24px;
+            color: #b4dffb;
+        }
+        .confirm-btn {
+            color: #fff !important;
+            border: 1px solid #b4dffa !important;
+            background: rgba(239, 194, 240, 0.25) !important;
+        }
+    }
+    .bg-default {
+        background: url('../assets/alert_box.png') !important;
+        background-size: 100% 100% !important;
+        color: #b4dffb !important;
+        font-family: 'KHNPHUotfR', sans-serif !important;
+    }
+}

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<mapper namespace="kr.co.mindone.ems.login.LoginMapper">
+
+
+	<select id="getUserToken" resultType="hashMap" parameterType="String">
+		select
+		tu.USR_ID,
+		tu.USR_PW,
+		tu.USR_NM,
+		tu.USR_PN,
+		tu.USR_AUTH
+		from
+		waio.tb_usr  tu , waio.tb_acs_tkn ta
+		where tu.USR_ID = ta.USR_ID
+
+		and ta.TKN = #{tkn}
+		and ta.EXPR_TI >= now()
+		order by ta.EXPR_TI desc
+				limit 1
+	</select>
+
+	<select id="getUserTokenOnly" resultType="hashMap" parameterType="String">
+			select
+			tu.USR_ID,
+			tu.USR_PW,
+			tu.USR_NM,
+			tu.USR_PN,
+			tu.USR_AUTH
+			from
+			waio.tb_usr tu , waio.tb_acs_tkn ta
+			where tu.USR_ID = ta.USR_ID
+
+			and ta.TKN = #{tkn}
+		</select>
+
+	<select id="findUserId" resultType="hashMap" parameterType="String">
+			select
+			tu.USR_ID,
+			tu.USR_PW,
+			tu.USR_NM,
+			tu.USR_PN,
+			tu.USR_AUTH,
+			tu.USR_TI
+			from
+			waio.tb_usr tu
+			where tu.USR_ID = #{value}
+	</select>
+
+
+	<select id="getServerNo" resultType="hashMap">
+		SELECT DEFAULT_VALUE as 'value' FROM TB_WPP_TAG_CODE WHERE func_typ = 'SERVER'
+	</select>
+
+
+	<update id="updateToken" parameterType="hashMap">
+
+		UPDATE waio.tb_acs_tkn
+		SET
+			TKN = #{tkn}
+		,EXPR_TI = #{expr_ti}
+		WHERE TKN = #{old_tkn};
+
+	</update>
+
+	</mapper>

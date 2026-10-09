@@ -1,0 +1,1013 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.mindone.ems.setting.SettingMapper">
+	<!--시설 정보 -->
+	<select id="selectZone" resultType="hashMap" parameterType="hashMap">
+		SELECT
+			zone_idx,
+			zone_code,
+			zone_name,
+			DSC as DCS,
+			USE_YN
+		FROM
+			TB_ZONE
+		WHERE
+			1=1
+		<if test="zone_name != null and zone_name != ''">
+			AND zone_name like CONCAT('%',#{zone_name},'%')
+		</if>
+		<if test="use_yn != null and use_yn != ''">
+			AND use_yn = #{use_yn}
+		</if>
+		order by ZONE_IDX ASC
+	</select>
+
+	<select id="selectTagList" resultType="hashMap" parameterType="hashMap">
+		select
+			ti.zone_code,
+			ti.FAC_CODE,
+			fc.FAC_NAME,
+			fc.DSC as DCS,
+			group_concat(ti.tagname) AS tagname,
+			ti.USE_YN
+		from
+			TB_TAGINFO ti,
+			TB_FAC fc
+		WHERE
+			ti.FAC_CODE = fc.FAC_CODE
+			<if test="zone_code != null and zone_code != '' and zone_code != 'null'">
+				AND	zone_code like CONCAT('%',#{zone_code},'%')
+			</if>
+			<if test="fac_name != null and fac_name != '' and fac_name != 'null'">
+				AND	fc.FAC_NAME like CONCAT('%',#{fac_name},'%')
+			</if>
+			<if test="tagname != null and tagname != '' and tagname != 'null'">
+				AND ti.tagname like CONCAT('%',#{tagname},'%')
+			</if>
+			and ti.zone_code is not null
+		GROUP BY ti.FAC_CODE
+	</select>
+	
+	<select id="selectRtInfo" resultType="hashMap" parameterType="string">
+		SELECT
+			RATE_IDX,
+			LARGE_CTGRY,
+			MIDDLE_CTGRY,
+			SMALL_CTGRY
+		FROM
+			TB_RT_MSTR_INF
+		WHERE
+			USE_YN = '1'
+	</select>
+	
+	<select id="selectRT_RATE_INF" resultType="hashMap" parameterType="hashMap">
+		SELECT
+			*
+		FROM
+			TB_RT_RATE_INF
+    	 WHERE
+    	 	RATE_IDX = #{rate_idx}
+    	 	AND SSN = #{ssn}
+    	 GROUP BY
+    	 	STN_TM
+	</select>
+	
+	<update id="updateTagInfo" parameterType="hashMap"> <!-- -->
+		UPDATE
+			TB_TAGINFO
+		set
+			zone_code = #{zone_code},
+			USE_YN = #{USE_YN}
+		where
+			fac_code = #{FAC_CODE}
+	</update>
+	
+	<update id="updateFac" parameterType="hashMap"> <!-- -->
+		UPDATE
+			TB_FAC
+		set
+			DSC = #{DCS},
+			fac_name = #{FAC_NAME}
+		where
+			fac_code = #{FAC_CODE}
+	</update>
+
+	<update id="update_L_RT_RATE_INF" parameterType="hashMap">
+		UPDATE
+			TB_RT_RATE_INF
+		SET
+			BASE_RATE=#{base_rate},
+			ELCTR_RATE=#{rate_L}
+		WHERE
+			RATE_IDX=#{rate}
+			AND SSN = #{season}
+			AND TIMEZONE = 'L'
+	</update>
+	<update id="update_M_RT_RATE_INF" parameterType="hashMap">
+		UPDATE
+			TB_RT_RATE_INF
+		SET
+			BASE_RATE=#{base_rate},
+			ELCTR_RATE=#{rate_M}
+		WHERE
+			RATE_IDX=#{rate}
+			AND SSN = #{season}
+			AND TIMEZONE = 'M'
+	</update>
+	<update id="update_H_RT_RATE_INF" parameterType="hashMap">
+		UPDATE
+			TB_RT_RATE_INF
+		SET
+			BASE_RATE=#{base_rate},
+			ELCTR_RATE=#{rate_H}
+		WHERE
+			RATE_IDX=#{rate}
+			AND SSN = #{season}
+			AND TIMEZONE = 'H'
+	</update>
+	<update id="update_time_RT_RATE_INF" parameterType="hashmap">
+		UPDATE
+			TB_RT_RATE_INF
+		SET
+			TIMEZONE=#{timezone}
+		WHERE
+			SSN=#{season}
+			AND RATE_IDX IN ('1','2','3')
+			AND STN_TM=#{stn_tm}
+	</update>
+
+	<select id="getUsageData" resultType="hashMap" parameterType="string">
+		<![CDATA[
+		SELECT
+			YEAR(rdh.ts) AS year,
+			MONTH(rdh.ts) AS month,
+			sum(ROUND(rdh.VALUE*pti.PWQ_UNIT_VALUE,2)) AS value
+		FROM
+			TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+		WHERE
+			rdh.tagname = pti.PWQ_TAG AND pti.IS_ALL ='1' AND pti.MNTR_YN='1'
+			and DATE_FORMAT(ts,'%Y') = DATE_FORMAT(CONCAT(#{year},'-01-01'),'%Y')
+		GROUP BY
+			YEAR(rdh.ts), MONTH(rdh.ts)
+		ORDER BY
+			YEAR(rdh.ts), MONTH(rdh.ts)
+		 ]]>
+	</select>
+	<select id="getGoalData" resultType="hashMap" parameterType="string">
+		SELECT
+			*
+		FROM
+			TB_GOALSETTING
+		WHERE
+			YEAR = #{year}
+	</select>
+	<select id="selectGetSetting" resultType="HashMap" parameterType="HashMap">
+		<![CDATA[
+		SELECT
+			year, 1m,2m,3m,4m,5m,6m,7m,8m,9m,10m,11m,12m
+		FROM
+			TB_GOALSETTING b
+		WHERE TYPE = 'mm'
+		UNION ALL
+		(
+			SELECT
+				base,
+				IFNULL(max(1m), CONVERT(0, UNSIGNED)) as 1m,
+				IFNULL(max(2m), CONVERT(0, UNSIGNED)) as 2m,
+				IFNULL(max(3m), CONVERT(0, UNSIGNED)) as 3m,
+				IFNULL(max(4m), CONVERT(0, UNSIGNED)) as 4m,
+				IFNULL(max(5m), CONVERT(0, UNSIGNED)) as 5m,
+				IFNULL(max(6m), CONVERT(0, UNSIGNED)) as 6m,
+				IFNULL(max(7m), CONVERT(0, UNSIGNED)) as 7m,
+				IFNULL(max(8m), CONVERT(0, UNSIGNED)) as 8m,
+				IFNULL(max(9m), CONVERT(0, UNSIGNED)) as 9m,
+				IFNULL(max(10m), CONVERT(0, UNSIGNED)) as 10m,
+				IFNULL(max(11m), CONVERT(0, UNSIGNED)) as 11m,
+				IFNULL(max(12m), CONVERT(0, UNSIGNED)) as 12m
+			FROM
+			(
+				(SELECT 'base' FROM DUAL) target,
+				(SELECT
+					ROUND(sum(rdh.VALUE*pti.PWQ_UNIT_VALUE),2) AS 1m
+					FROM
+					TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+					WHERE
+					rdh.tagname = pti.PWQ_TAG
+					and pti.mntr_yn = '1'
+					and pti.IS_ALL ='1'
+					and rdh.ts >= CONCAT(DATE_FORMAT(NOW(), '%Y'), '-01-01 00:00:00')
+					and rdh.ts < CONCAT(DATE_FORMAT(NOW(), '%Y'), '-02-01 00:00:00')
+				) a,
+				(SELECT
+					ROUND(sum(rdh.VALUE*pti.PWQ_UNIT_VALUE),2) AS 2m
+					FROM
+					TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+					WHERE
+					rdh.tagname = pti.PWQ_TAG
+					and pti.mntr_yn = '1'
+					and pti.IS_ALL ='1'
+					and rdh.ts >= CONCAT(DATE_FORMAT(NOW(), '%Y'), '-02-01 00:00:00')
+					and rdh.ts < CONCAT(DATE_FORMAT(NOW(), '%Y'), '-03-01 00:00:00')
+				) b,
+				(SELECT
+					ROUND(sum(rdh.VALUE*pti.PWQ_UNIT_VALUE),2) AS 3m
+					FROM
+					TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+					WHERE
+					rdh.tagname = pti.PWQ_TAG
+					and pti.mntr_yn = '1'
+					and pti.IS_ALL ='1'
+					and rdh.ts >= CONCAT(DATE_FORMAT(NOW(), '%Y'), '-03-01 00:00:00')
+					and rdh.ts < CONCAT(DATE_FORMAT(NOW(), '%Y'), '-04-01 00:00:00')
+				) c,
+				(SELECT
+					ROUND(sum(rdh.VALUE*pti.PWQ_UNIT_VALUE),2) AS 4m
+					FROM
+					TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+					WHERE
+					rdh.tagname = pti.PWQ_TAG
+					and pti.mntr_yn = '1'
+					and pti.IS_ALL ='1'
+					and rdh.ts >= CONCAT(DATE_FORMAT(NOW(), '%Y'), '-04-01 00:00:00')
+					and rdh.ts < CONCAT(DATE_FORMAT(NOW(), '%Y'), '-05-01 00:00:00')
+				) d,
+				(SELECT
+					ROUND(sum(rdh.VALUE*pti.PWQ_UNIT_VALUE),2) AS 5m
+					FROM
+					TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+					WHERE
+					rdh.tagname = pti.PWQ_TAG
+					and pti.mntr_yn = '1'
+					and pti.IS_ALL ='1'
+					and rdh.ts >= CONCAT(DATE_FORMAT(NOW(), '%Y'), '-05-01 00:00:00')
+					and rdh.ts < CONCAT(DATE_FORMAT(NOW(), '%Y'), '-06-01 00:00:00')
+				) e,
+				(SELECT
+					ROUND(sum(rdh.VALUE*pti.PWQ_UNIT_VALUE),2) AS 6m
+					FROM
+					TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+					WHERE
+					rdh.tagname = pti.PWQ_TAG
+					and pti.mntr_yn = '1'
+					and pti.IS_ALL ='1'
+					and rdh.ts >= CONCAT(DATE_FORMAT(NOW(), '%Y'), '-06-01 00:00:00')
+					and rdh.ts < CONCAT(DATE_FORMAT(NOW(), '%Y'), '-07-01 00:00:00')
+				) f,
+				(SELECT
+					ROUND(sum(rdh.VALUE*pti.PWQ_UNIT_VALUE),2) AS 7m
+					FROM
+					TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+					WHERE
+					rdh.tagname = pti.PWQ_TAG
+					and pti.mntr_yn = '1'
+					and pti.IS_ALL ='1'
+					and rdh.ts >= CONCAT(DATE_FORMAT(NOW(), '%Y'), '-07-01 00:00:00')
+					and rdh.ts < CONCAT(DATE_FORMAT(NOW(), '%Y'), '-08-01 00:00:00')
+				) g,
+				(SELECT
+					ROUND(sum(rdh.VALUE*pti.PWQ_UNIT_VALUE),2) AS 8m
+					FROM
+					TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+					WHERE
+					rdh.tagname = pti.PWQ_TAG
+					and pti.mntr_yn = '1'
+					and pti.IS_ALL ='1'
+					and rdh.ts >= CONCAT(DATE_FORMAT(NOW(), '%Y'), '-08-01 00:00:00')
+					and rdh.ts < CONCAT(DATE_FORMAT(NOW(), '%Y'), '-09-01 00:00:00')
+				) h,
+				(SELECT
+					ROUND(sum(rdh.VALUE*pti.PWQ_UNIT_VALUE),2) AS 9m
+					FROM
+					TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+					WHERE
+					rdh.tagname = pti.PWQ_TAG
+					and pti.mntr_yn = '1'
+					and pti.IS_ALL ='1'
+					and rdh.ts >= CONCAT(DATE_FORMAT(NOW(), '%Y'), '-09-01 00:00:00')
+					and rdh.ts < CONCAT(DATE_FORMAT(NOW(), '%Y'), '-10-01 00:00:00')
+				) i,
+				(SELECT
+					ROUND(sum(rdh.VALUE*pti.PWQ_UNIT_VALUE),2) AS 10m
+					FROM
+					TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+					WHERE
+					rdh.tagname = pti.PWQ_TAG
+					and pti.mntr_yn = '1'
+					and pti.IS_ALL ='1'
+					and rdh.ts >= CONCAT(DATE_FORMAT(NOW(), '%Y'), '-10-01 00:00:00')
+					and rdh.ts < CONCAT(DATE_FORMAT(NOW(), '%Y'), '-11-01 00:00:00')
+				) j,
+				(SELECT
+					ROUND(sum(rdh.VALUE*pti.PWQ_UNIT_VALUE),2) AS 11m
+					FROM
+					TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+					WHERE
+					rdh.tagname = pti.PWQ_TAG
+					and pti.mntr_yn = '1'
+					and pti.IS_ALL ='1'
+					and rdh.ts >= CONCAT(DATE_FORMAT(NOW(), '%Y'), '-11-01 00:00:00')
+					and rdh.ts < CONCAT(DATE_FORMAT(NOW(), '%Y'), '-12-01 00:00:00')
+				) k,
+				(SELECT
+					ROUND(sum(rdh.VALUE*pti.PWQ_UNIT_VALUE),2) AS 12m
+					FROM
+					TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+					WHERE
+					rdh.tagname = pti.PWQ_TAG
+					and pti.mntr_yn = '1'
+					and pti.IS_ALL ='1'
+					and rdh.ts >= CONCAT(DATE_FORMAT(NOW(), '%Y'), '-12-01 00:00:00')
+					and rdh.ts <= CONCAT(DATE_FORMAT(NOW(), '%Y'), '-12-31 23:59:59')
+				) l
+			)
+		)
+		ORDER BY
+			YEAR desc
+		]]>
+	</select>
+
+	<insert id="updateGoal" parameterType="hashMap">
+		INSERT INTO TB_GOALSETTING(
+			YEAR
+		<if test='month1 != null and month1 != ""'>
+			,1m
+		</if>
+		<if test='month2 != null and month2 != ""'>
+			,2m
+		</if>
+		<if test='month3 != null and month3 != ""'>
+			,3m
+		</if>
+		<if test='month4 != null and month4 != ""'>
+			,4m
+		</if>
+		<if test='month5 != null and month5 != ""'>
+			,5m
+		</if>
+		<if test='month6 != null and month6 != ""'>
+			, 6m
+		</if>
+		<if test='month7 != null and month7 != ""'>
+			,7m
+		</if>
+		<if test='month8 != null and month8 != ""'>
+			,8m
+		</if>
+		<if test='month9 != null and month9 != ""'>
+			,9m
+		</if>
+		<if test='month10 != null and month10 != ""'>
+			,10m
+		</if>
+		<if test='month11 != null and month11 != ""'>
+			,11m
+		</if>
+		<if test='month12 != null and month12 != ""'>
+			,12m
+		</if>
+		) VALUES(date_format(NOW(), '%Y')
+		<if test='month1 != null and month1 != ""'>
+			,#{month1}
+		</if>
+		<if test='month2 != null and month2 != ""'>
+			,#{month2}
+		</if>
+		<if test='month3 != null and month3 != ""'>
+			,#{month3}
+		</if>
+		<if test='month4 != null and month4 != ""'>
+			,#{month4}
+		</if>
+		<if test='month5 != null and month5 != ""'>
+			,#{month5}
+		</if>
+		<if test='month6 != null and month6 != ""'>
+			,#{month6}
+		</if>
+		<if test='month7 != null and month7 != ""'>
+			,#{month7}
+		</if>
+		<if test='month8 != null and month8 != ""'>
+			, #{month8}
+		</if>
+		<if test='month9 != null and month9 != ""'>
+			,#{month9}
+		</if>
+		<if test='month10 != null and month10 != ""'>
+			, #{month10}
+		</if>
+		<if test='month11 != null and month11 != ""'>
+			,#{month11}
+		</if>
+		<if test='month12 != null and month12 != ""'>
+			, #{month12}
+		</if>
+		)
+		ON DUPLICATE KEY
+		UPDATE
+			YEAR = date_format(NOW(), '%Y')
+		<if test='month1 != null and month1 != ""'>
+			,1m = #{month1}
+		</if>
+		<if test='month2 != null and month2 != ""'>
+			,2m = #{month2}
+		</if>
+		<if test='month3 != null and month3 != ""'>
+			, 3m = #{month3}
+		</if>
+		<if test='month4 != null and month4 != ""'>
+			,4m = #{month4}
+		</if>
+		<if test='month5 != null and month5 != ""'>
+			,5m = #{month5}
+		</if>
+		<if test='month6 != null and month6 != ""'>
+			,6m = #{month6}
+		</if>
+		<if test='month7 != null and month7 != ""'>
+			,7m = #{month7}
+		</if>
+		<if test='month8 != null and month8 != ""'>
+			,8m = #{month8}
+		</if>
+		<if test='month9 != null and month9 != ""'>
+			, 9m = #{month9}
+		</if>
+		<if test='month10 != null and month10 != ""'>
+			,10m = #{month10}
+		</if>
+		<if test='month11 != null and month11 != ""'>
+			,11m = #{month11}
+		</if>
+		<if test='month12 != null and month12 != ""'>
+			,12m = #{month12}
+		</if>
+	</insert>
+
+	<insert id="mergePTR_STRTG_INF" parameterType="hashMap">
+		INSERT INTO
+			TB_PTR_STRTG_INF
+			(
+				TAG,
+				VALUE,
+				RGSTR_TIME,
+				UPDT_TIME,
+				REAL_TIME_YN,
+				SSN_ID,
+				SSN
+			)
+		VALUES
+			(
+				#{no},
+				#{value},
+				CURRENT_TIMESTAMP(),
+				CURRENT_TIMESTAMP(),
+				'1',
+				#{ssn_id},
+				#{ssn}
+			)
+		ON DUPLICATE KEY UPDATE
+			TAG = #{no},
+			VALUE = #{value},
+			UPDT_TIME = CURRENT_TIMESTAMP(),
+			REAL_TIME_YN = '1',
+			SSN_ID = #{ssn_id},
+			SSN = #{ssn}
+	</insert>
+
+	<insert id="mergeOPER_INF" parameterType="hashMap">
+		INSERT INTO
+			TB_OPER_INF
+		(
+		OPER_IDX , SSN , C0 , C1 , C2 , C3 , C4 , C5 , C6 , C7 , C8 , C9 , C10 , C11 , C12 , C13 , C14 , C15 , C16 , C17 , C18 , C19 , C20 , C21 , C22 , C23
+		)
+		VALUE
+		(
+		#{OPER_IDX},#{SSN},#{C0},#{C1},#{C2},#{C3},#{C4},#{C5},#{C6},#{C7},#{C8},#{C9},#{C10},#{C11},#{C12},#{C13},#{C14},#{C15},#{C16},#{C17},#{C18},#{C19},#{C20},#{C21},#{C22},#{C23}
+		)
+		ON DUPLICATE KEY
+		UPDATE
+		OPER_IDX=#{OPER_IDX},
+		SSN=#{SSN},
+		C0=#{C0},
+		C1=#{C1},
+		C2=#{C2},
+		C3=#{C3},
+		C4=#{C4},
+		C5=#{C5},
+		C6=#{C6},
+		C7=#{C7},
+		C8=#{C8},
+		C9=#{C9},
+		C10=#{C10},
+		C11=#{C11},
+		C12=#{C12},
+		C13=#{C13},
+		C14=#{C14},
+		C15=#{C15},
+		C16=#{C16},
+		C17=#{C17},
+		C18=#{C18},
+		C19=#{C19},
+		C20=#{C20},
+		C21=#{C21},
+		C22=#{C22},
+		C23=#{C23}
+	</insert>
+
+	<select id="selectSuji" resultType="Map" parameterType="hashMap">
+		SELECT * FROM TB_OPER_INF WHERE SSN=#{ssn}
+	</select>
+
+
+	<!-- 펌프 우선 순위 -->
+	<select id="selectCTR_PRF_PUMPMST_INF" resultType="Map" >
+		SELECT
+			PUMP_IDX,
+			CONCAT(PUMP_GRP_DSC,PUMP_GRP_IDX) 'PUMP',
+			PUMP_NM,
+			PUMP_GRP_NM,
+			PUMP_GRP_DSC,
+			PUMP_GRP_IDX,
+			ANLY_RNK ,
+			USER_RNK ,
+			PMS_USE_YN,
+			USE_YN,
+			PRRT_RNK,
+			PUMP_CTR_TYP
+		FROM
+			TB_CTR_PRF_PUMPMST_INF
+		ORDER BY PUMP_GRP ASC
+	</select>
+	
+	<update id="updateSetCTR_PRF_PUMPMST_INF" parameterType="hashMap">
+		update TB_CTR_PRF_PUMPMST_INF
+		set
+		PRRT_RNK = #{PRRT_RNK},
+		PMS_USE_YN = #{PMS_USE_YN},
+		USER_RNK = #{USER_RNK},
+		PUMP_CTR_TYP = #{PUMP_CTR_TYP}
+		where
+		PUMP_IDX = #{PUMP_IDX}
+	</update>
+
+	<select id="selectReport_kwh" resultType="hashMap" parameterType="string">
+		select
+			a.range,
+			a.TIMEZONE,
+			SUM(a.value) as value
+		FROM
+		(
+			SELECT
+				round(rdh.value * pti.PWQ_UNIT_VALUE, 2) AS value,
+				rdh.ts,
+				rdh.tagname,
+				<if test='range == "dayAgo"'>
+					'dayAgo' AS 'range',
+				</if>
+				<if test='range == "day"'>
+					'day' AS 'range',
+				</if>
+				<if test='range == "month"'>
+					'month' AS 'range',
+				</if>
+				<if test='range == "year"'>
+					'year' AS 'range',
+				</if>
+				rri.TIMEZONE as 'timezone'
+			FROM
+				TB_RAWDATA_HOUR_INGRT rdh, TB_RT_RATE_INF rri, TB_PEAK_TAG_INF pti
+			WHERE
+				rdh.tagname = pti.PWQ_TAG AND pti.IS_ALL = '1'
+				AND DATE_FORMAT(rdh.ts, '%H') = rri.STN_TM and rri.RATE_IDX ='1' and rri.MNTH = DATE_FORMAT(rdh.ts, '%m')
+				<if test='range == "dayAgo"'>
+					AND rdh.ts BETWEEN DATE_SUB(#{date}, INTERVAL 1 DAY)
+					AND CONCAT(DATE_SUB(#{date}, INTERVAL 1 DAY), ' 23:59:59')
+				</if>
+				<if test='range == "day"'>
+					AND rdh.ts BETWEEN CONCAT(#{date}, ' 00:00:00')
+					AND CONCAT(#{date}, ' 23:59:59')
+				</if>
+				<if test='range == "month"'>
+					AND rdh.ts BETWEEN DATE_FORMAT(#{date}, '%Y-%m-01') AND LAST_DAY(#{date})
+				</if>
+				<if test='range == "year"'>
+					AND rdh.ts BETWEEN CONCAT(YEAR(#{date}), '-01-01 00:00:00')
+					AND CONCAT(YEAR(#{date}), '-12-31 23:59:59')
+				</if>
+		) a
+		GROUP BY
+				a.TIMEZONE
+	</select>
+	<select id="selectReport_saving" resultType="hashMap" parameterType="string">
+		<if test='range == "dayAgo"'>
+			SELECT
+				IFNULL(savingKwh, 0) as 'savingKwh',
+				IFNULL(savingCo2, 0) as 'savingCo2',
+				'dayAgo' AS 'range'
+			FROM
+				TB_RST_SAVINGS_TARGET
+			WHERE
+				date = DATE_FORMAT(DATE_SUB(#{date}, INTERVAL 1 DAY), '%Y-%m-%d')
+		</if>
+		<if test='range == "day"'>
+			SELECT
+				IFNULL(savingKwh, 0) as 'savingKwh',
+				IFNULL(savingCo2, 0) as 'savingCo2',
+				'day' AS 'range'
+			FROM
+				TB_RST_SAVINGS_TARGET
+			WHERE
+				date = #{date}
+		</if>
+		<if test='range == "month"'>
+			SELECT
+				IFNULL(sum(CAST(replace(savingKwh,',','') AS DECIMAL(10,1))), 0) as 'savingKwh',
+				IFNULL(sum(CAST(replace(savingCo2,',','') AS DECIMAL(10,1))), 0) as 'savingCo2',
+				'month' AS 'range'
+			FROM
+				TB_RST_SAVINGS_TARGET
+			WHERE
+				DATE_FORMAT(date, '%Y-%m') = DATE_FORMAT(#{date}, '%Y-%m')
+		</if>
+		<if test='range == "year"'>
+			SELECT
+				IFNULL(sum(CAST(replace(savingKwh,',','') AS DECIMAL(10,1))), 0) as 'savingKwh',
+				IFNULL(sum(CAST(replace(savingCo2,',','') AS DECIMAL(10,1))), 0) as 'savingCo2',
+				'dayAgo' AS 'range'
+			FROM
+				TB_RST_SAVINGS_TARGET
+			WHERE
+				DATE_FORMAT(date, '%Y') = DATE_FORMAT(#{date}, '%Y')
+		</if>
+	</select>
+
+	<select id="selectReport2" resultType="hashMap" parameterType="string">
+		select
+			ms.zone_idx,
+			ms.zone_code,
+			ms.type,
+			IFNULL(SUM(ms.value), 0) as value
+		from
+		(
+			select
+				DATE_FORMAT(rdhi.ts,'%Y-%m-%d %H:%i:00') AS ts,
+				ti.zone_code,
+				zn.zone_idx,
+				ROUND(rdhi.value*pti.PWQ_UNIT_VALUE, 2) AS 'value',
+				<if test='range == "dayAgo"'>'kwh_dayAgo' as type</if>
+				<if test='range == "day"'>'kwh_day' as type</if>
+				<if test='range == "month"'>'kwh_month' as type</if>
+				<if test='range == "year"'>'kwh_year' as type</if>
+			FROM
+				TB_RAWDATA_HOUR_INGRT rdhi, TB_PEAK_TAG_INF pti, TB_TAGINFO ti, TB_ZONE zn
+			WHERE
+				rdhi.tagname = pti.PWQ_TAG AND pti.PWQ_TAG = ti.tagname AND ti.USE_YN='1'
+				AND zn.ZONE_CODE = ti.zone_code
+				AND pti.MNTR_YN ='1'
+				<if test='range == "dayAgo"'>
+				AND rdhi.ts BETWEEN DATE_SUB(#{date}, INTERVAL 1 DAY)
+				AND CONCAT(DATE_SUB(#{date}, INTERVAL 1 DAY), ' 23:59:59')
+				</if>
+				<if test='range == "day"'>
+				AND rdhi.ts BETWEEN CONCAT(#{date}, ' 00:00:00')
+				AND CONCAT(#{date}, ' 23:59:59')
+				</if>
+				<if test='range == "month"'>
+				AND rdhi.ts BETWEEN DATE_FORMAT(#{date}, '%Y-%m-01') AND LAST_DAY(#{date})
+				</if>
+				<if test='range == "year"'>
+				AND rdhi.ts BETWEEN CONCAT(YEAR(#{date}), '-01-01 00:00:00')
+				AND CONCAT(YEAR(#{date}), '-12-31 23:59:59')
+				</if>
+		) ms
+		GROUP BY ms.zone_code
+		order by ms.zone_idx ASC
+	</select>
+	<sql id="rangeDate">
+		<if test='range == "day"'>
+			AND rdh.ts BETWEEN CONCAT(#{date}, ' 00:00:00')  AND CONCAT(#{date}, ' 23:59:59')
+		</if>
+		<if test='range == "month"'>
+<!--			and DATE_FORMAT(rdh.ts, '%Y-%m') = DATE_FORMAT(#{date}, '%Y-%m')-->
+			AND rdh.ts &gt; LAST_DAY(#{date}) - interval 1 month
+			AND rdh.ts &lt;= LAST_DAY(#{date})
+		</if>
+	</sql>
+	<select id="selectReport3" resultType="hashMap" parameterType="hashMap">
+		SELECT
+			<if test='range == "day"'>
+			'day' AS 'range',
+			</if>
+			<if test='range == "month"'>
+			'month' AS 'range',
+			</if>
+			cppi.PUMP_IDX,
+			cppi.PUMP_NM,
+			cppi.PUMP_GRP_NM,
+			<if test='type == "ctr_rate"'>
+			COALESCE((COUNT(CASE WHEN rdh.VALUE = 1 THEN 1 END) / NULLIF(COUNT(rdh.VALUE), 0)) * 100, 0) as ctr_rate
+			FROM
+				TB_CTR_PRF_PUMPMST_INF cppi,
+				TB_RAWDATA_HOUR rdh
+			WHERE
+				rdh.tagname = cppi.PMB_TAG
+				<include refid="rangeDate"/>
+			</if>
+			<if test='type == "pump_kwh"'>
+				COALESCE(
+				(
+					SELECT
+						ROUND(SUM(rdh.VALUE * pti.PWQ_UNIT_VALUE), 2) as pump_kwh
+					FROM
+						TB_RAWDATA_HOUR_INGRT rdh,
+						TB_PEAK_TAG_INF pti
+					WHERE
+						rdh.tagname = cppi.PWQ_TAG
+						and pti.PWQ_TAG = cppi.PWQ_TAG
+						and pti.mntr_yn = '1'
+						and rdh.value is not null AND rdh.value &gt; 0
+						<include refid="rangeDate"/>
+					GROUP BY
+						cppi.PUMP_IDX
+				), 0) AS pump_kwh
+				FROM
+					TB_CTR_PRF_PUMPMST_INF cppi
+				WHERE
+					cppi.USE_YN = '1'
+			</if>
+			<if test='type == "frq_value"'>
+					COALESCE(SUM(value * 0.000001), 0) as frq_value
+				FROM
+					TB_CTR_PRF_PUMPMST_INF cppi,
+					TB_RAWDATA_HOUR rdh
+				WHERE
+					rdh.tagname = cppi.FRQ_TAG
+					<include refid="rangeDate"/>
+			</if>
+		<if test='type != "pump_kwh"'>
+				AND cppi.USE_YN = '1'
+			GROUP BY
+				cppi.PUMP_IDX;
+		</if>
+	</select>
+
+	<select id="selectReport4" resultType="hashMap" parameterType="hashMap">
+		SELECT
+			DATE_FORMAT(rdh.ts, '%Y-%m-%d %H:%i') as ts,
+			rdh.tagname,
+			tgi.TNK_GRP_IDX,
+			tgi.TNK_IDX,
+			tgi.TNK_GRP_NM,
+			tgi.TNK_NM,
+			ROUND(SUM(rdh.value)/COUNT(rdh.value), 4) AS avg_value,
+			ROUND(MIN(rdh.value), 4) AS min_value,
+			ROUND(MAX(rdh.value), 4) AS max_value
+		FROM
+			TB_RAWDATA_HOUR rdh, TB_TNK_GRP_INF tgi
+		WHERE
+			tgi.LEI_TAG = rdh.tagname
+			AND rdh.ts BETWEEN CONCAT(#{date}, ' 00:00:00')  AND CONCAT(#{date}, ' 23:59:59')
+			AND tgi.TNK_TYP='1' AND tgi.USE_YN='1'
+			<!-- tgi.TNK_TYP 1로 변경해야함. 2는 정수지-->
+		GROUP BY
+			rdh.tagname
+		ORDER BY
+			tgi.TNK_GRP_IDX, TNK_NM
+	</select>
+
+	<select id="selectReport5" resultType="hashMap" parameterType="hashMap">
+		SELECT
+			DATE_FORMAT(rdh.ts, '%Y-%m-%d %H:%i') as ts,
+			rdh.tagname,
+			tgi.TNK_GRP_IDX,
+			tgi.TNK_IDX,
+			tgi.TNK_GRP_NM,
+			ROUND(SUM(rdh.value)/COUNT(rdh.value), 4) AS value
+		FROM
+			TB_RAWDATA_HOUR rdh, TB_TNK_GRP_INF tgi
+		WHERE
+			tgi.LEI_TAG = rdh.tagname
+			AND rdh.ts BETWEEN CONCAT(#{date}, ' 00:00:00')  AND CONCAT(#{date}, ' 23:59:59')
+			AND tgi.TNK_TYP='2' AND tgi.USE_YN='1'
+			<!-- tgi.TNK_TYP 1로 변경해야함. 2는 정수지-->
+		GROUP BY
+			tgi.TNK_GRP_NM, DATE_FORMAT(rdh.ts, '%Y-%m-%d %H:00:00')
+	</select>
+
+	<select id="selectReport6" resultType="hashMap" parameterType="hashMap">
+		SELECT
+		A.ts,
+		A.value AS USE_PWR,
+		A.value * 0.98 as PRDCT_PWR,
+		A.value * 1.02 as GNRTD_PWR,
+		(select
+		value
+		from
+		TB_PTR_CTR_INF
+		where
+		tag in
+		(select tag from TB_WPP_TAG_CODE where func_typ='targetPeakElec')
+		) AS GOAL_PEAK
+		FROM
+		(
+		SELECT
+		DATE_FORMAT(rdh.ts, '%Y-%m-%d %H:00:00') AS ts,
+		ROUND(rdh.VALUE*pti.PWI_UNIT_VALUE,2) AS value
+		FROM
+		TB_RAWDATA_HOUR rdh, TB_PEAK_TAG_INF pti
+		WHERE
+		rdh.ts BETWEEN CONCAT(#{date}, ' 00:00:00')  AND CONCAT(#{date}, ' 23:59:59')
+		AND rdh.tagname = pti.PWI_tag
+		AND pti.is_all = '1' and pti.mntr_yn = '1' and rdh.value > 0
+		GROUP BY
+		DATE_FORMAT(rdh.ts, '%Y-%m-%d %H:00:00')
+		) A
+	</select>
+
+	<select id="selectReport7" resultType="hashMap" parameterType="hashMap">
+		SELECT
+		ROUND(MAX(rdh.VALUE)*pti.PWQ_UNIT_VALUE,2) as peak
+		FROM
+		TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+		WHERE
+		rdh.tagname = pti.PWQ_TAG AND pti.IS_ALL ='1' AND pti.MNTR_YN='1' and rdh.value>0
+		<![CDATA[and ts >= CONCAT(#{date},' 00:00:00') AND ts <= CONCAT(#{date},' 23:59:00')]]>
+	</select>
+
+	<insert id="insertPeakGoal" parameterType="hashMap">
+		update
+			TB_PTR_CTR_INF
+		set
+			value = #{peakValue}
+		where
+			tag = (select TAG from TB_WPP_TAG_CODE WHERE func_typ = 'selectPeakGoal')
+	</insert>
+
+	<select id="selectPeakGoal" resultType="hashMap">
+		select
+			value
+		from
+			TB_PTR_CTR_INF
+		where
+			tag = (select TAG from TB_WPP_TAG_CODE WHERE func_typ = 'selectPeakGoal')
+	</select>
+
+	<select id="selectMonthSeason" resultType="hashMap">
+		SELECT
+			MNTH,
+			SSN
+		FROM
+			TB_RT_RATE_INF
+		WHERE
+			RATE_IDX = '1'
+		GROUP BY MNTH
+		ORDER BY CONVERT(MNTH, SIGNED) ASC
+	</select>
+	
+	<update id="setMonthSeason" parameterType="hashMap">
+		UPDATE
+			TB_RT_RATE_INF
+		SET
+			SSN = #{ssn}
+		WHERE
+				MNTH = #{month}
+			AND
+				RATE_IDX = '1'
+	</update>
+	
+	<select id="selectRate" parameterType="String" resultType="hashMap">
+		SELECT
+			TIMEZONE,
+			BASE_RATE,
+			ELCTR_RATE
+		FROM
+			TB_RT_RATE_INF
+		WHERE
+			RATE_IDX = '1' AND SSN = #{ssn}
+		GROUP BY TIMEZONE
+	</select>
+	
+	<select id="selectSeasonLoad" parameterType="String" resultType="hashMap">
+		SELECT
+			SSN,
+			STN_TM,
+			TIMEZONE
+		FROM
+			TB_RT_RATE_INF
+		WHERE
+				SSN = #{ssn}
+			AND
+				RATE_IDX = '1'
+		GROUP BY STN_TM
+		ORDER BY CONVERT(STN_TM, SIGNED) ASC
+	</select>
+	
+	<update id="setSeasonLoad" parameterType="hashMap">
+		UPDATE
+			TB_RT_RATE_INF
+		SET
+			TIMEZONE = #{timezone}
+		WHERE
+				STN_TM = #{stn_tm}
+			AND
+				SSN = #{ssn}
+			AND
+				RATE_IDX = '1'
+	</update>
+	
+	<select id="selectPumpList" resultType="hashmap" parameterType="int">
+		SELECT
+			PUMP_IDX,
+			CONCAT(PUMP_GRP_DSC,PUMP_GRP_IDX) 'PUMP',
+			PUMP_NM,
+			PUMP_GRP,
+			PUMP_GRP_NM,
+			PUMP_GRP_DSC,
+			PUMP_GRP_IDX,
+			ANLY_RNK ,
+			USER_RNK ,
+			PMS_USE_YN,
+			USE_YN,
+			PRRT_RNK,
+			PUMP_CTR_TYP
+		FROM
+			TB_CTR_PRF_PUMPMST_INF
+		WHERE
+			PUMP_GRP = #{pumpGrp}
+	</select>
+	
+	<update id="setTargetMonthLoad" parameterType="hashMap">
+		UPDATE
+			TB_RT_RATE_INF
+		SET
+			TIMEZONE = #{TIMEZONE}
+		WHERE
+				RATE_IDX = '1'
+			AND
+				SSN = #{SSN}
+			AND
+				STN_TM = #{STN_TM}
+			AND
+				MNTH = #{month}
+	</update>
+	
+	<update id="setRateCost" parameterType="hashMap">
+		UPDATE TB_RT_RATE_INF
+		SET
+		<choose>
+			<when test="key == 'base_rate'">
+				BASE_RATE = #{value}
+			</when>
+			<otherwise>
+				ELCTR_RATE = #{value}
+			</otherwise>
+		</choose>
+		WHERE RATE_IDX = 1 AND SSN = #{ssn}
+		<if test="key != 'base_rate'">
+			AND
+			<choose>
+				<when test="key == 'rate_H'">
+					TIMEZONE = 'H'
+				</when>
+				<when test="key == 'rate_M'">
+					TIMEZONE = 'M'
+				</when>
+				<otherwise>
+					TIMEZONE = 'L'
+				</otherwise>
+			</choose>
+		</if>
+	</update>
+	
+	<select id="getMaxRawDataTime" resultType="String">
+		SELECT
+		DATE_FORMAT(MAX(TS), '%Y-%m-%d %H:%i')
+		FROM
+		TB_RAWDATA
+		WHERE
+		TS &lt;= NOW() AND TS &gt;= DATE_SUB(NOW(), interval 1 week)
+		ORDER BY TS;
+	</select>
+	<select id="getAvgOneHourRaw" resultType="Double" parameterType="hashmap">
+		SELECT
+		AVG(VALUE)
+		FROM
+		TB_RAWDATA
+		WHERE
+		TAGNAME = #{tag}
+		AND
+		TS &lt;= #{ts} AND TS &gt;= DATE_SUB(#{ts}, interval 1 hour);
+	</select>
+	<select id="getAvgOneDayRaw" resultType="Double" parameterType="hashmap">
+		SELECT
+		AVG(VALUE)
+		FROM
+		TB_RAWDATA
+		WHERE
+		TAGNAME = #{tag}
+		AND
+		TS &lt;= #{ts} AND TS &gt;= DATE_SUB(#{ts}, interval 1 Day);
+	</select>
+</mapper>

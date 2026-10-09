@@ -1,0 +1,201 @@
+# 군산 전체 관망 통합 모델 — DB(dev) 데이터 기반 학습 설정.
+#
+# gunsan_db.yaml/gj_db.yaml/nw_db.yaml/osd_db.yaml(시설별 4개 모델)을 이 파일
+# 하나로 통합했다. 태그리스트가 시트 4개(gunsan/gj/nw/osd)에서 시트 하나(GU)로
+# 재설계됐기 때문이다.
+#
+# [2026-09-10 갱신] feature_cols != target_cols. 초기 설계 때는 GU 시트 태그가
+# 전부 target이라 "feature_cols == target_cols, 전부 보고 전부 동시 예측"하는
+# joint 모델이었지만, 이후 taglist(GU_taglist.xlsx)가 두 번 바뀌었다:
+#  1. 밸브 개도 V2(지방산단, 891-365-POI-8601)/V4(국가산단, 891-365-POI-8600)
+#     추가 — role=variable. 밸브는 조작 대상(제어 변수)이라 "미래에 어떤
+#     값일지 예측"할 대상이 아니라 "지금까지 어떻게 움직였는지 보고 참고할
+#     입력"이라 처음부터 target으로 넣지 않았다.
+#  2. P1/Q_Ham/P_Ham/Q2/P2가 target -> variable로 바뀜(taglist 엑셀 "비고"
+#     컬럼). 이제 모델이 이 5개 값을 더 이상 예측하지 않고, 과거 값을 아는
+#     입력(feature)으로만 쓴다 — target_idx가 range(N)이 아니라 feature_cols
+#     안의 부분집합이 된다(pipeline.py는 원래부터 이 경우를 지원하도록 짜여
+#     있어서 코드 변경은 필요 없었다 — target_idx가 feature_cols 안에서 target
+#     위치를 가리키는 인덱스 리스트라 부분집합이어도 그대로 동작).
+#
+# 결과적으로 지금(gu_db.yaml, Q8 포함) feature_cols=20개(target 13 + variable
+# 7: P1/Q_Ham/P_Ham/Q2/P2/V2/V4), target_cols=13개(Q_GunS/P_GunS/H3/Q4/P4/Q5/P5/
+# Q6/P6/Q8/H7/O7/Q7)다 — "24개 태그"라는 원래 숫자도 이제 안 맞는다(H3_1/H3_2,
+# H7_1/H7_2가 combine_max_columns로 각각 하나로 합쳐지므로 실제 컬럼 수는
+# 그보다 적다). taglist/GU_network_topology.md와 taglist.REFERENCE_*가 최신
+# 구조를 담고 있으니 그쪽을 우선 참고할 것.
+#
+# 왜 개별 모델보다 나을 수 있는가: 정수장(Q_GunSnS/P_GunS)과 하위 배수지들은
+# 실제로 물리적으로 연결된 하나의 관망이다. 기존 4개 모델은 서로의 존재를
+# 몰랐지만, EDA에서 이미 태그 간 강한 상관관계를 확인했었다(예: H7_1~H7_2
+# 0.99, P_GunS~P1 0.996 — analysis/gunsan_db/feature_correlation.csv). 하나의
+# self-attention 인코더가 24개 채널을 같이 보게 하면 이런 관계를 학습에
+# 쓸 수 있다.
+#
+# 시설별 개별 config에서 이미 검증된 처방은 그대로 이어받았다 (컬럼명 기준
+# 설정이라 시트 통합과 무관):
+#  - P6: clip을 사실상 끔(column_overrides). CSV 시절엔 "clip이 정상 범위를
+#    잘라냄", DB 데이터로는 "clip이 이미 약한/불안정한 신호를 더 망가뜨림"
+#    이었다 — 두 시기 모두 clip이 도움이 안 됐다. 자세한 경위는 git 이력의
+#    osd_db.yaml 참고.
+#
+# 새로 추가한 것 — target별 loss 가중치: target이 6~7개였던 개별 모델과
+# 달리 이제 24개를 한 손실함수(평균 MSE)로 묶는다. H7 수위처럼 원래 잡음이
+# 크고 예측이 어려운 target의 자연히 큰 오차값이 손실을 지배해서, Q_GunSnS
+# 처럼 상대적으로 깨끗한 target의 미세한 개선 신호가 묻히는 걸 막기 위해
+# train.target_loss_weighting을 켰다 (baselines.compute_inverse_persistence_weights
+# 참고 — train 구간에서 target별 persistence MAE의 역수를 정규화해서 씀).
+#
+# 새로 포함된 태그(기존엔 NU로 제외됐거나 아예 없던 것): H3_2, H7_8~H7_3
+# (기존엔 NU), Q8=891-365-FRI-8802(신규 태그, DB에 2023-01-01~현재 데이터
+# 있음 확인됨). Data/ 캐시에 아직 없는 태그라 이 config를 처음 돌릴 때
+# 그만큼 DB에서 새로 받아온다 (태그당 최대 수십 분 소요 — db_source.py의
+# 월 단위 캐시 참고).
+#
+# P6 장기 고정 구간(2025-09~2026-04 사이 몇 달씩 0.0 반복, analysis/GU_db/
+# stuck_values.csv 참고)은 stuck_value_min_minutes로 걸러지지만, valid_mask가
+# "feature_cols(현재 20개, target/variable 구분 없이 전부) 전체가 다 유효한
+# 행"이라는 AND 조건이라(feature_cols == target_cols였던 시절과 무관하게
+# 지금도 마찬가지), P6 하나가 고정되면 그 기간 전체 행이 학습에서 통째로
+# 빠진다. P6 자체를 그 기간에 정확히 맞힐 순 없어도, stuck_value_impute_columns
+# 로 P6만 중앙값으로 채워서 나머지 19개 컬럼의 그 기간 데이터는 살린다.
+#
+# Q8(891-365-FRI-8802)은 2025-03-27 전까지 -10~30 사이를 맴도는 노이즈뿐이다가
+# (실제 유량 계측이 아직 시작 전이었던 것으로 보임) 그날부터 실제 유량
+# (수백 단위)이 찍히기 시작했다 (Data/891-365-FRI-8802/ 캐시로 직접 확인:
+# 2025-03-26 일평균 -13 -> 2025-03-27 167 -> 2025-03-28 293). column_start_dates로
+# 그 전 값을 무시한다 — data.start_date를 통째로 늦추면 다른 19개 태그의
+# 2023~2025 데이터까지 같이 버려지므로 Q8만 따로 처리한다. 다만 AND 조건인
+# valid_mask 특성상 이 config(Q8 포함)는 그래도 실질적으로 2025-03-27 이후만
+# 학습에 쓸 수 있다(실측: train 2025-03-27~2025-07-21) — 나머지 태그가 2023년
+# 부터의 전체 기간을 다 쓰게 하려면 Q8을 아예 뺀 gu_db_noq8.yaml을 대신 쓸 것
+# (실측: train 2023-01-01~2025-07-21, 윈도우 수 32,650개 -> 241,930개로 7배 이상).
+#
+# H3_1/H3_2, H7_1/H7_2는 같은 지점의 서로 다른 두 수위 센서인데 상관계수가
+# 각각 0.98/0.999(analysis/GU_db/near_duplicate_features.csv, autocorrelation.csv)
+# 로 사실상 같은 신호를 중복으로 넣는 셈이었다. combine_max_columns로 각 쌍을
+# "둘 중 결측 아닌 값의 최댓값"인 H3/H7 하나로 합친다 — 태그리스트 원본 행
+# 수(현재 22개, V2/V4 포함)가 feature_cols 20개로 줄어든다.
+#
+# 압력(P_*) 태그는 유량/수위보다 훨씬 매끄럽게 변하는 신호라, 결측 구간을
+# ffill(직전값 유지, "계단식으로 멈췄다"고 가정)보다 linear interpolation
+# (두 관측치를 직선으로 잇기)으로 채우는 게 더 그럴듯하다. 유량(Q_*)/수위
+# (H3/H7)는 펌프 on/off 등으로 계단식 변화가 실제로 있을 수 있어 기존대로 ffill.
+#
+# 모델 입력에 시간 feature 추가(신규, time_features) — `--acf-max-lag-minutes
+# 10080`(7일치)까지 자기상관 곡선을 다시 계산해 재검증한 결과(analysis/GU_db/
+# periodicities.csv), P_GunS/P1/P_Ham/Q_GunS/H3/O7 등 거의 모든 target이 정확히
+# 24시간(그리고 그 배수: 48h/72h/96h/120h)마다 자기상관 국소 피크를 보였다 —
+# 뚜렷한 일간 주기성이다. 그 근처에 7일(주간, 10080분) 주기 피크는 나타나지
+# 않았다(top-5 피크가 전부 24h의 배수로 5일 안에서 끝남) — 그래서 요일
+# feature(dow_sin/dow_cos)는 근거 없이 넣지 않는다. 288스텝(24시간)치 원시
+# 신호만으로 모델이 "지금이 하루 중 언제인지"를 암묵적으로 추론하게 두는
+# 대신, hour_sin/hour_cos로 직접 알려준다 — window_size는 그대로 두되(추세/
+# 최근 동역학 파악에는 여전히 필요) 위상 정보는 명시적으로 준다는 취지.
+# window_size+horizon 등 나머지 설계는 이 재검증으로도 바뀌지 않았다(이미
+# 24시간 lookback으로 이 주기를 보고 있었으므로).
+
+data:
+  taglist_path: "./taglist/GU_taglist.xlsx"
+  sheet: GU
+  mode: BOTH
+  freq: "5min"
+  ffill_limit_minutes: 10
+  stuck_value_min_minutes: 360
+  stuck_value_impute_columns: [P6, P9]
+  stuck_value_impute_method: linear   # 2026-09-10: median은 P6의 9.5개월 고정 구간을 완전한 상수로 만들어 평가지표를 왜곡시켰다(analyze.py의 stuck_value_report로 실측) — P6은 원래 변동폭이 좁아(4.26~4.36) linear가 손해 없이 더 그럴듯함
+  column_start_dates:
+    Q8: "2025-03-27"
+  combine_max_columns:
+    H3: [H3_1, H3_2]
+    H7: [H7_1, H7_2]
+  linear_interp_columns: [P_GunS, P1, P_Ham, P2, P4, P5, P6]
+  time_features: [hour_sin, hour_cos]
+
+  source: db
+  start_date: "2023-01-01"
+  end_date: null
+
+  db_connections_path: "./configs/db_connections.json"
+  db_environment: dev        # prod로 바꿀 땐 반드시 명시적으로 지정할 것
+  db_connection_key: "maria-ems-db-gs"
+
+window:
+  window_size: 288   # 5분 리샘플링에서 과거 24시간
+  horizon: 6           # 미래 30분
+  stride: 1             # train 데이터 증강용 촘촘한 슬라이딩 (5분마다)
+  eval_stride: null    # val/test는 기본값(horizon=6)을 써서 겹치는 윈도우를 반복 평가하지 않음
+  min_segment_minutes: 3000  # window_size+horizon=294스텝=1470분보다 넉넉히 크게
+
+split:
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  purge_minutes: 1470   # (window_size + horizon) * freq = 294 * 5분
+
+outlier:
+  enabled: true
+  lower_quantile: 0.01
+  upper_quantile: 0.99
+  apply_to_splits: ["train", "val"]
+  column_overrides:
+    P6: [0.0, 1.0]   # 사실상 clip 끔 — 위 설명 참고
+
+model:
+  type: attn_transformer_residual
+  d_model: 160          # 입력 22채널(feature_cols 20개(target 13 + variable 7: 밸브 V2/V4 포함) + time_features 2개) -> 출력은 target 13개(*horizon)뿐이지만 인코더는 입력 전체를 봄. 개별 모델(최대 96) 대비 표현력 확대. nhead(8)로 나누어떨어짐
+  nhead: 8
+  num_encoder_layers: 2
+  dim_feedforward: 320
+  decoder_hidden: 96
+  dropout: 0.1
+  non_negative_output: true
+
+train:
+  batch_size: 1024   # RTX 5070 Ti 실측: 피크 GPU 메모리 6.68GB (2048은 13.34GB로 거의 한계라 위험)
+  epochs: 200
+  patience: 15
+  lr: 0.001
+  weight_decay: 0.0
+  seed: 42
+  device: auto
+  target_loss_weighting: inverse_persistence_mae
+  # [2026-09-10] 아래 실측 로그는 전부 target이 18개였던(현재 13개로 줄기 전)
+  # 시절 실험이다 — P6/H7 자체는 여전히 target으로 남아있어 그 둘의 상대적
+  # 문제(P6=원래 안정적, H7=거의 완벽해서 과적합)는 구조상 그대로일 가능성이
+  # 높지만, 전체 target 수가 줄면 가중치 정규화 분모/분포가 달라지므로
+  # cap=3.0이 지금도 최선인지는 재학습해서 다시 확인해야 한다(이 로그를
+  # 그대로 못 믿는 이유).
+  #
+  # 실측(2026-09-09 1차 학습, cap 없음): P6과 H7이 각각 가중치 6.58/5.19를 받아
+  # 나머지 16개 target(0.1~0.66)을 10배 이상 압도 — 전체 손실의 ~65%를 이 둘이
+  # 차지했고, 그 결과 두 target 다 skill_vs_persistence -1.2~-1.7로 실제로
+  # 나빠졌다(다른 target 학습을 밀어내고, 이미 거의 완벽한 신호에서 억지로 더
+  # 줄이려다 과적합). target_loss_weight_cap으로 정규화 가중치 상한을 둔다 —
+  # baselines.compute_inverse_persistence_weights 참고.
+  #
+  # 실측 2차(cap=3.0): P6 -1.25 -> -0.71, H7 -1.17 -> -0.66로 개선. 그런데
+  # evaluate.py에 추가한 flat_window_mask(정답이 그 윈도우의 horizon 내내 상수인
+  # 구간)로 나눠보니 P6은 test 윈도우의 51%가 이런 "고정" 구간이었고 그 구간만
+  # 뺀 실질 skill은 -0.18(다른 애매한 target들과 비슷한 수준). H7은 고정 구간이
+  # 0%인데도 skill 그대로라 이쪽만 진짜 문제로 보였다.
+  #
+  # 실측 3차(cap=2.0, H7만 더 개선해보려던 시도): H7은 -0.66 -> -0.29로 크게
+  # 좋아졌지만, 예상과 달리 P6의 실질(고정 구간 제외) skill이 -0.18 -> -0.34로
+  # 더 나빠졌고 전체 평균도 -0.082 -> -0.112로 나빠졌다 — 원인을 다시 파보니
+  # P6의 train persistence MAE가 작았던 건애초에 "median 채우기" 때문이 아니었다
+  # (train은 ~2025-07-21까지인데 P6 장기 고정 구간은 2025-09부터 시작이라 train
+  # 윈도우 중 flat 비율은 0.01%뿐 — imputation이 train엔 거의 영향을 안 줬다).
+  # 즉 P6은 train 기간(2023~2025년 중반) 동안 실제로 안정적인 신호였고, 그
+  # 만큼 높은 가중치를 받는 게 (H7과 달리) 진짜 근거가 있었던 것 — cap을
+  # 낮춰 가중치를 뺏자 모델이 P6 학습에 덜 신경 쓰게 되면서 test의 진짜 변동
+  # 구간 예측이 오히려 나빠진 것으로 보인다. H7은 test 전체에서 고정 구간이
+  # 0%라(즉 이 착시가 전혀 없다) 원래부터 순수하게 "거의 완벽한 신호라 배우려
+  # 할수록 과적합"인 경우였고, P6은 "원래 어려운데 train 기간엔 우연히 안
+  # 어려웠던" 경우라 성격이 다르다. cap 하나로 둘 다 동시에 만족시킬 수 없어서,
+  # 전체적으로 더 나은 쪽(cap=3.0)으로 되돌린다.
+  target_loss_weight_cap: 3.0
+
+output:
+  dir: "./runs/gu_db"
+  analysis_dir: "./analysis/{sheet}_db"

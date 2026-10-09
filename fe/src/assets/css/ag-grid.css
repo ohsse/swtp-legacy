@@ -1,0 +1,69 @@
+/* AG-Grid 테마 CSS (전역 스타일) */
+/* AG-Grid 테마 CSS (전역 스타일) */
+@import "~ag-grid-community/styles/ag-grid.css";
+@import "~ag-grid-community/styles/ag-theme-alpine.css";
+
+/* ================================== */
+/* AG-Grid 커스텀 스타일 ★ */
+/* ================================== */
+
+.ag-theme-alpine {
+    /* 높이 동일하게 설정 */
+    --ag-header-height: 45px;
+    --ag-row-height: 45px;
+
+    /* 그리드 전체 테두리 없음 */
+    --ag-border-color: transparent;
+    /* 행 사이 구분선 없음 */
+    --ag-row-border-style: none;
+}
+
+/* 타이틀(헤더) 스타일 */
+.ag-theme-alpine .ag-header {
+    background-color: #502c2c;
+    color: white;
+}
+
+/* 헤더의 텍스트 라벨 색상을 흰색으로 확실하게 지정 */
+.ag-theme-alpine .ag-header-cell-label {
+    color: white;
+}
+/* 헤더 셀 사이의 세로 구분선 제거 */
+.ag-theme-alpine .ag-header-cell::after,
+.ag-theme-alpine .ag-header-cell::before {
+    content: none !important;
+}
+
+/* 그리드 행(Row) 스타일 */
+.ag-theme-alpine .ag-row {
+    background-color: #2c3e50;
+    color: white;
+}
+.ag-theme-alpine .ag-body-viewport,
+.ag-theme-alpine .ag-root-wrapper {
+    border: none !important; /* 모든 테두리 확실하게 제거 */
+    background-color: #2c3e50; /* 행 배경색과 동일하게 맞춰줌 */
+}
+
+.ag-theme-alpine .ag-cell {
+    /* 행 배경색과 동일하게 맞춰서 경계선 느낌을 없앰 */
+    background-color: #2c3e50; 
+    /* 모든 방향의 테두리를 확실하게 제거 */
+    border: none !important; 
+    /* AG-Grid가 내부적으로 만드는 라인 제거 */
+    line-height: var(--ag-row-height); /* 행 높이와 줄 높이를 맞춰 세로 정렬 개선 */
+}
+/* 셀 오른쪽 구분선 제거 */
+.ag-theme-alpine .ag-cell {
+    border-right: none;
+}
+
+/* 헤더 중앙 정렬 */
+.ag-center-aligned-header .ag-header-cell-label {
+    justify-content: center;
+}
+
+/* 셀(내용) 중앙 정렬 */
+.ag-center-aligned-cell {
+    text-align: center;
+}

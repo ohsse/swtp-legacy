@@ -1,0 +1,46 @@
+# ---- 1단계: 빌드 ----
+# Boot 2.7 플러그인은 Gradle 9(wrapper) 미호환이므로 이미지 내장 Gradle 7.6 사용
+FROM gradle:7.6-jdk11 AS build
+USER root
+ENV GRADLE_USER_HOME=/gradle-cache
+WORKDIR /workspace
+COPY build.gradle settings.gradle ./
+COPY src ./src
+RUN --mount=type=cache,target=/gradle-cache \
+    gradle bootWar -x test --no-daemon
+
+# ---- 2단계: 런타임 ----
+# [중요] -focal 을 떼거나 올리지 말 것. 군산 서버에서 JVM 이 기동 즉시 죽는다.
+#
+# 경계는 배포판 세대가 아니라 glibc 2.34 다.
+#   glibc 2.34 부터 pthread_create 가 clone3 syscall 을 쓴다.
+#   구버전 libseccomp/Docker 는 모르는 syscall 에 ENOSYS 가 아니라 EPERM 을 돌려주고,
+#   glibc 는 ENOSYS 일 때만 구식 clone 으로 후퇴한다. EPERM 이면 그대로 실패한다.
+#   군산 호스트 커널이 5.4.0-162(Ubuntu 20.04 계열)라 정확히 그 세대다.
+#
+# 2026-09-16 기준 실측:
+#   eclipse-temurin:11-jre         -> Ubuntu 26.04 / glibc 2.43 / JDK 11.0.32   X
+#   eclipse-temurin:11-jre-jammy   -> Ubuntu 22.04 / glibc 2.35 / JDK 11.0.32   X
+#   eclipse-temurin:11-jre-focal   -> Ubuntu 20.04 / glibc 2.31 / JDK 11.0.27   O  <- 여기 고정
+#
+# 실패는 이렇게 보인다. JVM 이 EPERM 을 "insufficient memory" 로 번역해 출력하므로
+# 메모리 문제로 오해하기 쉽다. 봐야 할 것은 첫 줄이다:
+#   [warning][os,thread] Failed to start thread "GC Thread#0" - pthread_create failed (EPERM)
+#   # There is insufficient memory for the Java Runtime Environment to continue.
+# 덤프의 NPROC/tasks/MemAvailable 이 넉넉한데도 이 메시지가 나오면 자원이 아니라 권한 문제다.
+#
+# 같은 스택의 inp-editor-be 는 JDK 21 이라 focal 태그가 없어 이 길을 못 쓴다. 그래서
+# compose 에서 security_opt: seccomp:unconfined 로 우회한다(prod/shadow/dev compose 참조).
+# ems-java-api 는 focal 로 내려 seccomp 보호를 그대로 유지하는 쪽을 택했다.
+#
+# 대가: focal 변형은 JDK 11.0.27(2025-04) 에 멈춰 있어 jammy(11.0.32, 2026-07)보다 뒤진다.
+# 근본 해결은 호스트의 Docker/libseccomp 갱신이다. 그게 되면 이 고정을 풀 수 있고,
+# 그때는 현장 서버에서 아래로 먼저 확인한다. 개발 PC 에서 뜨는 것은 근거가 되지 않는다 —
+#   docker run --rm                                  <이미지> java -version   # 이게 죽고
+#   docker run --rm --security-opt seccomp=unconfined <이미지> java -version   # 이게 살면 seccomp 확정
+FROM eclipse-temurin:11-jre-focal
+ENV TZ=Asia/Seoul
+WORKDIR /app
+COPY --from=build /workspace/build/libs/*.war app.war
+EXPOSE 9000
+ENTRYPOINT ["java", "-jar", "app.war"]

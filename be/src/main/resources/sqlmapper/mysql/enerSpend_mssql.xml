@@ -1,0 +1,518 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.mindone.ems.energy.EnerSpendMapper">
+	<select id="selectZoneUseList" parameterType="hashMap" resultType="hashMap">
+		SELECT
+			x, zone_code, SUM(y) as y
+		FROM
+		(
+			SELECT
+				<if test='time_type =="h"'>DATE_FORMAT(rdh.ts,'%Y-%m-%d %H:%i')</if>
+				<if test='time_type =="d"'>DATE_FORMAT(rdh.ts,'%Y-%m-%d')</if>
+				<if test='time_type =="m"'>DATE_FORMAT(rdh.ts,'%Y-%m')</if>
+				<if test='time_type =="y"'>DATE_FORMAT(rdh.ts,'%Y')</if>
+				AS x ,
+				ti.zone_code,
+				ROUND(rdh.VALUE*pti.PWI_UNIT_VALUE,2) AS y
+			FROM
+				TB_RAWDATA_HOUR rdh, TB_TAGINFO ti, TB_PEAK_TAG_INF pti
+			where
+				ti.tagname = rdh.tagname AND pti.PWI_TAG = ti.tagname AND ti.USE_YN = '1'
+				and pti.mntr_yn = '1' and ti.USE_YN ='1'
+				<if test='time_type =="h" or time_type =="d"'>
+					<![CDATA[AND rdh.ts >=concat(#{start_date},' 00:00:00') AND rdh.ts <= concat(#{end_date},' 23:59:00')]]>
+				</if>
+				<if test='time_type =="m"'>
+					<![CDATA[AND rdh.ts >=concat(#{start_date},'-01 00:00:00') AND rdh.ts <= concat(#{end_date},'-31 23:59:00')]]>
+				</if>
+				<if test='time_type =="y"'>
+					<![CDATA[AND rdh.ts >=concat(#{start_date},'-01-01 00:00:00') AND rdh.ts <= concat(#{end_date},'-12-31 23:59:00')]]>
+				</if>
+			) a
+		GROUP BY
+			<if test='time_type =="h"'>x</if>
+			<if test='time_type =="d"'>date(x)</if>
+			<if test='time_type =="m"'>month(x)</if>
+			<if test='time_type =="y"'>x</if>, zone_code
+
+		ORDER BY zone_code, x
+	</select>
+
+	<select id="selectZoneUseList_sum" parameterType="hashMap" resultType="hashMap">
+		SELECT
+		zone_code,
+		ROUND(SUM(Y), 2) y
+		FROM
+		(
+		SELECT
+			ti.FAC_CODE,
+			ti.zone_code,
+			SUM(rdh.VALUE*pti.PWQ_UNIT_VALUE) AS y
+		FROM
+			TB_RAWDATA_HOUR_INGRT rdh, TB_TAGINFO ti, TB_PEAK_TAG_INF pti
+		where
+			ti.tagname = rdh.tagname AND pti.PWQ_TAG = ti.tagname AND ti.USE_YN = '1'
+			and pti.mntr_yn = '1' and ti.USE_YN ='1'
+			and rdh.VALUE != 0
+		<if test='time_type =="h" or time_type =="d"'>
+			<![CDATA[AND rdh.ts >=concat(#{start_date},' 00:00:00') AND rdh.ts <= concat(#{end_date},' 23:59:00')]]>
+		</if>
+		<if test='time_type =="m"'>
+			<![CDATA[AND rdh.ts >=concat(#{start_date},'-01 00:00:00') AND rdh.ts <= concat(#{end_date},'-31 23:59:00')]]>
+		</if>
+		<if test='time_type =="y"'>
+			<![CDATA[AND rdh.ts >=concat(#{start_date},'-01-01 00:00:00') AND rdh.ts <= concat(#{end_date},'-12-31 23:59:00')]]>
+		</if>
+		GROUP BY FAC_CODE
+		) a
+		GROUP BY
+		zone_code
+	</select>
+	<select id="selectAllPwq" parameterType="hashMap" resultType="double">
+		SELECT
+			ROUND(SUM(rdh.VALUE * pti.PWQ_UNIT_VALUE ),2) as all_pwq
+		FROM
+			TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+		WHERE
+			pti.IS_ALL = '1'
+			and
+			pti.mntr_yn = '1'
+<!--			and-->
+<!--			rdh.VALUE != 0-->
+			and
+			rdh.tagname = pti.PWQ_TAG
+		<if test='time_type =="h" or time_type =="d"'>
+			<![CDATA[AND rdh.ts >=concat(#{start_date},' 00:00:00') AND rdh.ts <= concat(#{end_date},' 23:59:00')]]>
+		</if>
+		<if test='time_type =="m"'>
+			<![CDATA[AND rdh.ts >=concat(#{start_date},'-01 00:00:00') AND rdh.ts <= concat(#{end_date},'-31 23:59:00')]]>
+		</if>
+		<if test='time_type =="y"'>
+			<![CDATA[AND rdh.ts >=concat(#{start_date},'-01-01 00:00:00') AND rdh.ts <= concat(#{end_date},'-12-31 23:59:00')]]>
+		</if>
+	</select>
+	<select id="sisul_sunsi" parameterType="hashMap" resultType="hashMap">
+		<![CDATA[
+		SELECT
+			x,
+			SUM(y) as y,
+			zone_name
+		FROM
+			(select
+				DATE_FORMAT(rd.ts, '%Y-%m-%d %H:%i') AS x,
+				ti.zone_code,
+				zn.zone_name,
+				ti.tagname,
+				ROUND(rd.VALUE*pti.PWI_UNIT_VALUE,2) AS y
+			from TB_RAWDATA rd, TB_TAGINFO ti, TB_PEAK_TAG_INF pti, TB_ZONE zn
+			where
+				rd.ts = (SELECT MAX(TS) FROM TB_RAWDATA WHERE TS > DATE_ADD(NOW(), INTERVAL -15 MINUTE) AND TS <= NOW())
+				AND rd.tagname = ti.tagname and pti.PWI_TAG = ti.tagname AND  ti.zone_code = zn.zone_code
+				and pti.mntr_yn = '1' and ti.USE_YN ='1'
+			GROUP BY
+				ti.tagname) a
+		GROUP BY
+			zone_name
+		]]>
+	</select>
+	<select id="selectFacUseList" parameterType="hashMap" resultType="hashMap">
+		SELECT
+			x,
+			fac_name,
+			fac_code,
+			tagname,
+			COALESCE(AVG(y), 0) as y
+		FROM
+		(
+
+			SELECT
+				<if test='time_type =="h"'>DATE_FORMAT(rdh.ts,'%Y-%m-%d %H')</if>
+				<if test='time_type =="d"'>DATE_FORMAT(rdh.ts,'%Y-%m-%d')</if>
+				<if test='time_type =="m"'>DATE_FORMAT(rdh.ts,'%Y-%m')</if>
+				<if test='time_type =="y"'>DATE_FORMAT(rdh.ts,'%Y')</if> AS x,
+				fc.fac_name,
+				fc.fac_code,
+				ti.tagname,
+				ROUND(rdh.VALUE*pti.PWQ_UNIT_VALUE,2) AS y
+			FROM
+				TB_RAWDATA_HOUR_INGRT rdh, TB_TAGINFO ti, TB_FAC fc, TB_PEAK_TAG_INF pti
+			WHERE
+				rdh.tagname = ti.tagname AND ti.fac_code = fc.FAC_CODE AND pti.PWQ_TAG = ti.tagname AND ti.USE_YN = '1'
+				and pti.mntr_yn = '1' and ti.USE_YN ='1'
+				and
+				<if test='time_type =="h" or time_type =="d"'>
+					<![CDATA[rdh.ts >=concat(#{start_date},' 00:00:00') AND rdh.ts <= concat(#{end_date},' 23:59:00')]]>
+				</if>
+				<if test='time_type =="m"'>
+					<![CDATA[rdh.ts >=concat(#{start_date},'-01 00:00:00') AND rdh.ts <= concat(#{end_date},'-31 23:59:00')]]>
+				</if>
+				<if test='time_type =="y"'>
+					<![CDATA[rdh.ts >=concat(#{start_date},'-01-01 00:00:00') AND rdh.ts <= concat(#{end_date},'-12-31 23:59:00')]]>
+				</if>
+				<if test="zone_code != null and zone_code != ''">  and ti.zone_code = #{zone_code} </if>
+				<if test="fac_code != null and fac_code != ''">  and fc.fac_code = #{fac_code} </if>
+		) a
+		GROUP BY fac_name,
+			<if test='time_type =="h"'>x</if>
+			<if test='time_type =="d"'>date(x)</if>
+			<if test='time_type =="m"'>x</if>
+			<if test='time_type =="y"'>x</if>
+	</select>
+	<select id="selectFacUseList_sum" parameterType="hashMap" resultType="hashMap">
+		SELECT
+			fac_name,
+			fac_code,
+			CASE
+				WHEN COUNT(CASE WHEN y != 0 THEN 1 END) > 0
+				THEN ROUND(AVG(CASE WHEN y != 0 THEN y END), 2)
+				ELSE 0
+			END AS y
+		FROM (
+			SELECT
+				fc.FAC_NAME,
+				fc.FAC_CODE,
+				rdh.VALUE*pti.PWQ_UNIT_VALUE AS y
+			FROM
+				TB_RAWDATA_HOUR_INGRT rdh, TB_TAGINFO ti, TB_FAC fc, TB_PEAK_TAG_INF pti
+			WHERE
+				rdh.tagname = ti.tagname and ti.fac_code = fc.FAC_CODE AND pti.PWQ_TAG = ti.tagname AND ti.USE_YN = '1'
+				and pti.mntr_yn = '1' and ti.USE_YN ='1'
+				and
+				<if test='time_type =="h" or time_type =="d"'>
+					<![CDATA[rdh.ts >=concat(#{start_date},' 00:00:00') AND rdh.ts <= concat(#{end_date},' 23:59:00')]]>
+				</if>
+				<if test='time_type =="m"'>
+					<![CDATA[rdh.ts >=concat(#{start_date},'-01 00:00:00') AND rdh.ts <= concat(#{end_date},'-31 23:59:00')]]>
+				</if>
+				<if test='time_type =="y"'>
+					<![CDATA[rdh.ts >=concat(#{start_date},'-01-01 00:00:00') AND rdh.ts <= concat(#{end_date},'-12-31 23:59:00')]]>
+				</if>
+				<if test="zone_code != null and zone_code != ''">  and ti.zone_code = #{zone_code} </if>
+				<if test="fac_code != null and fac_code != ''">  and fc.fac_code = #{fac_code} </if>
+			) a
+		GROUP BY
+			fac_name
+	</select>
+	<select id="selectPumpPerformList" parameterType="hashMap" resultType="hashMap">
+		SELECT a.*,
+		(
+		SELECT CONCAT(PUMP_GRP_NM, PUMP_GRP_IDX)
+		FROM TB_CTR_PRF_PUMPMST_INF
+		WHERE
+		<if test="tag_type == 'PMB_TAG'">PMB_TAG</if>
+		<if test="tag_type == 'PRI_TAG'">PRI_D_TAG</if>
+		<if test="tag_type == 'PWI_TAG'">PWI_TAG</if>
+		<if test="tag_type == 'SPI_TAG'">SPI_TAG</if> = tagname
+		LIMIT 1
+		) name
+		FROM (
+		SELECT
+		<if test='time_type == "h"'>DATE_FORMAT(b.ts,'%Y-%m-%d %H:%i')</if>
+		<if test='time_type == "d"'>DATE_FORMAT(b.ts,'%Y-%m-%d')</if>
+		<if test='time_type == "m"'>DATE_FORMAT(b.ts,'%Y-%m')</if>
+		<if test='time_type == "y"'>DATE_FORMAT(b.ts,'%Y')</if> ts,
+		b.tagname,
+		<if test="tag_type == 'PWI_TAG'">
+			ROUND(b.value * c.PWI_UNIT_VALUE, 2) as value
+		</if>
+		<if test="tag_type != 'PWI_TAG'">
+			b.value as value
+		</if>
+		FROM TB_RAWDATA_HOUR b
+		<if test="tag_type == 'PWI_TAG'">
+			,
+			TB_PEAK_TAG_INF c
+		</if>
+		WHERE
+		<if test='time_type == "h" or time_type == "d"'>
+			<![CDATA[b.ts >= CONCAT(#{start_date}, ' 00:00:00') AND b.ts <= CONCAT(#{end_date}, ' 23:59:00')]]>
+		</if>
+		<if test='time_type == "m"'>
+			<![CDATA[b.ts >= CONCAT(#{start_date}, '-01 00:00:00') AND b.ts <= CONCAT(#{end_date}, '-31 23:59:00')]]>
+		</if>
+		<if test='time_type == "y"'>
+			<![CDATA[b.ts >= CONCAT(#{start_date}, '-01-01 00:00:00') AND b.ts <= CONCAT(#{end_date}, '-12-31 23:59:00')]]>
+		</if>
+		AND b.tagname IN (
+		SELECT
+		<if test="tag_type == 'PMB_TAG'">PMB_TAG</if>
+		<if test="tag_type == 'PWI_TAG'">PWI_TAG</if>
+		<if test="tag_type == 'PRI_TAG'">PRI_D_TAG</if>
+		<if test="tag_type == 'SPI_TAG'">SPI_TAG</if>
+		FROM TB_CTR_PRF_PUMPMST_INF
+		)
+		<if test="tag_type == 'PWI_TAG'">
+			AND
+			b.tagname = c.PWI_TAG
+		</if>
+		GROUP BY
+		<if test='time_type == "h"'>b.ts</if>
+		<if test='time_type == "d"'>DATE(b.ts)</if>
+		<if test='time_type == "m"'>MONTH(b.ts)</if>
+		<if test='time_type == "y"'>YEAR(b.ts)</if>,
+		b.tagname
+		) a;
+	</select>
+	<select id="selectPumpPerformList_ss_pwi" parameterType="hashMap" resultType="hashMap">
+		SELECT a.*,
+		'정읍가압장 펌프' as name
+		FROM (
+		SELECT
+		<if test='time_type =="h"'>DATE_FORMAT(ts,'%Y-%m-%d %H:%i')</if>
+		<if test='time_type =="d"'>DATE_FORMAT(ts,'%Y-%m-%d')</if>
+		<if test='time_type =="m"'>DATE_FORMAT(ts,'%Y-%m')</if>
+		<if test='time_type =="y"'>DATE_FORMAT(ts,'%Y')</if> ts,
+		tagname,
+		value
+		FROM TB_RAWDATA_HOUR b
+		WHERE
+		<if test='time_type =="h" or time_type =="d"'>
+			<![CDATA[ts >=concat(#{start_date},' 00:00:00') AND ts <= concat(#{end_date},' 23:59:00')]]>
+		</if>
+		<if test='time_type =="m"'>
+			<![CDATA[ts >=concat(#{start_date},'-01 00:00:00') AND ts <= concat(#{end_date},'-31 23:59:00')]]>
+		</if>
+		<if test='time_type =="y"'>
+			<![CDATA[ts >=concat(#{start_date},'-01-01 00:00:00') AND ts <= concat(#{end_date},'-12-31 23:59:00')]]>
+		</if>
+		AND tagname IN (SELECT
+			PWI_TAG
+		 FROM TB_CTR_PRF_PUMPMST_INF) a
+		group by
+		<if test='time_type =="h"'>b.ts</if>
+		<if test='time_type =="d"'>date(b.ts)</if>
+		<if test='time_type =="m"'>month(b.ts)</if>
+		<if test='time_type =="y"'>year(b.ts)</if>,b.tagname
+		)
+	</select>
+
+	<select id="selectFac" parameterType="string" resultType="hashMap">
+<!--		-->
+		SELECT
+			fc.fac_code,
+			fc.fac_name,
+			fc.DSC as DCS,
+			ti.tagname
+		FROM
+			TB_TAGINFO ti , TB_FAC fc, TB_PEAK_TAG_INF tpti
+		where
+			ti.fac_code = fc.FAC_CODE AND ti.USE_YN = '1' AND fc.USE_YN = '1' AND tpti.MNTR_YN = '1'
+			AND ti.TAGNAME = tpti.PWQ_TAG
+			AND ti.zone_code = #{zone_code}
+		GROUP BY
+			ti.fac_code
+
+	</select>
+
+	<select id="sunsiChart" parameterType="hashMap" resultType="hashMap">
+		SELECT
+			DATE_FORMAT(rdm.ts, '%Y-%m-%d %H:%i') AS x ,
+			zn.zone_name,
+			ROUND(SUM(rdm.VALUE*pti.PWI_UNIT_VALUE),2) AS y
+		FROM
+			TB_RAWDATA_15MIN rdm, TB_TAGINFO ti, TB_ZONE zn, TB_PEAK_TAG_INF pti
+		where
+			<![CDATA[rdm.ts >= DATE_FORMAT(now(), '%Y-%m-%d 00:00:00') AND rdm.ts <= DATE_FORMAT(now(), '%Y-%m-%d 23:59:00')]]>
+			AND rdm.tagname = ti.tagname AND ti.zone_code = zn.zone_code AND pti.PWI_TAG = ti.tagname AND ti.USE_YN = '1'
+			and pti.mntr_yn = '1'
+			<if test="zone_code != null and zone_code != ''">
+				AND zn.zone_code =	#{zone_code}
+			</if>
+		GROUP BY
+			rdm.ts, zn.zone_name
+		ORDER BY
+			zn.zone_name, rdm.ts
+	</select>
+	<select id="selectFacSunsi" parameterType="hashMap" resultType="hashMap">
+		SELECT
+		<if test='time_type =="h"'>DATE_FORMAT(rdm.ts,'%Y-%m-%d %H')</if>
+		<if test='time_type =="d"'>DATE_FORMAT(rdm.ts,'%Y-%m-%d')</if>
+		<if test='time_type =="m"'>DATE_FORMAT(rdm.ts,'%Y-%m')</if>
+		<if test='time_type =="y"'>DATE_FORMAT(rdm.ts,'%Y')</if> AS x,
+		ti.zone_code,
+		fc.fac_name,
+		rdm.tagname,
+		fc.FAC_CODE,
+		fc.DSC as DCS,
+		pti.PWI_UNIT,
+		ROUND(AVG(rdm.VALUE * pti.PWI_UNIT_VALUE), 2) AS y
+		FROM
+		TB_RAWDATA_HOUR rdm,
+		TB_TAGINFO ti,
+		TB_FAC fc,
+		TB_PEAK_TAG_INF pti
+		WHERE
+		rdm.tagname = ti.tagname
+		AND ti.fac_code = fc.FAC_CODE
+		AND rdm.tagname = pti.PWI_TAG AND ti.USE_YN = '1'
+		AND pti.mntr_yn = '1'
+		<if test='time_type =="h" or time_type =="d"'>
+			<![CDATA[AND rdm.ts >=concat(#{start_date},' 00:00:00') AND rdm.ts <= concat(#{end_date},' 23:59:00')]]>
+		</if>
+		<if test='time_type =="m"'>
+			<![CDATA[AND rdm.ts >=concat(#{start_date},'-01 00:00:00') AND rdm.ts <= concat(#{end_date},'-31 23:59:00')]]>
+		</if>
+		<if test='time_type =="y"'>
+			<![CDATA[AND rdm.ts >=concat(#{start_date},'-01-01 00:00:00') AND rdm.ts <= concat(#{end_date},'-12-31 23:59:00')]]>
+		</if>
+		AND ti.zone_code = #{zone_code}
+		GROUP BY
+		x, ti.zone_code, fc.fac_name, rdm.tagname, fc.FAC_CODE, fc.DSC, pti.PWI_UNIT
+		ORDER BY
+		fc.fac_name, x
+	</select>
+	<select id="selectNowElec"  resultType="hashMap"> <!-- 총전력 소비량-->
+		SELECT
+			COALESCE(ROUND( SUM(rd.VALUE) *pti.PWI_UNIT_VALUE,2),0) 'nowPwi',
+			DATE_FORMAT(ts,'%Y-%m-%d %H:%i') AS ts
+		FROM
+			TB_RAWDATA rd, TB_PEAK_TAG_INF pti
+		WHERE
+			rd.tagname = pti.PWI_TAG  and pti.mntr_yn = '1' and pti.is_all = '1'
+		<![CDATA[AND rd.ts >= DATE_SUB(now(), INTERVAL 1 HOUR) AND rd.ts <= now()]]>
+		GROUP BY DATE_FORMAT(ts,'%Y-%m-%d %H:%i')
+		ORDER BY TS DESC
+		LIMIT 1
+	</select>
+	<select id="selectNowPeak"  resultType="hashMap"> <!-- 목표치 -->
+		SELECT 1m 'month1', 2m 'month2', 3m 'month3', 4m 'month4', 5m 'month5', 6m 'month6', 7m 'month7', 8m 'month8', 9m 'month9', 10m 'month10', 11m 'month11', 12m 'month12'
+		FROM
+			TB_GOALSETTING
+		WHERE
+			YEAR=DATE_FORMAT(now(),'%Y')
+	</select>
+
+	<select id="selectYMD"  resultType="hashMap"> <!-- 총 전력 소비량 금월년 -->
+			SELECT
+				*
+			FROM
+				(
+					SELECT
+						ROUND(sum(rdh.VALUE*pti.PWQ_UNIT_VALUE),2) AS todayPwr
+					FROM
+						TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+					WHERE
+						rdh.tagname = pti.PWQ_TAG
+						and pti.mntr_yn = '1'
+						and pti.IS_ALL ='1'
+						and DATE(rdh.ts) = DATE(CURDATE())
+				) todayPwr,
+				(
+					SELECT
+						ROUND(sum(rdh.VALUE*pti.PWQ_UNIT_VALUE),2) AS afterPwr
+					FROM
+						TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+					WHERE
+						rdh.tagname = pti.PWQ_TAG
+						and pti.mntr_yn = '1'
+						and pti.IS_ALL ='1'
+						and DATE(rdh.ts) = DATE(CURDATE() - INTERVAL 1 DAY)
+				) afterPwr,
+				(
+					SELECT
+						ROUND(sum(rdh.VALUE*pti.PWQ_UNIT_VALUE),2) AS monthPwr
+					FROM
+						TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+					WHERE
+						rdh.tagname = pti.PWQ_TAG
+						and pti.IS_ALL ='1'
+						and pti.mntr_yn = '1'
+						and DATE(ts) BETWEEN DATE(LAST_DAY(NOW() - INTERVAL 1 MONTH) + INTERVAL 1 DAY)
+						and LAST_DAY(NOW())
+				) monthPwr,
+				(
+					SELECT
+						ROUND(sum(rdh.VALUE*pti.PWQ_UNIT_VALUE),2) AS yearPwr
+					FROM
+						TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+					WHERE
+						rdh.tagname = pti.PWQ_TAG
+						and pti.IS_ALL ='1'
+						and pti.mntr_yn = '1'
+						and DATE(ts) BETWEEN DATE(CONCAT(YEAR(NOW()), '-01-01'))
+						and DATE(CONCAT(YEAR(NOW()), '-12-31'))
+				) yearPwr
+	</select>
+	<select id="baseElec"  resultType="hashMap"> <!-- 절감량 -->
+		SELECT
+			date,
+			TYPE,
+			COALESCE(ROUND(savingCost,2),0) as savingCost,
+			COALESCE(ROUND(savingKwh,2), 0) as savingKwh,
+			COALESCE(ROUND(savingCo2,2), 0) as savingCo2
+		FROM
+			TB_RST_SAVINGS_TARGET
+			<![CDATA[WHERE date >= LAST_DAY(NOW() - interval 1 month) AND date <= LAST_DAY(NOW())]]>
+		ORDER BY
+			date
+	</select>
+	<select id="rstSavingTargetSum"  resultType="hashMap"> <!-- 금년 절감량 -->
+		SELECT
+			substring(date,1,4) as date,
+			TYPE,
+			REPLACE(format(sum(savingCost),0),',','') AS savingCost,
+			REPLACE(format(sum(savingKwh),0),',','') AS savingKwh,
+			REPLACE(format(sum(savingCo2),0),',','') AS savingCo2
+		FROM
+			TB_RST_SAVINGS_TARGET
+		GROUP BY
+			SUBSTRING(date,1,4)
+		ORDER BY
+			date
+	</select>
+
+	<select id="selectRateInfo" parameterType="hashMap" resultType="hashMap"> <!-- 송산성능곡선 -->
+		SELECT
+			MNTH,
+			STN_TM,
+			RATE_IDX,
+			SSN,
+			TIMEZONE,
+			FORMAT (BASE_RATE,0) BASE_RATE,
+			ELCTR_RATE
+		FROM
+			TB_RT_RATE_INF
+		WHERE
+			RATE_IDX IN (1,2,3)
+	</select>
+
+	<select id="peakFac" resultType="hashMap" parameterType="string">
+		select
+			ti.zone_code,
+			fc.FAC_NAME,
+			DATE_FORMAT(rd.ts,'%Y-%m-%d %H:%i:00') AS ts,
+			COALESCE(ROUND(rd.value*pti.PWI_UNIT_VALUE, 2), 0) AS 'kWVALUE'
+		FROM
+			TB_RAWDATA rd, TB_PEAK_TAG_INF pti, TB_TAGINFO ti, TB_FAC fc
+		WHERE
+			rd.tagname = pti.PWI_TAG
+			AND ti.fac_code = fc.FAC_CODE
+			AND ti.tagname = pti.PWI_TAG
+			and pti.mntr_yn = '1'
+			<![CDATA[AND ts >= NOW() - INTERVAL 15 MINUTE AND ts <= NOW()]]>
+			AND fc.USE_YN='1'
+		GROUP BY
+			fc.FAC_NAME
+		ORDER BY
+			kWVALUE+0 DESC
+		LIMIT 6
+	</select>
+
+	<select id="nowPeak" resultType="hashMap">
+		select
+			DATE_FORMAT(rd.ts,'%Y-%m-%d %H:%i:00') AS ts,
+			COALESCE(ROUND(SUM(rd.value)*pti.PWI_UNIT_VALUE, 2), 0) AS 'kWVALUE'
+		FROM
+			TB_RAWDATA rd, TB_PEAK_TAG_INF pti
+		WHERE
+			rd.tagname = pti.PWI_TAG
+			AND pti.MNTR_YN ='1' AND pti.IS_ALL='1' and rd.value != 0
+			<![CDATA[AND ts >= (NOW() - INTERVAL 15 MINUTE) AND ts <= NOW()]]>
+		GROUP by
+			rd.ts
+		ORDER BY
+			ts DESC
+		LIMIT 1
+	</select>
+</mapper>

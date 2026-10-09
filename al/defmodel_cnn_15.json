@@ -1,0 +1,689 @@
+{
+    "565-339-FRI-4000_cnn_10": {
+        "input_file": "../data/FJIWGS0.565-339-FRI-4000.F_CV.csv",
+        "validation_file": "../data/FJIWGS0.565-339-FRI-4000.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/565-339-FRI-4000_cnn_15.md",
+        "scaler_output_name": "./models/565-339-FRI-4000_cnn_15._scaler",
+
+        "model_name": "models.VanillaCNN",
+
+        "model_args": {
+            "num_filters": 5, 
+            "conv_width" : 12, 
+            "out_features": 1, 
+            "strides": 1, 
+            "padding": "valid",
+            "drop_rate": 0.4,
+            "label_width":1 
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2022-05-01",
+            "ref_days": 200,
+            "label_col": "865-339-FRI-4000"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 10
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "865-338-FRI-4001_cnn_15": {
+        "input_file": "../data/FGMWGS0.865-338-FRI-4001.F_CV.csv",
+        "validation_file": "../data/FGMWGS0.865-338-FRI-4001.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/865-338-FRI-4001_cnn_15.md",
+        "scaler_output_name": "./models/865-338-FRI-4001_cnn_15._scaler",
+
+        "model_name": "models.VanillaCNN",
+
+        "model_args": {
+            "num_filters": 32, 
+            "conv_width" :4, 
+            "out_features": 1, 
+            "strides": 2, 
+            "padding": "valid",
+            "drop_rate": 0.4,
+            "label_width":1 
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-01",
+            "ref_days": 200,
+            "label_col": "865-338-FRI-4001"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 30
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "865-341-FRI-2004_cnn_15": {
+        "input_file": "../data/GMGDSVR.865-341-FRI-2004.F_CV.csv",
+        "validation_file": "../data/GMGDSVR.865-341-FRI-2004.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/GMGDSVR.865-341-FRI-2004.md",
+        "scaler_output_name": "./models/GMGDSVR.865-341-FRI-2004.scaler",
+
+        "model_name": "models.VanillaCNN",
+
+        "model_args": {
+            "num_filters": 32, 
+            "conv_width" :4, 
+            "out_features": 1, 
+            "strides": 2, 
+            "padding": "valid",
+            "drop_rate": 0.4,
+            "label_width":1 
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-01",
+            "ref_days": 200,
+            "label_col": "865-341-FRI-2004"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 30
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+    
+    "865-337-FRI-4306_cnn_15": {
+        "input_file": "../data/FGMWGS0.865-337-FRI-4306.F_CV.csv",
+        "validation_file": "../data/FGMWGS0.865-337-FRI-4306.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/865-337-FRI-4306.md",
+        "scaler_output_name": "./models/865-337-FRI-4306.scaler",
+
+        "model_name": "models.VanillaCNN",
+
+        "model_args": {
+            "num_filters": 32, 
+            "conv_width" :4, 
+            "out_features": 1, 
+            "strides": 2, 
+            "padding": "valid",
+            "drop_rate": 0.4,
+            "label_width":1 
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-01",
+            "ref_days": 200,
+            "label_col": "865-337-FRI-4306"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 30
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+    
+    "865-337-FRI-4309_cnn_15": {
+        "input_file": "../data/FGMWGS0.865-337-FRI-4309.F_CV.csv",
+        "validation_file": "../data/FGMWGS0.865-337-FRI-4309.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/865-337-FRI-4309.md",
+        "scaler_output_name": "./models/865-337-FRI-4309.scaler",
+
+        "model_name": "models.VanillaCNN",
+
+        "model_args": {
+            "num_filters": 32, 
+            "conv_width" :4, 
+            "out_features": 1, 
+            "strides": 2, 
+            "padding": "valid",
+            "drop_rate": 0.4,
+            "label_width":1 
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-01",
+            "ref_days": 200,
+            "label_col": "865-337-FRI-4309"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 30
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "865-334-FRI-4001_cnn_15": {
+        "input_file": "../data/FGMWGS0.865-334-FRI-4001.F_CV.csv",
+        "validation_file": "../data/FGMWGS0.865-334-FRI-4001.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/865-334-FRI-4001.md",
+        "scaler_output_name": "./models/865-334-FRI-4001.scaler",
+
+        "model_name": "models.VanillaCNN",
+
+        "model_args": {
+            "num_filters": 32, 
+            "conv_width" :4, 
+            "out_features": 1, 
+            "strides": 2, 
+            "padding": "valid",
+            "drop_rate": 0.4,
+            "label_width":1 
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-01",
+            "ref_days": 200,
+            "label_col": "865-334-FRI-4001"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 30
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "780-344-FIT-2502_cnn_15": {
+        "input_file": "../data/FGRWGS0.780-344-FIT-2502.F_CV.csv",
+        "validation_file": "../data/FGRWGS0.780-344-FIT-2502.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/780-344-FIT-2502.md",
+        "scaler_output_name": "./models/780-344-FIT-2502.scaler",
+
+        "model_name": "models.VanillaCNN",
+
+        "model_args": {
+            "num_filters": 32, 
+            "conv_width" :4, 
+            "out_features": 1, 
+            "strides": 2, 
+            "padding": "valid",
+            "drop_rate": 0.4,
+            "label_width":1 
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-01",
+            "ref_days": 200,
+            "label_col": "780-344-FIT-2502"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 20
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+    
+    "780-344-FIT-2501_cnn_15": {
+        "input_file": "../data/FGRWGS0.780-344-FIT-2501.F_CV.csv",
+        "validation_file": "../data/FGRWGS0.780-344-FIT-2501.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/780-344-FIT-2501.md",
+        "scaler_output_name": "./models/780-344-FIT-2501.scaler",
+
+        "model_name": "models.VanillaCNN",
+
+        "model_args": {
+            "num_filters": 32, 
+            "conv_width" :4, 
+            "out_features": 1, 
+            "strides": 2, 
+            "padding": "valid",
+            "drop_rate": 0.4,
+            "label_width":1 
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-01",
+            "ref_days": 200,
+            "label_col": "780-344-FIT-2501"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 20
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "865-337-FRI-4307_cnn_15": {
+        "input_file": "../data/FGMWGS0.865-337-FRI-4307.F_CV.csv",
+        "validation_file": "../data/FGMWGS0.865-337-FRI-4307.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/865-337-FRI-4307.md",
+        "scaler_output_name": "./models/865-337-FRI-4307.scaler",
+
+        "model_name": "models.VanillaCNN",
+
+        "model_args": {
+            "num_filters": 32, 
+            "conv_width" :4, 
+            "out_features": 1, 
+            "strides": 2, 
+            "padding": "valid",
+            "drop_rate": 0.4,
+            "label_width":1 
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-10-01",
+            "ref_days": 200,
+            "label_col": "865-337-FRI-4307"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 60
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "865-337-FRI-4301_cnn_15": {
+        "input_file": "../data/FGMWGS0.865-337-FRI-4301.F_CV.csv",
+        "validation_file": "../data/FGMWGS0.865-337-FRI-4301.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/865-337-FRI-4301.md",
+        "scaler_output_name": "./models/865-337-FRI-4301.scaler",
+
+        "model_name": "models.VanillaCNN",
+
+        "model_args": {
+            "num_filters": 32, 
+            "conv_width" :4, 
+            "out_features": 1, 
+            "strides": 2, 
+            "padding": "valid",
+            "drop_rate": 0.4,
+            "label_width":1 
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-01",
+            "ref_days": 200,
+            "label_col": "865-337-FRI-4301"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 30
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "725-378-FRI-4007_cnn_15": {
+        "input_file": "../data/FHYWGS0.725-378-FRI-4007.F_CV.csv",
+        "validation_file": "../data/FHYWGS0.725-378-FRI-4007.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/725-378-FRI-4007.md",
+        "scaler_output_name": "./models/725-378-FRI-4007.scaler",
+
+        "model_name": "models.VanillaCNN",
+
+        "model_args": {
+            "num_filters": 32, 
+            "conv_width" :4, 
+            "out_features": 1, 
+            "strides": 2, 
+            "padding": "valid",
+            "drop_rate": 0.4,
+            "label_width":1 
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-01",
+            "ref_days": 200,
+            "label_col": "725-378-FRI-4007"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 30
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "865-338-FRI-4301_cnn_15": {
+        "input_file": "../data/FGMWGS0.865-338-FRI-4001.F_CV.csv",
+        "validation_file": "../data/FHYWGS0.725-378-FRI-4007.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/725-378-FRI-4007.md",
+        "scaler_output_name": "./models/725-378-FRI-4007.scaler",
+
+        "model_name": "models.VanillaCNN",
+
+        "model_args": {
+            "num_filters": 32, 
+            "conv_width" :4, 
+            "out_features": 1, 
+            "strides": 2, 
+            "padding": "valid",
+            "drop_rate": 0.4,
+            "label_width":1 
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-01",
+            "ref_days": 200,
+            "label_col": "725-378-FRI-4007"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 30
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "701-363-FRI-4001_cnn_15": {
+        "input_file": "../data/DJEPGS0.701-363-FRI-4001.F_CV.csv",
+        "validation_file": "../data/DJEPGS0.701-363-FRI-4001.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/701-363-FRI-4001.md",
+        "scaler_output_name": "./models/701-363-FRI-4001.scaler",
+
+        "model_name": "models.VanillaCNN",
+
+        "model_args": {
+            "num_filters": 32, 
+            "conv_width" :4, 
+            "out_features": 1, 
+            "strides": 2, 
+            "padding": "valid",
+            "drop_rate": 0.4,
+            "label_width":1 
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-01",
+            "ref_days": 200,
+            "label_col": "701-363-FRI-4001"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 30
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "565-340-FRI-4009_cnn_15": {
+        "input_file": "../data/FWMWGS0.565-340-FRI-4009.F_CV.csv",
+        "validation_file": "../data/FWMWGS0.565-340-FRI-4009.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/565-340-FRI-4009.md",
+        "scaler_output_name": "./models/565-340-FRI-4009.scaler",
+
+        "model_name": "models.VanillaCNN",
+
+        "model_args": {
+            "num_filters": 32, 
+            "conv_width" :4, 
+            "out_features": 1, 
+            "strides": 2, 
+            "padding": "valid",
+            "drop_rate": 0.4,
+            "label_width":1 
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-01",
+            "ref_days": 200,
+            "label_col": "565-340-FRI-4009"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 30
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    }
+    
+
+}

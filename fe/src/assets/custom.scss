@@ -1,0 +1,237 @@
+// Your variable overrides
+$body-color: #fff;
+$primary: #489cf2;
+
+
+// Bootstrap and its default variables
+@import '@/node_modules/bootstrap/scss/bootstrap.scss';
+// BootstrapVue and its default variables
+//@import "../../node_modules/bootstrap-vue-3/src/styles/styles.scss";
+
+/* tabs */
+.custom-tabs .nav-tabs {
+    border-bottom: 0;
+}
+.custom-tabs .nav-tabs .nav-link.active {
+    color: #fff;
+    border: 0;
+    border-radius: 0;
+    background-color: unset !important;
+}
+.custom-tabs .nav-tabs .nav-link {
+    width: 79px;
+    height: 25px;
+    line-height: 25px;
+    background-size: 100% 100% !important;
+    font-size: 13px;
+    font-family: 'KHNPHDRegular';
+    padding: 0;
+    color: #fff;
+    text-align: center;
+    background: url('@/assets/img/pump/disable_false.png') !important;
+    background-size: 100% 100% !important;
+    opacity: 0.3;
+}
+.nav-tabs .nav-item.show .nav-link, .nav-tabs .nav-link.active {
+    background: url('@/assets/img/pump/disable_false.png') !important;
+    background-size: 100% 100% !important;
+    opacity: 1;
+}
+.nav-tabs .nav-link:hover, .nav-tabs .nav-link {
+    border: 0;
+}
+.nav-tabs .nav-link:hover, .nav-tabs .nav-link:focus {
+    border: 0;
+}
+/*
+.custom-tabs .nav-tabs {
+    &.nav-link.active {
+        background-color: unset !important;
+        background: url('../../assets/img/pump/disable_false.png') !important;
+    }
+    &.nav-item.show {
+        .nav-link {
+            background-color: unset;
+            background: url(../img/pump/disable_false.png);
+        }
+    }
+}
+*/
+/* tabs (default) */
+.default-tabs {
+    border-bottom: 0;
+}
+.default-tabs {
+    .nav-link {
+        font-size: 14px;
+        font-family: 'KHNPHDRegular';
+        padding: 0.25rem 1rem;
+        color: #fff;
+        text-align: center;
+        background: #2a4f7f;
+        border: 1px solid #658aaf;
+        opacity: 1;
+        &.active {
+            background: #5781b2;
+        }
+    }
+} 
+
+/* combobox */
+.select-combobox-wrap {
+    position: relative;
+    display: block;
+    border-width: 1px;
+    border-style: solid;
+    //padding-right: 2em;
+    border-radius: 4px;
+    overflow: hidden;
+    transition: box-shadow 0.15s ease-out;
+    background-repeat: repeat;
+    cursor: default;
+}
+.select-combobox-wrap.select-combobox {
+    line-height: 20px;
+    background-color: #15284e;
+    border-color: #489cf2;
+    // background-image: none, linear-gradient(to bottom, rgba(255, 255, 255, 0.25) 0, rgba(255, 255, 255, 0) 100%);
+}
+.select-combobox-wrap select {
+    line-height: 1.65em;
+    padding: .17857143em 0;
+    text-indent: .571em;
+    border: 0;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    outline: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+/* input box */
+.input-default-wrap {
+    position: relative;
+    display: block;
+    border-width: 1px;
+    border-style: solid;
+    padding-right: 2em;
+    border-radius: 4px;
+    overflow: hidden;
+    transition: box-shadow .15s ease-out;
+    background-repeat: repeat;
+    cursor: default;
+  }
+  .input-default-wrap input {
+    line-height: 1.65em;
+    padding: .17857143em 0;
+    text-indent: .571em;
+    border: 0;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    outline: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .input-default-wrap input[type=text] {
+    font-size: 100%;
+    font-family: inherit;
+    border-style: solid;
+    border-width: 1px;
+    -webkit-appearance: none;
+  }
+  .input-default-wrap.input-default {
+    background-color: #15284e;
+    border-color: #489cf2;
+    background-image: none,linear-gradient(to bottom,rgba(255,255,255,.25) 0,rgba(255,255,255,0) 100%);
+  }
+  .input-default-wrap .btn-select {
+    border-color: #489cf2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0 4px 4px 0;
+    overflow: hidden;
+    line-height: 2em;
+    vertical-align: middle;
+    -moz-box-sizing: border-box;
+    text-align: center;
+    width: 2em;
+    height: 100%;
+    border-style: solid;
+    border-width: 0 0 0 1px;
+    position: absolute;
+    top: 0;
+    right: 0;
+    text-decoration: none;
+    cursor: pointer;
+  }
+/* 셀렉트 박스 */
+.comboFont {
+    text-shadow: unset !important;
+}
+.multiselect {
+	min-height: unset !important;
+	background: #15284e !important;
+	border: 1px solid #489cf2 !important;
+}
+.multiselect-wrapper {
+	min-height: unset !important;
+	padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+    padding-left: 0.5rem;
+    font-size: 0.875rem;
+    border-radius: 0.25rem;
+}
+.multiselect-dropdown {
+	background: #15284e !important;
+}
+.multiselect-caret {
+	background-color: #489cf2 !important;
+	margin: 0 var(--ms-px,.625rem) 0 0 !important;
+}
+.multiselect-wrapper::after {
+	content: '';
+	display: inline-block;
+	width: 30px;
+	height: 30px;
+	background: linear-gradient(180deg, rgba(74,89,118,1) 0%, rgba(27,46,83,1) 100%);
+	position: absolute;
+    top: 0;
+    right: 0;
+	border-top-right-radius: 0.25rem;
+	border-bottom-right-radius: 0.25rem;
+}
+.multiselect-option {
+    padding: 0 4px !important;
+    line-height: 1.8em !important;
+    min-height: 1.8em !important;
+}
+.multiselect-option.is-pointed {
+    background: var(--ms-option-bg-pointed,#c6def7) !important;
+    color: var(--ms-option-color-pointed,#000) !important;
+    box-shadow: inset 0 0 3px 1px #c6def7 !important;
+    border-radius: 3px;
+    padding: 0 4px;
+    line-height: 1.8em;
+    min-height: 1.8em;
+}
+.multiselect-option.is-selected {
+	background: var(--ms-option-bg-selected,#489cf2) !important;
+    color: var(--ms-option-color-selected,#000);
+    box-shadow: inset 0 0 3px 1px #c6def7 !important;
+    border-radius: 3px;
+    padding: 0 4px;
+    line-height: 1.8em;
+    min-height: 1.8em;
+}
+.multiselect-option.is-selected.is-pointed {
+    background: var(--ms-option-bg-selected-pointed,#489cf2) !important;
+	border-color: #489cf2 !important;
+    color: var(--ms-option-color-selected-pointed,#fff);
+	box-shadow: inset 0 0 3px 1px #c6def7 !important;
+    border-radius: 3px;
+    padding: 0 4px;
+    line-height: 1.8em;
+    min-height: 1.8em;
+}

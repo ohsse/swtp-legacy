@@ -1,0 +1,1024 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<mapper namespace="kr.co.mindone.ems.pump.PumpMapper">
+
+	<select id="selectTestCtrTag" resultType="hashMap">
+		select
+			TAG as 'tag',
+			TIME as 'time',
+			VALUE as 'value',
+			FLAG
+		from
+			TB_HMI_CTR_TAG
+		where
+			FLAG = 0
+	</select>
+
+	<update id="updateTestCtrTag" parameterType="hashMap">
+		update
+			TB_HMI_CTR_TAG
+		set FLAG = 1
+		where
+			TAG = #{TAG}
+			and TIME = #{TIME}
+	</update>
+
+	<select id="selectCtrTagList" parameterType="hashMap" resultType="hashMap">
+		select
+			CTR_IDX,
+			CTR_NM,
+			OPT_IDX,
+			TAG,
+			TIME,
+			VALUE,
+			ANLY_CD,
+			DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:%i:%s') as 'RGSTR_TIME',
+			DATE_FORMAT(UPDT_TIME, '%Y-%m-%d %H:%i:%s') as 'UPDT_TIME',
+			DATE_FORMAT(UPDT_TIME, '%Y-%m-%d %H:%i') as 'UPDT_TIME_M',
+			FLAG
+		from
+			TB_HMI_CTR_TAG
+		where
+			FLAG = #{FLAG}
+			<if test='ANLY_CD == "RUN_STATUS" or ANLY_CD == "STOP_STATUS" or ANLY_CD == "STATUS"'>
+				and ANLY_CD in ( 'RUN_STATUS' , 'STOP_STATUS')
+			</if>
+			<if test='ANLY_CD == "SYNC_STATUS" or ANLY_CD == "IVK_STATUS"'>
+				and ANLY_CD in ( 'SYNC_STATUS' , 'IVK_STATUS')
+			</if>
+			<if test='ANLY_CD == "FREQ"'>
+				and ANLY_CD = 'FREQ'
+			</if>
+			<if test='ANLY_CD == "CTR"'>
+				and ANLY_CD = 'CTR'
+			</if>
+			<if test='ANLY_CD == "VVK"'>
+				and ANLY_CD = 'VVK'
+			</if>
+			<if test='ANLY_CD == "STOP"'>
+				and ANLY_CD = 'STOP'
+			</if>
+			<if test='ANLY_CD == "START"'>
+				and ANLY_CD = 'START'
+			</if>
+		order by CTR_IDX ASC
+	</select>
+
+	<select id="selectLastEndCtrTagList" parameterType="hashMap" resultType="hashMap">
+		select
+			CTR_IDX,
+			OPT_IDX,
+			CTR_NM,
+			TAG,
+			TIME,
+			VALUE,
+			ANLY_CD,
+			DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:%i:%s') as 'RGSTR_TIME',
+			DATE_FORMAT(UPDT_TIME, '%Y-%m-%d %H:%i:%s') as 'UPDT_TIME',
+			DATE_FORMAT(UPDT_TIME, '%Y-%m-%d %H:%i') as 'UPDT_TIME_M',
+			FLAG
+		from
+			TB_HMI_CTR_TAG
+		where
+			FLAG = 2
+			and ANLY_CD in ('RUN', 'STOP', 'FREQ')
+		order by UPDT_TIME desc
+			limit 0 ,1
+	</select>
+
+	<update id="updateCtrTag" parameterType="hashMap">
+		update
+			TB_HMI_CTR_TAG
+		set FLAG = #{FLAG}
+		where
+			TAG = #{TAG}
+			and ANLY_CD = #{ANLY_CD}
+			and OPT_IDX = #{OPT_IDX}
+	</update>
+
+	<update id="initCtrTag">
+		update
+		TB_HMI_CTR_TAG
+		set FLAG = 3
+		where
+		FLAG = 0 OR FLAG = 1
+	</update>
+
+	<select id="nowRunPumpList" resultType="hashMap" parameterType="hashMap">
+		select
+			cppi.PUMP_IDX,
+			cppi.PUMP_GRP,
+			cppi.PUMP_GRP_NM,
+			cppi.PUMP_NM,
+			cppi.PUMP_TYP,
+			rd.TAGNAME,
+			MAX(rd.ts) as 'TS',
+			CASE
+				WHEN rd.value = 1 THEN "On"
+				ELSE "Off"
+			END as value
+		from
+			TB_CTR_PRF_PUMPMST_INF cppi, TB_RAWDATA rd
+		where cppi.PMB_TAG = rd.TAGNAME
+			and cppi.PUMP_GRP = #{PUMP_GRP}
+			and rd.TS &gt; DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+			and rd.TS &lt;= DATE_ADD(NOW(), INTERVAL 10 MINUTE)
+		GROUP BY cppi.PUMP_IDX
+	</select>
+
+	<select id="nowRunAllPumpList" resultType="hashMap">
+		SELECT
+		    cppi.PUMP_IDX,
+		    cppi.PUMP_GRP,
+		    cppi.PUMP_GRP_NM,
+		    cppi.PUMP_NM,
+			cppi.PUMP_TYP,
+		    rd_pmb.TAGNAME AS PMB_TAGNAME,
+		    rd_spi.TAGNAME AS SPI_TAGNAME,
+		    MAX(rd_pmb.ts) AS PMB_TS,
+		    MAX(rd_spi.ts) AS SPI_TS,
+		    CASE
+		        WHEN rd_pmb.value = 1 THEN "On"
+		        ELSE "Off"
+		    END AS PUMP_YN,
+		    ROUND(rd_spi.value,0) as 'FREQ'
+		FROM
+		    TB_CTR_PRF_PUMPMST_INF cppi
+		    LEFT JOIN TB_RAWDATA rd_pmb ON cppi.PMB_TAG = rd_pmb.TAGNAME
+		        AND rd_pmb.TS &gt; DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+		        AND rd_pmb.TS &lt;= DATE_ADD(NOW(), INTERVAL 10 MINUTE)
+		    LEFT JOIN TB_RAWDATA rd_spi ON cppi.SPI_TAG = rd_spi.TAGNAME
+		        AND rd_spi.TS &gt; DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+		        AND rd_spi.TS &lt;= DATE_ADD(NOW(), INTERVAL 10 MINUTE)
+		WHERE
+		    cppi.USE_YN = 1
+		GROUP BY
+		    cppi.PUMP_IDX, rd_pmb.TAGNAME, rd_spi.TAGNAME;
+	</select>
+
+	<select id="nowRunAllPriPumpList" resultType="hashMap">
+		SELECT
+		cppi.PUMP_IDX,
+		cppi.PUMP_GRP,
+		cppi.PUMP_GRP_NM,
+		cppi.PUMP_NM,
+		cppi.PUMP_TYP,
+		rd_pmb.TAGNAME AS PMB_TAGNAME,
+		rd_pri.TAGNAME AS PRI_TAGNAME,
+		MAX(rd_pmb.ts) AS PMB_TS,
+		MAX(rd_pri.ts) AS PRI_TS,
+		CASE
+		WHEN rd_pmb.value = 1 THEN "On"
+		ELSE "Off"
+		END AS PUMP_YN,
+		ROUND(rd_pri.value, 2) AS 'PRI'
+		FROM
+		TB_CTR_PRF_PUMPMST_INF cppi
+		LEFT JOIN TB_RAWDATA rd_pmb ON cppi.PMB_TAG = rd_pmb.TAGNAME
+		AND rd_pmb.TS &gt; DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+		AND rd_pmb.TS &lt;= DATE_ADD(NOW(), INTERVAL 10 MINUTE)
+
+		LEFT JOIN TB_RAWDATA rd_pri ON cppi.PRI_T_TAG = rd_pri.TAGNAME
+		AND rd_pri.TS &gt; DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+		AND rd_pri.TS &lt;= DATE_ADD(NOW(), INTERVAL 10 MINUTE)
+
+		WHERE
+		cppi.USE_YN = 1
+		GROUP BY
+		cppi.PUMP_IDX, rd_pmb.TAGNAME, rd_pri.TAGNAME;
+	</select>
+
+	<select id="nowRunAllPumpItem" parameterType="hashMap" resultType="hashMap">
+		SELECT
+		cppi.PUMP_IDX,
+		cppi.PUMP_GRP,
+		cppi.PUMP_GRP_NM,
+		cppi.PUMP_NM,
+		cppi.PUMP_TYP,
+		rd_pmb.TAGNAME AS PMB_TAGNAME,
+		rd_spi.TAGNAME AS SPI_TAGNAME,
+		rd_pri.TAGNAME AS PRI_TAGNAME,
+		MAX(rd_pmb.ts) AS PMB_TS,
+		MAX(rd_spi.ts) AS SPI_TS,
+		MAX(rd_pri.ts) AS PRI_TS,
+		CASE
+		WHEN rd_pmb.value = 1 THEN "On"
+		ELSE "Off"
+		END AS PUMP_YN,
+		ROUND(rd_spi.value,0) as 'FREQ',
+		ROUND(rd_pri.value, 2) AS 'PRI'
+		FROM
+		TB_CTR_PRF_PUMPMST_INF cppi
+		LEFT JOIN TB_RAWDATA rd_pmb ON cppi.PMB_TAG = rd_pmb.TAGNAME
+			AND rd_pmb.TS &gt; DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+			AND rd_pmb.TS &lt;= DATE_ADD(NOW(), INTERVAL 10 MINUTE)
+		LEFT JOIN TB_RAWDATA rd_spi ON cppi.SPI_TAG = rd_spi.TAGNAME
+			AND rd_spi.TS &gt; DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+			AND rd_spi.TS &lt;= DATE_ADD(NOW(), INTERVAL 10 MINUTE)
+		LEFT JOIN TB_RAWDATA rd_pri ON cppi.PRI_T_TAG = rd_pri.TAGNAME
+			AND rd_pri.TS &gt; DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+			AND rd_pri.TS &lt;= DATE_ADD(NOW(), INTERVAL 10 MINUTE)
+		WHERE
+		cppi.USE_YN = 1 AND cppi.PUMP_IDX = #{PUMP_IDX}
+		GROUP BY
+		cppi.PUMP_IDX, rd_pmb.TAGNAME, rd_spi.TAGNAME, rd_pri.TAGNAME;
+	</select>
+
+	<select id="nowInverterPumpItem" parameterType="hashMap" resultType="hashMap">
+		SELECT
+		cppi.PUMP_IDX,
+		cppi.PUMP_GRP,
+		cppi.PUMP_GRP_NM,
+		cppi.PUMP_NM,
+		cppi.PUMP_TYP,
+		cppi.CTR_AUTO_TAG,
+		cppi.CTR_AUTO_STOP_TAG,
+		cppi.CTR_MANUAL_TAG,
+		cppi.CTR_AUTO_FREQ_TAG,
+		cppi.CTR_SYNC_TAG,
+		rd_pmb.TAGNAME AS PMB_TAGNAME,
+		rd_spi.TAGNAME AS SPI_TAGNAME,
+		MAX(rd_pmb.ts) AS PMB_TS,
+		MAX(rd_spi.ts) AS SPI_TS,
+		CASE
+		WHEN rd_pmb.value = 1 THEN "On"
+		ELSE "Off"
+		END AS PUMP_YN,
+		ROUND(rd_spi.value,0) as 'FREQ'
+		FROM
+		TB_CTR_PRF_PUMPMST_INF cppi
+		LEFT JOIN TB_RAWDATA rd_pmb ON cppi.PMB_TAG = rd_pmb.TAGNAME
+		AND rd_pmb.TS &gt; DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+		AND rd_pmb.TS &lt;= DATE_ADD(NOW(), INTERVAL 10 MINUTE)
+		LEFT JOIN TB_RAWDATA rd_spi ON cppi.SPI_TAG = rd_spi.TAGNAME
+		AND rd_spi.TS &gt; DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+		AND rd_spi.TS &lt;= DATE_ADD(NOW(), INTERVAL 10 MINUTE)
+		WHERE
+		cppi.USE_YN = 1 AND cppi.PUMP_TYP = 2
+		GROUP BY
+		cppi.PUMP_IDX, rd_pmb.TAGNAME, rd_spi.TAGNAME;
+	</select>
+
+	<insert id="insertHmiTagLog" parameterType="hashMap">
+		INSERT INTO
+			TB_HMI_CTR_LOG(TAG,TIME,VALUE,ANLY_CD,FLAG)
+		VALUES
+		(#{TAG}, #{TIME}, #{VALUE}, #{ANLY_CD}, #{FLAG})
+	</insert>
+
+	<insert id="insertHmiTag" parameterType="hashMap">
+		INSERT INTO
+			TB_HMI_CTR_TAG(CTR_NM, OPT_IDX, TAG,TIME,VALUE,ANLY_CD, AI_STATUS, FLAG)
+		VALUES
+		(#{CTR_NM}, #{OPT_IDX}, #{TAG}, #{TIME}, #{VALUE}, #{ANLY_CD}, #{AI_STATUS}, #{FLAG})
+	</insert>
+
+	<select id="selectPumpPrdctOnOffList" parameterType="hashMap" resultType="hashMap">
+		WITH RankedPumps AS (
+		SELECT
+		COALESCE(cpi.OPT_IDX, cpr.OPT_IDX) as OPT_IDX,
+		COALESCE(cpi.PUMP_GRP, cpr.PUMP_GRP ) as PUMP_GRP,
+		cppi.PUMP_GRP_IDX as PUMP_GRP_IDX,
+		COALESCE(cpi.PUMP_IDX, cpr.PUMP_IDX ) as PUMP_IDX,
+		cppi.PUMP_GRP_NM,
+		cppi.PUMP_NM,
+		cppi.PUMP_TYP as PUMP_TYP,
+		IFNULL( COALESCE(cpi.FREQ , cpr.FREQ) , 0) as FREQ,
+		IFNULL( COALESCE(cpi.TUBE_PRSR_PRDCT , cpr.TUBE_PRSR_PRDCT) , 0) as TUBE_PRSR_PRDCT,
+		cppi.CTR_AUTO_TAG,
+		cppi.CTR_AUTO_STOP_TAG,
+		cppi.CTR_AUTO_FREQ_TAG,
+		cppi.CTR_MANUAL_TAG,
+		DATE_FORMAT(COALESCE(cpi.RGSTR_TIME, cpr.RGSTR_TIME), '%Y-%m-%d %H:%i') AS PRDCT_TIME ,
+		CASE
+		WHEN COALESCE(cpi.PUMP_YN, cpr.PUMP_YN)  = 1 THEN "On"
+		ELSE "Off"
+		END AS PUMP_YN,
+		CASE
+		WHEN COALESCE(cpi.PUMP_YN, cpr.PUMP_YN) = 1 THEN "On"
+		ELSE "Off"
+		END as value,
+		CASE
+		WHEN COALESCE(cpi.PUMP_YN, cpr.PUMP_YN)  = 1 THEN 0
+		ELSE 1
+		END as PUMP_YN_VALUE,
+		CASE
+		WHEN cpi.OPT_IDX is not null THEN 1
+		ELSE 0
+		END as FLAG,
+		COALESCE(cpi.RATE_CTGRY, '') as RATE_CTGRY,
+		COALESCE(cpi.FLOW_CTR, '') as FLOW_CTR,
+		ROW_NUMBER() OVER (PARTITION BY COALESCE(cpi.PUMP_IDX, cpr.PUMP_IDX )
+		ORDER BY COALESCE(cpi.RGSTR_TIME, cpr.RGSTR_TIME) DESC) as rn
+		FROM
+		TB_CTR_PUMPYN_RST cpr
+		LEFT JOIN TB_CTR_PUMPYN_INQUIRY cpi
+		on cpr.OPT_IDX = cpr.OPT_IDX
+		AND cpi.RGSTR_TIME >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+		AND cpr.PUMP_IDX = cpi.PUMP_IDX
+		JOIN TB_CTR_PRF_PUMPMST_INF cppi
+		ON cpr.PUMP_IDX = cppi.PUMP_IDX
+		<if test="PUMP_GRP_LIST != null and PUMP_GRP_LIST != ''">
+			and cppi.PUMP_GRP in
+			<foreach item="item" index="index" collection="PUMP_GRP_LIST" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		WHERE
+		cpr.PRDCT_TIME_DIFF = 5
+		AND cpr.FLAG = 0
+		AND cpr.RGSTR_TIME >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+		)
+		SELECT *
+		FROM RankedPumps
+		WHERE rn &lt;= 10
+		ORDER BY PRDCT_TIME DESC, PUMP_IDX ASC;
+	</select>
+
+	<select id="selectPumpPrdctNowOnOffList" parameterType="hashMap" resultType="hashMap">
+		WITH RankedPumps AS (
+		SELECT
+		COALESCE(cpi.OPT_IDX, cpr.OPT_IDX) as OPT_IDX,
+		COALESCE(cpi.PUMP_GRP, cpr.PUMP_GRP ) as PUMP_GRP,
+		cppi.PUMP_GRP_IDX as PUMP_GRP_IDX,
+		COALESCE(cpi.PUMP_IDX, cpr.PUMP_IDX ) as PUMP_IDX,
+		cppi.PUMP_GRP_NM,
+		cppi.PUMP_NM,
+		COALESCE(cpi.PUMP_TYP, cpr.PUMP_TYP ) as PUMP_TYP,
+		IFNULL( COALESCE(cpi.FREQ , cpr.FREQ) , 0) as FREQ,
+		ROUND(IFNULL( COALESCE(cpi.TUBE_PRSR_PRDCT , cpr.TUBE_PRSR_PRDCT) , 0),1) as TUBE_PRSR_PRDCT,
+		cppi.CTR_AUTO_TAG,
+		cppi.CTR_AUTO_STOP_TAG,
+		cppi.CTR_AUTO_FREQ_TAG,
+		cppi.CTR_MANUAL_TAG,
+		DATE_FORMAT(COALESCE(cpi.RGSTR_TIME, cpr.RGSTR_TIME), '%Y-%m-%d %H:%i') AS PRDCT_TIME ,
+		CASE
+		WHEN COALESCE(cpi.PUMP_YN, cpr.PUMP_YN)  = 1 THEN "On"
+		ELSE "Off"
+		END AS PUMP_YN,
+		CASE
+		WHEN COALESCE(cpi.PUMP_YN, cpr.PUMP_YN) = 1 THEN "On"
+		ELSE "Off"
+		END as value,
+		CASE
+		WHEN COALESCE(cpi.PUMP_YN, cpr.PUMP_YN)  = 1 THEN 0
+		ELSE 1
+		END as PUMP_YN_VALUE,
+		CASE
+		WHEN cpi.OPT_IDX is not null THEN 1
+		ELSE 0
+		END as FLAG,
+		COALESCE(cpi.RATE_CTGRY, '') as RATE_CTGRY,
+		COALESCE(cpi.FLOW_CTR, '') as FLOW_CTR,
+		ROW_NUMBER() OVER (PARTITION BY COALESCE(cpi.PUMP_IDX, cpr.PUMP_IDX )
+		ORDER BY COALESCE(cpi.RGSTR_TIME, cpr.RGSTR_TIME) DESC) as rn
+		FROM
+		TB_CTR_PUMPYN_RST cpr
+		LEFT JOIN TB_CTR_PUMPYN_INQUIRY cpi
+		on cpr.OPT_IDX = cpi.OPT_IDX
+		AND cpi.RGSTR_TIME >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+		AND cpr.PUMP_IDX = cpi.PUMP_IDX
+		JOIN TB_CTR_PRF_PUMPMST_INF cppi
+		ON cpr.PUMP_IDX = cppi.PUMP_IDX
+		<if test="PUMP_GRP_LIST != null and PUMP_GRP_LIST != ''">
+			and cppi.PUMP_GRP in
+			<foreach item="item" index="index" collection="PUMP_GRP_LIST" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		WHERE
+		cpr.PRDCT_TIME_DIFF = 5
+		AND cpr.FLAG = 0
+		AND cpr.RGSTR_TIME >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+		)
+		SELECT *
+		FROM RankedPumps
+		WHERE rn = 1
+		ORDER BY PRDCT_TIME DESC, PUMP_IDX ASC;
+	</select>
+
+
+
+	<select id="selectPumpPrdctNowOnOffList_test" parameterType="hashMap" resultType="hashMap">
+		WITH RankedPumps AS (
+		SELECT
+		COALESCE(cpi.OPT_IDX, cpr.OPT_IDX) as OPT_IDX,
+		COALESCE(cpi.PUMP_GRP, cpr.PUMP_GRP ) as PUMP_GRP,
+		cppi.PUMP_GRP_IDX as PUMP_GRP_IDX,
+		COALESCE(cpi.PUMP_IDX, cpr.PUMP_IDX ) as PUMP_IDX,
+		cppi.PUMP_GRP_NM,
+		cppi.PUMP_NM,
+		cppi.PUMP_TYP as PUMP_TYP,
+		IFNULL( COALESCE(cpi.FREQ , cpr.FREQ) , 0) as FREQ,
+		IFNULL( COALESCE(cpi.TUBE_PRSR_PRDCT , cpr.TUBE_PRSR_PRDCT) , 0) as TUBE_PRSR_PRDCT,
+		cppi.CTR_AUTO_TAG,
+		cppi.CTR_AUTO_STOP_TAG,
+		cppi.CTR_AUTO_FREQ_TAG,
+		cppi.CTR_MANUAL_TAG,
+		DATE_FORMAT(COALESCE(cpi.RGSTR_TIME, cpr.RGSTR_TIME), '%Y-%m-%d %H:%i') AS PRDCT_TIME ,
+		CASE
+		WHEN COALESCE(cpi.PUMP_YN, cpr.PUMP_YN)  = 1 THEN "On"
+		ELSE "Off"
+		END AS PUMP_YN,
+		CASE
+		WHEN COALESCE(cpi.PUMP_YN, cpr.PUMP_YN) = 1 THEN "On"
+		ELSE "Off"
+		END as value,
+		CASE
+		WHEN COALESCE(cpi.PUMP_YN, cpr.PUMP_YN)  = 1 THEN 0
+		ELSE 1
+		END as PUMP_YN_VALUE,
+		CASE
+		WHEN cpi.OPT_IDX is not null THEN 1
+		ELSE 0
+		END as FLAG,
+		COALESCE(cpi.RATE_CTGRY, '') as RATE_CTGRY,
+		COALESCE(cpi.FLOW_CTR, '') as FLOW_CTR,
+		ROW_NUMBER() OVER (PARTITION BY COALESCE(cpi.PUMP_IDX, cpr.PUMP_IDX )
+		ORDER BY COALESCE(cpi.RGSTR_TIME, cpr.RGSTR_TIME) DESC) as rn
+		FROM
+		TB_CTR_PUMPYN_RST2 cpr
+		LEFT JOIN TB_CTR_PUMPYN_INQUIRY2 cpi
+		on cpr.OPT_IDX = cpr.OPT_IDX
+		AND cpi.RGSTR_TIME >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+		AND cpr.PUMP_IDX = cpi.PUMP_IDX
+		JOIN TB_CTR_PRF_PUMPMST_INF cppi
+		ON cpr.PUMP_IDX = cppi.PUMP_IDX
+		<if test="PUMP_GRP_LIST != null and PUMP_GRP_LIST != ''">
+			and cppi.PUMP_GRP in
+			<foreach item="item" index="index" collection="PUMP_GRP_LIST" open="(" separator="," close=")">
+				#{item}
+			</foreach>
+		</if>
+		WHERE
+		cpr.PRDCT_TIME_DIFF = 5
+		AND cpr.FLAG = 0
+		AND cpr.RGSTR_TIME >= DATE_SUB(NOW(), INTERVAL 60 MINUTE)
+		)
+		SELECT *
+		FROM RankedPumps
+		WHERE rn = 1
+		ORDER BY PRDCT_TIME DESC, PUMP_IDX ASC;
+	</select>
+
+	<select id="selectOptIdxPrdctList" parameterType="hashMap" resultType="hashMap">
+		SELECT
+		tcpr.OPT_IDX,
+		tcpr.PUMP_GRP as PUMP_GRP,
+		tcppi.PUMP_GRP_IDX as PUMP_GRP_IDX,
+		tcpr.PUMP_IDX as PUMP_IDX,
+		tcppi.PUMP_GRP_NM,
+		tcppi.PUMP_NM,
+		tcppi.PUMP_TYP as PUMP_TYP,
+		IFNULL(tcpr.FREQ, 0) as FREQ,
+		tcppi.CTR_AUTO_TAG,
+		tcppi.CTR_AUTO_STOP_TAG,
+		tcppi.CTR_AUTO_FREQ_TAG,
+		tcppi.CTR_MANUAL_TAG,
+		DATE_FORMAT(tcpr.RGSTR_TIME, '%Y-%m-%d %H:%i') AS PRDCT_TIME ,
+		CASE
+		WHEN tcpr.PUMP_YN = 1 THEN "On"
+		ELSE "Off"
+		END as value,
+		CASE
+		WHEN tcpr.PUMP_YN = 1 THEN "On"
+		ELSE "Off"
+		END as 'PUMP_YN',
+		'0' as 'FLAG',
+		'' as RATE_CTGRY,
+		'' as FLOW_CTR
+		FROM
+		TB_CTR_PUMPYN_RST tcpr
+		join TB_CTR_PRF_PUMPMST_INF tcppi
+		on tcpr.PUMP_IDX = tcppi.PUMP_IDX
+		where
+		tcpr.OPT_IDX = #{OPT_IDX}
+		AND tcpr.PRDCT_TIME_DIFF = 5
+		AND tcpr.FLAG = 0
+		ORDER BY tcpr.PUMP_IDX ASC
+	</select>
+
+
+
+	<select id="selectPumpPrdctNowInquiryOnOffList" parameterType="hashMap" resultType="hashMap">
+		SELECT
+			tcpr.OPT_IDX,
+			tcpr.PUMP_GRP as PUMP_GRP,
+			tcppi.PUMP_GRP_IDX as PUMP_GRP_IDX,
+			tcpr.PUMP_IDX as PUMP_IDX,
+			tcppi.PUMP_GRP_NM,
+			tcppi.PUMP_NM,
+			tcppi.PUMP_TYP as PUMP_TYP,
+			IFNULL(tcpr.FREQ, 0) as FREQ,
+			tcppi.CTR_AUTO_TAG,
+			tcppi.CTR_AUTO_STOP_TAG,
+			tcppi.CTR_AUTO_FREQ_TAG,
+			tcppi.CTR_MANUAL_TAG,
+			DATE_FORMAT(tcpr.RGSTR_TIME, '%Y-%m-%d %H:%i') AS PRDCT_TIME ,
+			CASE
+				WHEN tcpr.PUMP_YN = 1 THEN "On"
+				ELSE "Off"
+			END as value,
+			CASE
+				WHEN tcpr.PUMP_YN = 1 THEN "On"
+				ELSE "Off"
+			END as 'PUMP_YN',
+			'1' as 'FLAG',
+			RATE_CTGRY,
+			FLOW_CTR
+		FROM
+			TB_CTR_PUMPYN_INQUIRY tcpr
+		join TB_CTR_PRF_PUMPMST_INF tcppi
+			on tcpr.PUMP_IDX = tcppi.PUMP_IDX
+		<if test="PUMP_GRP != null and PUMP_GRP != ''">
+			and tcppi.PUMP_GRP = #{PUMP_GRP}
+		</if>
+		where
+			1=1
+		<choose>
+			<when test="PUMP_GRP != null and PUMP_GRP != ''">
+				AND tcpr.RGSTR_TIME = (SELECT max(RGSTR_TIME) from TB_CTR_PUMPYN_INQUIRY where RGSTR_TIME &gt;= DATE_SUB(NOW(), INTERVAL 10 MINUTE)  AND PUMP_GRP = #{PUMP_GRP})
+			</when>
+			<otherwise>
+				AND tcpr.RGSTR_TIME = (SELECT max(RGSTR_TIME) from TB_CTR_PUMPYN_INQUIRY where RGSTR_TIME &gt;= DATE_SUB(NOW(), INTERVAL 10 MINUTE) )
+			</otherwise>
+		</choose>
+			AND tcpr.PRDCT_TIME_DIFF = 5
+			AND tcpr.FLAG = 0
+		ORDER BY tcpr.PUMP_IDX ASC
+	</select>
+
+	<select id="selectOptIdxInquiryPrdctList" parameterType="hashMap" resultType="hashMap">
+		SELECT
+		tcpr.OPT_IDX,
+		tcpr.PUMP_GRP as PUMP_GRP,
+		tcppi.PUMP_GRP_IDX as PUMP_GRP_IDX,
+		tcpr.PUMP_IDX as PUMP_IDX,
+		tcppi.PUMP_GRP_NM,
+		tcppi.PUMP_NM,
+		tcppi.PUMP_TYP as PUMP_TYP,
+		IFNULL(tcpr.FREQ, 0) as FREQ,
+		tcppi.CTR_AUTO_TAG,
+		tcppi.CTR_AUTO_STOP_TAG,
+		tcppi.CTR_AUTO_FREQ_TAG,
+		tcppi.CTR_MANUAL_TAG,
+		DATE_FORMAT(tcpr.RGSTR_TIME, '%Y-%m-%d %H:%i') AS PRDCT_TIME ,
+		CASE
+		WHEN tcpr.PUMP_YN = 1 THEN "On"
+		ELSE "Off"
+		END as value,
+		CASE
+		WHEN tcpr.PUMP_YN = 1 THEN "On"
+		ELSE "Off"
+		END as 'PUMP_YN',
+		'1' as 'FLAG',
+		RATE_CTGRY,
+		FLOW_CTR
+		FROM
+		TB_CTR_PUMPYN_INQUIRY tcpr
+		join TB_CTR_PRF_PUMPMST_INF tcppi
+		on tcpr.PUMP_IDX = tcppi.PUMP_IDX
+		where
+		tcpr.OPT_IDX = #{OPT_IDX}
+		AND tcpr.PRDCT_TIME_DIFF = 5
+		AND tcpr.FLAG = 0
+		ORDER BY tcpr.PUMP_IDX ASC
+	</select>
+
+	<select id="selectPumpPrdctOnOffLastList" parameterType="hashMap" resultType="hashMap">
+		WITH LatestRST AS (
+		SELECT
+		rst.OPT_IDX,
+		rst.PUMP_IDX,
+		rst.PUMP_GRP,
+		rst.FREQ,
+		rst.PUMP_YN,
+		rst.RGSTR_TIME,
+		rst.FLAG,
+		ROW_NUMBER() OVER (PARTITION BY rst.PUMP_IDX ORDER BY rst.RGSTR_TIME DESC) AS rn
+		FROM
+		TB_CTR_PUMPYN_RST AS rst
+		WHERE
+		rst.FLAG = 1
+		<!--and rst.RGSTR_TIME = '2024-05-17 10:20:00.000'-->
+		),
+		LatestInquiry AS (
+		SELECT
+		inquiry.OPT_IDX,
+		inquiry.PUMP_IDX,
+		inquiry.PUMP_GRP,
+		inquiry.FREQ,
+		inquiry.PUMP_YN,
+		inquiry.RGSTR_TIME,
+		inquiry.FLAG,
+		ROW_NUMBER() OVER (PARTITION BY inquiry.PUMP_IDX ORDER BY inquiry.RGSTR_TIME DESC) AS rn
+		FROM
+		TB_CTR_PUMPYN_INQUIRY AS inquiry
+		WHERE
+		inquiry.FLAG = 1
+		<!--and inquiry.RGSTR_TIME = '2024-05-17 10:20:00.000'-->
+		)
+		SELECT
+		COALESCE(li.OPT_IDX, lr.OPT_IDX) AS OPT_IDX,
+		tcppi.PUMP_GRP_IDX AS PUMP_GRP_IDX,
+		tcppi.PUMP_TYP AS PUMP_TYP,
+		tcppi.PUMP_GRP_NM,
+		tcppi.PUMP_NM,
+		COALESCE(li.FREQ, lr.FREQ) AS FREQ,
+		tcppi.CTR_AUTO_TAG,
+		tcppi.CTR_AUTO_STOP_TAG,
+		tcppi.CTR_AUTO_FREQ_TAG,
+		tcppi.CTR_MANUAL_TAG,
+		COALESCE(li.PUMP_GRP, lr.PUMP_GRP) AS PUMP_GRP,
+		DATE_FORMAT(COALESCE(li.RGSTR_TIME, lr.RGSTR_TIME), '%Y-%m-%d %H:%i') AS PRDCT_TIME,
+		COALESCE(li.PUMP_IDX, lr.PUMP_IDX) AS PUMP_IDX,
+		CASE
+		WHEN COALESCE(li.PUMP_YN, lr.PUMP_YN) = 1 THEN "On"
+		ELSE "Off"
+		END AS PUMP_YN,
+
+		CASE
+		WHEN li.RGSTR_TIME IS NOT NULL THEN 1
+		ELSE 0
+		END AS 'FLAG'
+		FROM
+		LatestRST lr
+		LEFT JOIN LatestInquiry li ON lr.PUMP_IDX = li.PUMP_IDX AND lr.RGSTR_TIME = li.RGSTR_TIME
+		JOIN TB_CTR_PRF_PUMPMST_INF tcppi ON lr.PUMP_IDX = tcppi.PUMP_IDX
+		WHERE
+		lr.rn = 1
+		ORDER BY
+		lr.RGSTR_TIME DESC,
+		COALESCE(li.PUMP_IDX, lr.PUMP_IDX) ASC;
+	</select>
+
+	<update id="updatePumpYnFlag" parameterType="hashMap">
+		update
+			<choose>
+	            <when test="TABLE_TYPE == '1'">
+					TB_CTR_PUMPYN_INQUIRY
+	            </when>
+	            <otherwise>
+					TB_CTR_PUMPYN_RST
+	            </otherwise>
+	        </choose>
+		set
+			FLAG = #{FLAG}
+		where
+			OPT_IDX = #{OPT_IDX}
+	</update>
+
+	<update id="updatePumpYnGrpFlag" parameterType="hashMap">
+		update
+		<choose>
+			<when test="tableType == '1'">
+				TB_CTR_PUMPYN_INQUIRY
+			</when>
+			<otherwise>
+				TB_CTR_PUMPYN_RST
+			</otherwise>
+		</choose>
+		set
+		FLAG = #{FLAG}
+		where
+		OPT_IDX = #{OPT_IDX}
+		and PUMP_IDX = #{PUMP_IDX}
+		and PUMP_GRP = #{PUMP_GRP}
+		and PRDCT_TIME_DIFF = 5
+	</update>
+
+	<update id="updatePumpYnFlagInit" parameterType="hashMap">
+		update
+		<choose>
+			<when test="TABLE_TYPE == '1'">
+				TB_CTR_PUMPYN_INQUIRY
+			</when>
+			<otherwise>
+				TB_CTR_PUMPYN_RST
+			</otherwise>
+		</choose>
+		set
+		FLAG = 4
+		where
+		FLAG = 1
+	</update>
+
+
+	<select id="selectPumpInfList"  resultType="hashMap">
+		select
+			PUMP_IDX,
+			PUMP_GRP,
+			TNK_GRP_IDX,
+			PUMP_GRP_IDX,
+			PUMP_GRP_NM,
+			PUMP_GRP_DSC,
+			PUMP_NM,
+			PUMP_TYP,
+			PUMP_TYP_DSC,
+			CTR_AUTO_TAG,
+			CTR_AUTO_STOP_TAG,
+			CTR_MANUAL_TAG,
+			CTR_AUTO_FREQ_TAG,
+			CTR_SYNC_TAG,
+			EMS_MIN_WPP_TAG,
+			EMS_MIN_WPJ_TAG,
+			DUTY_H,
+			DUTY_Q
+		from
+			TB_CTR_PRF_PUMPMST_INF
+		where
+			USE_YN = '1'
+		order by PUMP_IDX
+	</select>
+
+	<select id="selectPumpGrpList"  resultType="hashMap">
+			select
+				PUMP_GRP
+			from
+				TB_CTR_PRF_PUMPMST_INF
+			where
+				USE_YN = '1'
+			GROUP BY PUMP_GRP
+			order by PUMP_GRP ASC
+		</select>
+
+	<select id="selectAiPumpGrpList"  parameterType="int" resultType="hashMap">
+		select TAG_GRP as 'PUMP_GRP' FROM
+		TB_WPP_TAG_CODE
+		where
+		FUNC_TYP = 'PumpStatus' and DISPLAY_ID='EMSPumpControl'
+		and DEFAULT_VALUE = #{default_value}
+	</select>
+
+	<select id="selectAiPumpGrpStatus"  parameterType="string" resultType="hashMap">
+			select DEFAULT_VALUE as 'VALUE' FROM
+			TB_WPP_TAG_CODE
+			where
+			FUNC_TYP = 'PumpStatus' and DISPLAY_ID='EMSPumpControl'
+			and TAG_GRP = #{PUMP_GRP]
+		</select>
+
+	<select id="selectValveStatusCheck" parameterType="hashMap" resultType="hashMap">
+		SELECT
+		cppi.PUMP_IDX,
+		cppi.PUMP_GRP,
+		cppi.PUMP_CTR_TYP,
+		latest_data.TAGNAME,
+		latest_data.TS AS 'TS',
+		latest_data.value AS 'value',
+		cpro.STD_VALUE,
+		cpro.REQ_CTR_TAG,
+		cpro.REQ_CTR_STOP_TAG,
+		CASE
+		WHEN latest_data.value = cpro.STD_VALUE THEN 'Close'
+		WHEN latest_data.value = 0 THEN 'Open'
+		ELSE 'None'
+		END AS 'STATUS'
+		FROM
+		TB_CTR_PRF_PUMPMST_INF cppi
+		JOIN TB_CTR_PUMP_REQ_OPT cpro ON cppi.PUMP_IDX = cpro.PUMP_IDX
+		JOIN (
+		SELECT
+		rd.TAGNAME,
+		rd.TS,
+		rd.value
+		FROM
+		TB_RAWDATA rd
+		WHERE
+		rd.TS = (
+		SELECT MAX(TS)
+		FROM TB_RAWDATA
+		WHERE  TS &gt; DATE_SUB(NOW(), INTERVAL 15 MINUTE)
+		AND TS &lt;= DATE_ADD(NOW(), INTERVAL 5 MINUTE)
+		)
+		) AS latest_data ON cpro.REQ_TAG = latest_data.TAGNAME
+		WHERE
+		<if test='ANLY_CD == "RUN_STATUS"'>
+			cppi.CTR_AUTO_TAG = #{TAG}
+		</if>
+		<if test='ANLY_CD == "STOP_STATUS"'>
+			cppi.CTR_AUTO_STOP_TAG = #{TAG}
+		</if>
+		GROUP BY
+		cppi.PUMP_IDX
+	</select>
+
+	<select id="selectPumpStatusCheck" parameterType="hashMap" resultType="hashMap">
+		SELECT
+		cppi.PUMP_IDX,
+		cppi.PUMP_GRP,
+		cppi.PUMP_NM,
+		cppi.PUMP_TYP,
+		rd.TAGNAME,
+		rd.TS AS 'TS',
+		rd.value AS 'value',
+		CASE
+		WHEN rd.value = 1 THEN "On"
+		ELSE "Off"
+		END AS 'STATUS'
+		FROM
+		TB_RAWDATA rd
+		JOIN TB_CTR_PRF_PUMPMST_INF cppi ON rd.TAGNAME = cppi.PMB_TAG
+		WHERE
+		rd.TS = (
+		SELECT MAX(sub_rd.TS)
+		FROM TB_RAWDATA sub_rd
+		WHERE sub_rd.TAGNAME = cppi.PMB_TAG
+		AND sub_rd.TS &gt;= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+		)
+		<if test='ANLY_CD == "RUN_STATUS"'>
+			AND cppi.CTR_AUTO_TAG = #{TAG}
+		</if>
+		<if test='ANLY_CD == "STOP_STATUS"'>
+			AND cppi.CTR_AUTO_STOP_TAG = #{TAG}
+		</if>
+
+	</select>
+
+	<select id="selectVVKStatusCheck" parameterType="hashMap" resultType="hashMap">
+		SELECT
+		rd.TAGNAME,
+		rd.TS AS 'TS',
+		rd.value AS 'value',
+		CASE
+		WHEN rd.value = 1 THEN "On"
+		ELSE "Off"
+		END AS 'STATUS'
+		FROM
+		TB_RAWDATA rd
+		WHERE
+		rd.TS = (
+		SELECT MAX(sub_rd.TS)
+		FROM TB_RAWDATA sub_rd
+		WHERE sub_rd.TAGNAME = '892-482-VVB-8025'
+		AND sub_rd.TS &gt;= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+		)
+		AND rd.TAGNAME='892-482-VVB-8025'
+	</select>
+
+	<select id="selectPumpFreqStatusCheck" parameterType="hashMap" resultType="hashMap">
+		select
+			cppi.PUMP_IDX,
+			cppi.PUMP_GRP,
+			cppi.PUMP_NM,
+			cppi.PUMP_TYP,
+			rd.TAGNAME,
+			rd.ts as 'TS',
+			rd.value as 'VALUE'
+		from
+			TB_CTR_PRF_PUMPMST_INF cppi ,
+			TB_RAWDATA rd
+		where
+			rd.TAGNAME = cppi.SPI_TAG
+			and cppi.CTR_AUTO_FREQ_TAG = #{TAG}
+			and rd.TS = (SELECT MAX(TS) FROM TB_RAWDATA WHERE TS  &gt;= DATE_SUB(NOW(), INTERVAL 10 MINUTE) )
+		GROUP BY cppi.PUMP_IDX
+	</select>
+
+	<insert id="emsPumpAlarmInsert" parameterType="hashMap">
+		INSERT INTO
+		TB_EMS_ALR
+		(ALR_TYP, ALR_TIME, AI_WEB, AI_SCADA, EMS_WEB, EMS_SCADA, PMS_WEB, PMS_SCADA, MSG, LINK, RGSTR_TIME, UPDT_TIME, FLAG)
+		VALUES (
+		#{alr_typ},
+		#{nowDate},
+		"0",
+		"0",
+		"1",
+		"1",
+		"0",
+		"0",
+		#{msg},
+		#{link},
+		#{nowDate},
+		NULL,
+		'1'
+		);
+	</insert>
+
+	<select id="selectAiStatus" resultType="hashMap">
+		SELECT
+		TAG_GRP as PUMP_GRP,
+		DEFAULT_VALUE as AI_STATUS
+		FROM
+		TB_WPP_TAG_CODE
+		WHERE
+		FUNC_TYP = 'PumpStatus'
+		ORDER BY PUMP_GRP
+	</select>
+
+	<select id="selectTestMode" resultType="hashMap">
+		SELECT
+		COALESCE(DEFAULT_VALUE, 0) as 'MODE'
+		FROM
+		TB_WPP_TAG_CODE
+		WHERE
+		FUNC_TYP = 'TestMode'
+	</select>
+
+	<select id="selectCtrTestMode" resultType="hashMap">
+		SELECT
+		COALESCE(DEFAULT_VALUE, 0) as 'MODE'
+		FROM
+		TB_WPP_TAG_CODE
+		WHERE
+		FUNC_TYP = 'CtrTestMode'
+	</select>
+
+	<select id="selectTPPCorrection" resultType="hashMap">
+		SELECT
+		COALESCE(DEFAULT_VALUE, 0) as 'MODE'
+		FROM
+		TB_WPP_TAG_CODE
+		WHERE
+		FUNC_TYP = 'TPP'
+	</select>
+
+	<select id="selectNowRawData" parameterType="hashMap"  resultType="hashMap">
+		SELECT
+		rd.value
+		FROM
+		TB_RAWDATA rd
+		WHERE
+		rd.TS = (SELECT MAX(TS) FROM TB_RAWDATA WHERE TS  &gt;= DATE_SUB(NOW(), INTERVAL 10 MINUTE) )
+		AND rd.TAGNAME = #{tag}
+	</select>
+
+	<select id="selectGrSnPumpMode" resultType="hashMap">
+		SELECT
+		COALESCE(DEFAULT_VALUE, 0) as 'MODE'
+		FROM
+		TB_WPP_TAG_CODE
+		WHERE
+		FUNC_TYP = 'SN_MODE'
+	</select>
+
+	<update id="updateGrSnPumpMode" parameterType="hashMap">
+		update TB_WPP_TAG_CODE
+		set DEFAULT_VALUE = #{value}
+		where FUNC_TYP = 'SN_MODE'
+	</update>
+
+	<select id="selectLifeTPP" resultType="hashMap">
+		SELECT
+		COALESCE(DEFAULT_VALUE, 10.8) as 'MODE'
+		FROM
+		TB_WPP_TAG_CODE
+		WHERE
+		FUNC_TYP = 'TPP_LIFE'
+	</select>
+
+	<select id="selectInvStatus" resultType="hashMap">
+		select
+		COALESCE(VALUE, 0) as 'VALUE'
+		from
+		TB_RAWDATA
+		WHERE
+		TS = (SELECT MAX(TS) FROM TB_RAWDATA WHERE TS  &gt;= DATE_SUB(NOW(), INTERVAL 10 MINUTE) )
+		AND TAGNAME='565-340-IVB-4001'
+
+	</select>
+
+	<select id="selectCBBStatus" resultType="hashMap">
+		select
+		COALESCE(VALUE, 0) as 'VALUE'
+		from
+		TB_RAWDATA
+		WHERE
+		TS = (SELECT MAX(TS) FROM TB_RAWDATA WHERE TS  &gt;= DATE_SUB(NOW(), INTERVAL 10 MINUTE) )
+		AND TAGNAME= #{TAG}
+
+	</select>
+
+	<select id="checkREACTModeCount" resultType="integer" >
+		select
+		COUNT(VALUE)
+		from
+		TB_RAWDATA
+		WHERE
+		TS = (SELECT MAX(TS) FROM TB_RAWDATA WHERE TS  &gt;= DATE_SUB(NOW(), INTERVAL 10 MINUTE) )
+		AND TAGNAME in (
+		'565-340-IVK-4007',
+		'565-340-IVK-4008',
+		'565-340-IVK-4009',
+		'565-340-IVK-4509'
+		)
+		AND VALUE = 0
+	</select>
+
+	<update id="updateAiStatusForPump" parameterType="hashMap">
+		UPDATE
+		TB_WPP_TAG_CODE
+		SET
+		DEFAULT_VALUE = #{STATUS}
+		WHERE
+		TAG_GRP = #{PUMP_GRP}
+		AND
+		FUNC_TYP = 'PumpStatus'
+	</update>
+
+
+
+</mapper>

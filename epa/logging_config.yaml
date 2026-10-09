@@ -1,0 +1,40 @@
+version: 1
+disable_existing_loggers: false
+
+formatters:
+  # 상세한 로그 포맷
+  detailed:
+    format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s [in %(pathname)s:%(lineno)d]'
+  # 간단한 로그 포맷
+  simple:
+    format: '%(asctime)s - %(levelname)s - %(message)s'
+
+handlers:
+  # 콘솔(터미널) 출력용 핸들러
+  console:
+    class: logging.StreamHandler
+    level: DEBUG
+    formatter: simple
+    stream: ext://sys.stdout
+  
+  # 파일 저장용 핸들러 (파일 로테이션 기능 포함)
+  file:
+    class: logging.handlers.RotatingFileHandler
+    level: DEBUG
+    formatter: detailed
+    filename: logs/app.log  # 로그 파일 경로
+    maxBytes: 10485760      # 10MB 마다 파일 분리
+    backupCount: 10         # 최대 10개까지 백업 파일 유지
+    encoding: utf8
+
+# app 패키지에서 생성하는 모든 로거에 대한 설정
+loggers:
+  app:
+    level: DEBUG
+    handlers: [console, file]
+    propagate: false
+
+# 루트 로거 설정 (다른 라이브러리들의 로그 처리)
+root:
+  level: INFO
+  handlers: [console]

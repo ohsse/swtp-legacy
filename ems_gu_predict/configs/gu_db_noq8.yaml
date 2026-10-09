@@ -1,0 +1,98 @@
+# 군산 전체 관망 통합 모델 — gu_db.yaml과 거의 동일하지만 Q8을 뺀 버전.
+#
+# Q8(891-365-FRI-8802)은 2025-03-27부터 실제 유량이 찍히기 시작했고(그 전엔
+# -10~30 사이 노이즈뿐 — gu_db.yaml 주석 참고) column_start_dates로 그 전
+# 값을 무시하는데, valid_mask가 "feature_cols(target/variable 구분 없이 전부)
+# 전체가 다 유효한 행"이라는 AND 조건이라 결국 태그 하나(Q8)의 시작일이
+# 전체 학습 가능 구간을 정한다. gu_db.yaml(Q8 포함)은 그래서 사실상
+# 2025-03-27 이후만 쓸 수 있는데, 나머지 19개(feature_cols 기준) 컬럼은
+# 2023-01-01부터 멀쩡한 데이터가 있다 — 그 2년치를 그냥 버리기 아까워서,
+# Q8을 exclude_vars로 아예 뺀 이 config를 따로 둔다.
+#
+# 정리하면 두 config를 상황에 맞게 쓰면 된다 (prepare_data로 실측 확인함):
+#  - gu_db.yaml      : Q8까지 feature_cols 20개(target 13 + variable 7). 대신
+#                      train 2025-03-27~2025-07-21, 윈도우 32,650개.
+#  - gu_db_noq8.yaml : Q8 뺀 feature_cols 19개(target 12 + variable 7). 대신
+#                      train 2023-01-01~2025-07-21, 윈도우 241,930개 (7배 이상 많음).
+# (target/variable 구성 및 그 배경은 gu_db.yaml 상단 [2026-09-10 갱신] 참고 —
+# P1/Q_Ham/P_Ham/Q2/P2는 target->variable로 바뀌었고, V2/V4(밸브 개도)는
+# 처음부터 variable이다.)
+#
+# H3_1/H3_2, H7_1/H7_2 병합(combine_max_columns)과 압력 태그 linear
+# interpolation(linear_interp_columns), 시간 feature(time_features)는
+# gu_db.yaml과 동일하게 적용한다 — 전부 Q8 유무와 무관한 문제라서 (시간
+# feature 근거는 gu_db.yaml 주석 참고 — 24시간 주기, 요일 주기는 근거 없음).
+
+data:
+  taglist_path: "./taglist/GU_taglist.xlsx"
+  sheet: GU
+  mode: BOTH
+  freq: "5min"
+  ffill_limit_minutes: 10
+  stuck_value_min_minutes: 360
+  stuck_value_impute_columns: [P6, P9]
+  stuck_value_impute_method: linear   # 근거는 gu_db.yaml 참고 (2026-09-10)
+  exclude_vars: [Q8]
+  combine_max_columns:
+    H3: [H3_1, H3_2]
+    H7: [H7_1, H7_2]
+  linear_interp_columns: [P_GunS, P1, P_Ham, P2, P4, P5, P6]
+  time_features: [hour_sin, hour_cos]
+
+  source: db
+  start_date: "2023-01-01"
+  end_date: null
+
+  db_connections_path: "./configs/db_connections.json"
+  db_environment: dev        # prod로 바꿀 땐 반드시 명시적으로 지정할 것
+  db_connection_key: "maria-ems-db-gs"
+
+window:
+  window_size: 288   # 5분 리샘플링에서 과거 24시간
+  horizon: 6           # 미래 30분
+  stride: 1             # train 데이터 증강용 촘촘한 슬라이딩 (5분마다)
+  eval_stride: null    # val/test는 기본값(horizon=6)을 써서 겹치는 윈도우를 반복 평가하지 않음
+  min_segment_minutes: 3000  # window_size+horizon=294스텝=1470분보다 넉넉히 크게
+
+split:
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  purge_minutes: 1470   # (window_size + horizon) * freq = 294 * 5분
+
+outlier:
+  enabled: true
+  lower_quantile: 0.01
+  upper_quantile: 0.99
+  apply_to_splits: ["train", "val"]
+  column_overrides:
+    P6: [0.0, 1.0]   # 사실상 clip 끔 — gu_db.yaml 참고
+
+model:
+  type: attn_transformer_residual
+  d_model: 160          # 입력 21채널(feature_cols 19개(target 12 + variable 7) + time_features 2개) -> gu_db.yaml과 거의 같아 그대로 둠. nhead(8)로 나누어떨어짐
+  nhead: 8
+  num_encoder_layers: 2
+  dim_feedforward: 320
+  decoder_hidden: 96
+  dropout: 0.1
+  non_negative_output: true
+
+train:
+  batch_size: 1024   # RTX 5070 Ti 실측: 피크 GPU 메모리 6.68GB (2048은 13.34GB로 거의 한계라 위험) — gu_db.yaml 참고
+  epochs: 200
+  patience: 15
+  lr: 0.001
+  weight_decay: 0.0
+  seed: 42
+  device: auto
+  target_loss_weighting: inverse_persistence_mae
+  # target_loss_weight_cap 값은 target이 18개였던 시절 실험(gu_db.yaml 참고)
+  # 근거인데, 지금은 target이 12개로 줄어서(P1/Q_Ham/P_Ham/Q2/P2가 variable로
+  # 빠짐 — gu_db.yaml 상단 [2026-09-10 갱신] 참고) 그 실험 그대로 믿으면 안
+  # 된다 — 재학습해서 cap이 여전히 적절한지 다시 확인할 것.
+  target_loss_weight_cap: 3.0   # P6/H7 문제 진단(2.0은 P6에 오히려 역효과였음) 근거는 gu_db.yaml 참고
+
+output:
+  dir: "./runs/gu_db_noq8"
+  analysis_dir: "./analysis/{sheet}_db_noq8"

@@ -1,0 +1,20 @@
+FROM tensorflow/tensorflow
+
+RUN \
+pip3 install pymysql && \
+pip3 install sqlalchemy && \
+pip3 install numpy && \
+pip3 install pandas && \
+pip3 install pytimekr && \
+pip3 install scipy && \
+pip3 install joblib && \
+pip3 install matplotlib && \
+pip3 install dateutils && \
+pip3 install scikit-learn 
+
+ADD libs /usr/local/libs
+
+WORKDIR "/usr/local/libs"
+ENV TZ="Asia/Seoul"
+
+CMD ["python3", "main_ss.py"]

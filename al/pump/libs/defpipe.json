@@ -1,0 +1,117 @@
+{
+    "ss_fri8251_210307": {
+        "base_dir": "../data/ss",
+        "include_regex": "DJEPGS0.701-*",
+        "col_identify_func": "lambda x: x.replace('DJEPGS0.701-', '').replace('.F_CV.csv', '')",
+        "output_path": "DJEPGS0_input_fri8251_202103_07.csv",
+        "drop_columns": ["472-FRI-8002"],
+        "label_column": "511-FRI-8251",
+        "start_date": "2021-04-01",
+        "end_date": "2021-07-01"
+    },
+
+    "ss_fri8251_210710": {
+        "base_dir": "../data/ss",
+        "include_regex": "DJEPGS0.701-*",
+        "col_identify_func": "lambda x: x.replace('DJEPGS0.701-', '').replace('.F_CV.csv', '')",
+        "output_path": "DJEPGS0_input_fri8251_202107_10.csv",
+        "drop_columns": ["472-FRI-8002"],
+        "label_column": "511-FRI-8251",
+        "start_date": "2021-04-01",
+        "end_date": "2021-07-01"
+    },
+    
+    "ss_fri8100_210307": {
+        "base_dir": "../data/ss",
+        "include_regex": "DJEPGS0.701-*",
+        "col_identify_func": "lambda x: x.replace('DJEPGS0.701-', '').replace('.F_CV.csv', '')",
+        "output_path": "DJEPGS0_input_fri8100_202103_07.csv",
+        "drop_columns": ["472-FRI-8002"],
+        "label_column": "511-FRI-8100",
+        "start_date": "2021-03-01",
+        "end_date": "2021-07-01"
+    },
+
+    "ss_fri_8100_210710": {
+        "base_dir": "../data/ss",
+        "include_regex": "DJEPGS0.701-*",
+        "col_identify_func": "lambda x: x.replace('DJEPGS0.701-', '').replace('.F_CV.csv', '')",
+        "output_path": "DJEPGS0_input_fri8100_202107_10.csv",
+        "drop_columns": ["472-FRI-8002"],
+        "label_column": "511-FRI-8100",
+        "start_date": "2021-07-01",
+        "end_date": "2021-10-01"
+    },
+    "ss_fri_8100_2021": {
+        "base_dir": "../data/ss",
+        "include_regex": "DJEPGS0.701-*",
+        "col_identify_func": "lambda x: x.replace('DJEPGS0.701-', '').replace('.F_CV.csv', '')",
+        "output_path": "DJEPGS0_input_fri8100_2021.csv",
+        "drop_columns": ["472-FRI-8002"],
+        "label_column": "511-FRI-8100",
+        "start_date": "2021-01-01",
+        "end_date": "2021-12-01"
+    },
+    "ss_fri_8100_2022": {
+        "base_dir": "../data/ss",
+        "include_regex": "DJEPGS0.701-*",
+        "col_identify_func": "lambda x: x.replace('DJEPGS0.701-', '').replace('.F_CV.csv', '')",
+        "output_path": "DJEPGS0_input_fri8100_2022.csv",
+        "drop_columns": ["472-FRI-8002"],
+        "label_column": "511-FRI-8100",
+        "start_date": "2022-01-01",
+        "end_date": "2022-12-01"
+    },
+    "ss": {
+        "base_dir": "../data/ss",
+        "include_regex": "DJEPGS0.*",
+        "col_identify_func": "lambda x: x.replace('DJEPGS0.701-', '').replace('.F_CV.csv', '')",
+        "output_path": "DJEPGS0_input_l_2022.csv",
+        "drop_columns": ["472-FRI-8002"],
+        "label_column": "511-FRI-8100",
+        "start_date": "2021-04-01",
+        "end_date": "2022-12-31"
+    },
+    "cm": {
+        "base_dir": "../data/cm",
+        "include_regex": "KSSCADA.701-367-*",
+        "col_identify_func": "lambda x: x.replace('KSSCADA.701-367-', '').replace('.F_CV.csv', '')",
+        "output_path": "cm_input.csv",
+        "drop_columns": [],
+        "label_column": "FRI-8017",
+        "start_date": "2018-01-02",
+        "end_date": "2022-12-31"
+    },
+    "cm_8910": {
+        "base_dir": "../data/cm",
+        "include_regex": "KSSCADA.701-367-*",
+        "col_identify_func": "lambda x: x.replace('KSSCADA.701-367-', '').replace('.F_CV.csv', '')",
+        "output_path": "cm_input_8910.csv",
+        "drop_columns": [],
+        "label_column": "FRI-8910",
+        "start_date": "2018-01-02",
+        "end_date": "2022-12-31"
+    },
+    "cm_8017": {
+        "base_dir": "../data/cm",
+        "include_regex": "KSSCADA.701-367-*",
+        "col_identify_func": "lambda x: x.replace('KSSCADA.701-367-', '').replace('.F_CV.csv', '')",
+        "output_path": "cm_input_8017.csv",
+        "drop_columns": [],
+        "label_column": "FRI-8017",
+        "start_date": "2018-01-02",
+        "end_date": "2022-12-31"
+    },
+
+    "gs_new": {
+        "base_dir": "../data/gs_new",
+        "include_regex": "KSSCADA.701-367-*",
+        "col_identify_func": "lambda x: x.replace('KSSCADA.', '').replace('.F_CV.csv', '')",
+        "output_path": "gs_new.csv",
+        "drop_columns": [],
+        "label_column": "701-367-FRI-4004",
+        "start_date": "2022-01-02",
+        "end_date": "2022-12-31"
+    }
+
+}

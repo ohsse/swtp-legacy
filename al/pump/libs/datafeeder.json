@@ -1,0 +1,82 @@
+{
+  "gs": {
+    "connection": "maria-ems-db-gs",
+    "database": "EMS_DB",
+    "rawtable": "EMS_DB.TB_RAWDATA",
+    "prfrm_table": "EMS_DB.TB_PRF_PRFRM_RST",
+    "pmtable": "EMS_DB.TB_CTR_PRF_PUMPMST_INF"
+  },
+
+  "gm-dev": {
+    "connection": "maria-ems-db-gm-dev",
+    "database": "EMS_DB_GM",
+    "table": "EMS_DB_GM.TB_RAWDATA",
+    "rawtable": "EMS_DB_GM.TB_RAWDATA",
+    "prfrm_table": "EMS_DB_GM.TB_PRF_PRFRM_RST",
+    "pmtable": "EMS_DB_GM.TB_CTR_PRF_PUMPMST_INF"
+  },
+
+  "gm": {
+    "connection": "maria-ems-db-gm",
+    "database": "EMS_DB",
+    "table": "EMS_DB.TB_RAWDATA",
+    "rawtable": "EMS_DB.TB_RAWDATA",
+    "prfrm_table": "EMS_DB.TB_PRF_PRFRM_RST",
+    "pmtable": "EMS_DB.TB_CTR_PRF_PUMPMST_INF"
+  },
+  
+  "gm-": {
+    "connection": "maria-ems-db-gm",
+    "database": "EMS_DB",
+    "table": "EMS_DB.TB_RAWDATA",
+    "rawtable": "EMS_DB.TB_RAWDATA",
+    "prfrm_table": "EMS_DB.TB_PRF_PRFRM_RST",
+    "pmtable": "EMS_DB.TB_CTR_PRF_PUMPMST_INF"
+  },
+  
+  "gr": {
+    "connection": "maria-ems-db-gr",
+    "database": "ems_db",
+    "table": "ems_db.TB_RAWDATA",
+    "rawtable": "ems_db.TB_RAWDATA",
+    "prfrm_table": "ems_db.TB_PRF_PRFRM_RST",
+    "pmtable": "ems_db.TB_CTR_PRF_PUMPMST_INF"
+  },
+
+  "gr-dev": {
+    "connection": "maria-ems-db-gr",
+    "database": "ems_db_gr",
+    "table": "ems_db_gr.TB_RAWDATA",
+    "rawtable": "ems_db_gr.TB_RAWDATA",
+    "prfrm_table": "ems_db_gr.TB_PRF_PRFRM_RST",
+    "pmtable": "ems_db_gr.TB_CTR_PRF_PUMPMST_INF"
+  },
+
+  "ss": {
+    "connection": "maria-ems-db-ss",
+    "database": "ems_db",
+    "table": "ems_db.TB_RAWDATA",
+    "rawtable": "ems_db.TB_RAWDATA",
+    "prfrm_table": "ems_db.TB_PRF_PRFRM_RST",
+    "pmtable": "ems_db.TB_CTR_PRF_PUMPMST_INF"
+  },
+
+  "ss-": {
+    "connection": "maria-ems-db-ss",
+    "database": "ems_db_ss",
+    "table": "ems_db_ss.TB_RAWDATA",
+    "rawtable": "ems_db_ss.TB_RAWDATA",
+    "prfrm_table": "ems_db_ss.TB_PRF_PRFRM_RST",
+    "pmtable": "ems_db_ss.TB_CTR_PRF_PUMPMST_INF"
+  },
+
+  "ba": {
+    "connection": "maria-ems-db-ba",
+    "database": "ems_db_ba",
+    "table": "ems_db_ba.TB_RAWDATA",
+    "rawtable": "ems_db_ba.TB_RAWDATA",
+    "prfrm_table": "ems_db_ba.TB_PRF_PRFRM_RST",
+    "pmtable": "ems_db_ba.TB_CTR_PRF_PUMPMST_INF"
+  }
+
+}

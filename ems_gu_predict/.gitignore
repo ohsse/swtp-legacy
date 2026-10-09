@@ -1,0 +1,50 @@
+# DB 접속정보 (비밀번호 포함) — 실수로라도 커밋되지 않도록.
+# 템플릿은 configs/db_connections.example.json 을 참고해서 직접 만드세요.
+configs/db_connections.json
+
+# 결과를 "쓰는"(업로드) 접속정보 — 위 db_connections.json(원본 "읽기")과 별도
+# 파일로 분리 (scripts/upload.py 참고). 템플릿은 db_upload_connections.example.json.
+configs/db_upload_connections.json
+configs/*.secrets.json
+.env
+
+# scripts/train.py가 저장하는 Stage2/3 아티팩트(면적/레버게인/잔차모델) —
+# 재생성 가능하고 학습 데이터 스냅샷에 의존하므로 커밋 제외. Stage1 신경망
+# 가중치(runs/, 아래)와 같은 성격이라 모델 산출물은 전부 git 밖에 둔다는
+# 원칙을 유지.
+models/
+*.joblib
+
+# scripts/schedule.py의 일별 실행 로그(scripts/logging_setup.py) — 운영
+# 기록이라 커밋 대상이 아님
+logs/
+
+# 학습 산출물 (모델 가중치, 로그) — 필요하면 별도 저장소/스토리지로 관리
+runs/
+
+# 데이터 분석(EDA) 산출물 (CSV, PNG) — 용량이 크고 재생성 가능하므로 커밋 제외
+analysis/
+analysis_demo/
+
+# 세션 중 임시로 생긴 1회성 로그/CSV(배포 대상 아님, DEPLOY.md 참고)
+backtest_results*.csv
+analysis_db_full_run.log
+gu_db_validation.log
+taglist_switch_validation.log
+
+# DB 태그별 원본 캐시 (gzip pickle, 실제 운영 데이터) — 용량이 크고 재생성 가능
+Data/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.log
+
+# 기타
+deploy-exclude.txt
+DEPLOY.md
+tests/
+GU_network_topology.md
+docs/

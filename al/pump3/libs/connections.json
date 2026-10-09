@@ -1,0 +1,86 @@
+{
+  "maria-ems-db": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "ems",
+    "password": "CHANGE_ME",
+    "db": "ems_db"
+  },
+  "maria-ems-db-gs": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "ems_user",
+    "password": "CHANGE_ME",
+    "db": "EMS_DB"
+  },
+  "maria-ems-db-gs-": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "ems_user",
+    "password": "CHANGE_ME",
+    "db": "EMS_DB"
+  },
+  "maria-ems-db-gs-old": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "ems",
+    "password": "CHANGE_ME",
+    "db": "ems_db"
+  },
+  "maria-ems-db-gm-": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "ems_user",
+    "password": "CHANGE_ME",
+    "db": "EMS_DB"
+  },
+  "maria-ems-db-gm": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "ems",
+    "password": "CHANGE_ME",
+    "db": "EMS_DB_GM"
+  },
+  "maria-ems-db-gr": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "ems",
+    "password": "CHANGE_ME",
+    "db": "ems_db_gr"
+  },
+  "maria-ems-db-gr-": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "ems",
+    "password": "CHANGE_ME",
+    "db": "EMS_DB_GR"
+  },
+  "maria-ems-db-ss-": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "ems",
+    "password": "CHANGE_ME",
+    "db": "ems_db_ss"
+  },
+  "maria-ems-db-ss": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "ems_user",
+    "password": "CHANGE_ME",
+    "db": "ems_db"
+  },
+  "maria-ems-db-ba": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "ems",
+    "password": "CHANGE_ME",
+    "db": "ems_db_ba"
+  },
+  "maria-ems-db-hp": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "ems",
+    "password": "CHANGE_ME",
+    "db": "ems_db_hp"
+  }
+}

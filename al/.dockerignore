@@ -1,0 +1,15 @@
+.DS_Store
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.idea/
+
+Dockerfile
+.dockerignore
+
+stdout*
+*.log
+*.log.*
+pump3/logs/*.log
+pump3/logs/*.log.*

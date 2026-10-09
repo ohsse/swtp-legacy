@@ -1,0 +1,2 @@
+[2026-09-03 10:21:20,573] WARNING - APP_CONFIG 미설정 - 모듈 기본값 사용: config.json
+[2026-09-03 10:21:20,574] WARNING - APP_CONNECTIONS 미설정 - 모듈 기본값 사용: libs\connections.json

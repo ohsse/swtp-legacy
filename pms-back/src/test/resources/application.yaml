@@ -1,0 +1,14 @@
+spring:
+  profiles:
+    active: dev
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+  mapper-locations: mapper/**/*.xml
+  type-aliases-package: com.wapplab.pms
+
+logging:
+  level:
+    com.wapplab.mobile.*: TRACE
+    com.wapplab: debug

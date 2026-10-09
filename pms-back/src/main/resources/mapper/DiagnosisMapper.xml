@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.wapplab.pms.repository.DiagnosisMapper">
+
+
+    <select id="selectPumpCount" resultType="int">
+        select
+            GRP_IDX
+        from
+            TB_PUMP_INF
+        GROUP BY
+            GRP_IDX
+    </select>
+
+    <select id="selectPumpChannelList" resultType="java.util.HashMap" parameterType="int">
+        select
+            pump.GRP_IDX,
+            pump.GRP_NM,
+            pump.PUMP_IDX,
+            pump.MOTOR_ID,
+            GROUP_CONCAT(cn.CHANNEL_ID) CHANNEL_ID,
+            GROUP_CONCAT(cn.CHANNEL_NM) CHANNEL_NM
+        from
+            TB_PUMP_INF pump, TB_CHANNEL cn
+        where
+            pump.MOTOR_ID = cn.MOTOR_ID
+            and pump.GRP_IDX = #{grp_idx}
+        group by pump.MOTOR_ID
+        ORDER BY pump.GRP_IDX, pump.PUMP_IDX, cn.CHANNEL_NO ASC
+    </select>
+
+
+    <select id="selectRMSList" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+        select
+            rms.MOTOR_ID,
+            rms.CHANNEL_ID,
+            cn.CHANNEL_NM,
+            rms.RMS,
+            DATE_FORMAT(rms.ACQ_DATE, "%Y-%m-%d %H:%i:%s") as "ACQ_DATE"
+        from
+             TB_RMS rms, TB_CHANNEL cn
+        WHERE
+             rms.MOTOR_ID = cn.MOTOR_ID
+             and cn.CHANNEL_ID = rms.CHANNEL_ID
+             and rms.ACQ_DATE &gt;= #{startDate} AND rms.ACQ_DATE &lt;= DATE_ADD(#{endDate}, INTERVAL 1 DAY)
+             and rms.MOTOR_ID = #{motor_id} and cn.CHANNEL_NM = #{channel_nm}
+    </select>
+
+
+    <select id="selectTimeWaveList" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+        select
+            tw.MOTOR_ID,
+            tw.CHANNEL_ID,
+            DATE_FORMAT(tw.ACQ_DATE, "%Y-%m-%d %H:%i:%s") as "ACQ_DATE",
+            tw.DATA_ARRAY
+        from
+            TB_TIMEWAVE tw, TB_CHANNEL cn
+        where tw.ACQ_DATE = #{acq_date} and tw.MOTOR_ID = #{motor_id} and cn.CHANNEL_NM = #{channel_nm}
+            and tw.CHANNEL_ID = cn.CHANNEL_ID
+    </select>
+
+
+    <select id="selectSpectrumList" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+        select
+            sp.MOTOR_ID,
+            sp.CHANNEL_ID,
+            DATE_FORMAT(sp.ACQ_DATE, "%Y-%m-%d %H:%i:%s") as "ACQ_DATE",
+            sp.DATA_ARRAY
+        from
+            TB_SPECTRUM sp, TB_CHANNEL cn
+        where sp.ACQ_DATE = #{acq_date} and sp.MOTOR_ID = #{motor_id} and cn.CHANNEL_NM = #{channel_nm}
+            and sp.CHANNEL_ID = cn.CHANNEL_ID
+    </select>
+
+    <select id="selectSpectrumFreqList" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+        select
+            freq.MOTOR_ID,
+            freq.CHANNEL_ID,
+            DATE_FORMAT(freq.ACQ_DATE, "%Y-%m-%d %H:%i:%s") as "ACQ_DATE",
+            freq.FREQ_TYPE,
+            freq.FREQ_VALUE
+        from
+            TB_FREQ freq, TB_CHANNEL cn
+        where
+            freq.ACQ_DATE = #{acq_date}
+            and freq.MOTOR_ID = #{motor_id}
+            and cn.CHANNEL_NM = #{channel_nm}
+            and freq.CHANNEL_ID = cn.CHANNEL_ID
+    </select>
+
+
+    <select id="selectSettingParmList" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+        select
+            st.GRP_ID,
+            pump.GRP_NM,
+            st.MOTOR_ID,
+            st.EQ_TYPE,
+            st.CHANNEL_NM,
+            st.PARM_NM,
+            st.PARM_VALUE
+        from
+            TB_AL_SETTING st, TB_PUMP_INF pump
+        where
+            st.GRP_ID = pump.GRP_IDX
+        GROUP BY
+            st.GRP_ID, st.MOTOR_ID, st.CHANNEL_NM, st.PARM_NM
+    </select>
+
+    <update id="updateSettingParm" parameterType="java.util.HashMap">
+        update
+            TB_AL_SETTING
+        set
+            PARM_VALUE = #{PARM_VALUE}
+        where
+            GRP_ID = #{GRP_ID}
+            and MOTOR_ID = #{MOTOR_ID}
+            and EQ_TYPE = #{EQ_TYPE}
+            and CHANNEL_NM = #{CHANNEL_NM}
+            and PARM_NM = #{PARM_NM}
+    </update>
+
+
+</mapper>

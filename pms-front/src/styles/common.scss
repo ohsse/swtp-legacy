@@ -1,0 +1,81 @@
+@import './reset.css';
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100;300;400;500;700;900&display=swap');
+
+@import './component/common.scss';
+
+@import './views/common.scss';
+
+@import '@/assets/css/font.css';
+
+@import './quasar.prod.css';
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    background: white;
+    width: 100%;
+}
+
+body {
+    width: 100%;
+    background-size: cover;
+    font-family: 'KHNPHUotfR';
+    box-sizing: border-box;
+    overflow-y: auto;
+    -ms-overflow-style: none;
+}
+::-webkit-scrollbar {
+    display: none;
+}
+
+//app.vue 설정
+.menu {
+    height: 100%;
+}
+
+#app {
+    width: 100%;
+    background: #101320;
+}
+
+.menuLayout {
+    width: 90px;
+}
+.back-box {
+    position: absolute;
+    bottom: -5px;
+    left: 5%;
+    width: 90%;
+    height: 20%;
+    transform: perspective(300px) rotateX(45deg);
+
+    background: linear-gradient(to bottom, #26449c00, #26449c00, #26449c33),
+        linear-gradient(90deg, #26449c00, #26449c00, #26449c11),
+        linear-gradient(-90deg, #26449c00, #26449c00, #26449c11);
+    border: 1px solid;
+    padding: 10px 15px;
+    border-image-slice: 2;
+    border-width: 1px;
+    border-top: none;
+}
+.date-picker {
+    float: left;
+    margin-left: 15px;
+    font-size: 12px;
+}
+.q-field__control {
+    height: 30px;
+}
+.date-picker-btn {
+    float: left;
+    height: 18px;
+    margin-left: 15px;
+    font-size: 12px;
+}
+
+::-webkit-calendar-picker-indicator {
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="15" viewBox="0 0 24 24"><path fill="%23bbbbbb" d="M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z"/></svg>');
+}

@@ -1,0 +1,11 @@
+# 오프라인 설치용 휠 묶음. 수백 MB 라 빌드 컨텍스트에 들어가면
+# 폐쇄망 반출 tar 가 불필요하게 커진다. (Dockerfile 은 pip 로 직접 설치한다)
+wheelhouse_py38/
+wheelhouse_py39/
+
+# 실행 산출물 — 컨테이너에서는 볼륨(inp-opt-outputs)으로 관리한다
+outputs/
+__pycache__/
+*.pyc
+.venv/
+venv/

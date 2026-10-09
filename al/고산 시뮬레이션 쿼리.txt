@@ -1,0 +1,642 @@
+﻿select 
+a.TS as '일시',
+ROUND(a.ALL_POWER+a.sunPwr,2) as '정수장 실제 전력(실제+태양광)',
+ROUND(a.PWR_PRDCT+ a.PWR_PRDCT2 + ((a.PWR - a.PWR_PRDCT+ a.PWR_PRDCT2 ) * 0.75 ), 2) as '정수장 예측 전력(예측-평균*0.75)',
+/*ROUND(a.PWR_PRDCT+ a.PWR_PRDCT2 + ( a.PWR_PRDCT+ a.PWR_PRDCT2 )  * 0.1 , 2) as '정수장 예측 전력(평균*0.1)',
+ROUND(ROUND(a.PWR_PRDCT + ((a.PWR - a.PWR_PRDCT+ a.PWR_PRDCT2 ) * 0.75 ), 2)+ a.sunPwr , 2) as '정수장 예측(0.75)+태양광 전력',
+ROUND( (a.PWR_PRDCT+ a.PWR_PRDCT2 + ( a.PWR_PRDCT+ a.PWR_PRDCT2)  * 0.1 )+ a.sunPwr, 2) as '정수장 예측 전력(평균*0.1)+태양광',*/
+ROUND(a.PWR_PRDCT+ a.PWR_PRDCT2 + ((a.PWR - a.PumpAvgPWR)+a.sunPwr ), 2) as '정수장 예측 전력(예측+기타평균+태양광)',
+ROUND(a.sunPwr,2) as '기준일 15일 시간대 태양광 전력 평균',
+ROUND(a.PWR,2) as '기준일 15일 시간대 전력 평균',
+ROUND(a.PumpAvgPWR,2) as '기준일 15일 시간대 펌프 전력 평균',
+ROUND(a.PWR - a.PumpAvgPWR,2) as '기준일 15일 시간대 기타설비 전력 평균',
+ROUND(a.PRDCT_MEAN,2) as '펌프 유량 예측(구)',
+ROUND(a.PRDCT_MEAN2,2) as '펌프 유량 예측(신)',
+ROUND(a.PUMP_FLOW1 , 2) as '펌프 실제 유량(구)',
+ROUND(a.PUMP_FLOW2 , 2) as '펌프 실제 유량(신)',
+ROUND(a.PWR_PRDCT, 2) as '펌프 전력 예측 (구)',
+ROUND(a.PWR_PRDCT2, 2) as '펌프 전력 예측 (신)',
+ROUND(a.PUMP_POWER1, 2) * 1 as '펌프 실제 전력(구)',
+ROUND(a.PUMP_POWER2, 2) * 1 as '펌프 실제 전력(신)',
+ROUND(a.TUBE_PRSR_PRDCT,4) as '펌프 예측 관압(구)',
+ROUND(a.TUBE_PRSR_PRDCT2,4) as '펌프 예측 관압(신)',
+ROUND(a.PUMP_PRI1,4) as '펌프 관압 (구)',
+ROUND(a.PUMP_PRI2,4) as '펌프 관압 (신)',
+ROUND(pumpUse1,0) as '펌프1번(구) 실제 가동여부',
+ROUND(pumpUse2,0) as '펌프2번(구) 실제 가동여부',
+ROUND(pumpUse3,0) as '펌프3번(구) 실제 가동여부',
+ROUND(pumpUse4,0) as '펌프4번(구) 실제 가동여부',
+ROUND(pumpUse5,0) as '펌프5번(구) 실제 가동여부',
+ROUND(pumpUse6,0) as '펌프6번(구) 실제 가동여부',
+ROUND(pumpUse7,0) as '펌프7번(구) 실제 가동여부',
+
+ROUND(pumpUse8,0) as '펌프1번(신) 실제 가동여부',
+ROUND(pumpUse9,0) as '펌프2번(신) 실제 가동여부',
+ROUND(pumpUse10,0) as '펌프3번(신) 실제 가동여부',
+ROUND(pumpUse11,0) as '펌프4번(신) 실제 가동여부',
+
+
+ROUND(pumpPrdctUse1,0) as '펌프1번(구) 예측 가동여부',
+ROUND(pumpPrdctUse2,0) as '펌프2번(구) 예측 가동여부',
+ROUND(pumpPrdctUse3,0) as '펌프3번(구) 예측 가동여부',
+ROUND(pumpPrdctUse4,0) as '펌프4번(구) 예측 가동여부',
+ROUND(pumpPrdctUse5,0) as '펌프5번(구) 예측 가동여부',
+ROUND(pumpPrdctUse6,0) as '펌프6번(구) 예측 가동여부',
+ROUND(pumpPrdctUse7,0) as '펌프7번(구) 예측 가동여부',
+
+ROUND(pumpPrdctUse8,0) as '펌프1번(신) 예측 가동여부',
+ROUND(pumpPrdctUse9,0) as '펌프2번(신) 예측 가동여부',
+ROUND(pumpPrdctUse10,0) as '펌프3번(신) 예측 가동여부',
+ROUND(pumpPrdctUse11,0) as '펌프4번(신) 예측 가동여부'
+
+
+
+from (
+
+SELECT
+	t1.TS as TS,
+	t1.allPower AS ALL_POWER, 
+    t2.PRDCT_MEAN, 
+    t2.PWR_PRDCT,
+    t2.TUBE_PRSR_PRDCT, 
+    t2_1.PRDCT_TIME2,
+    t2_1.PWR_PRDCT2,
+    t2_1.TUBE_PRSR_PRDCT2,
+    t2_1.PRDCT_MEAN2, 
+    t3.pumpFlow1 AS PUMP_FLOW1,
+    t3_2.pumpFlow2 AS PUMP_FLOW2,
+    t3_1.pumpPri1 AS PUMP_PRI1,
+    t3_1_1.pumpPri2 AS PUMP_PRI2,
+    t4.pumpPower1 AS PUMP_POWER1,
+    t4_1.pumpPower2 AS PUMP_POWER2,
+    t5.PWR,
+    t5_1.PumpAvgPWR,
+    IFNULL(t6.sunPwr, 0) as 'sunPwr',
+    t7_1.pumpUse1,
+    t7_2.pumpUse2,
+    t7_3.pumpUse3,
+    t7_4.pumpUse4,
+    t7_5.pumpUse5,
+    t7_6.pumpUse6,
+    t7_7.pumpUse7,
+    t7_8.pumpUse8,
+    t7_9.pumpUse9,
+    t7_10.pumpUse10,
+    t7_11.pumpUse11,
+    
+    t8_1.pumpPrdctUse1,
+    t8_2.pumpPrdctUse2,
+    t8_3.pumpPrdctUse3,
+    t8_4.pumpPrdctUse4,
+    t8_5.pumpPrdctUse5,
+    t8_6.pumpPrdctUse6,
+    t8_7.pumpPrdctUse7,
+    t8_8.pumpPrdctUse8,
+    t8_9.pumpPrdctUse9,
+    t8_10.pumpPrdctUse10,
+    t8_11.pumpPrdctUse11
+    
+FROM 
+    ( -- Query 1
+    SELECT 
+        rhi.TS, 
+        SUM(rhi.VALUE*pti.PWQ_UNIT_VALUE) AS allPower 
+    FROM 
+        TB_RAWDATA_HOUR_INGRT rhi, TB_PEAK_TAG_INF pti
+    WHERE 
+        rhi.tagname = pti.PWQ_TAG AND pti.IS_ALL ='1'
+        AND TS >= CONCAT('2024-02-26', ' 00:00:00') AND TS < CONCAT('2024-02-26', ' 23:59:59')
+    GROUP BY 
+        TS
+    ) t1
+LEFT JOIN (
+    -- Query 2
+      select t.PRDCT_TIME, t.PRDCT_MEAN, t.PWR_PRDCT, t.TUBE_PRSR_PRDCT, t.PUMP_GRP from 
+		TB_CTR_OPT_RST t
+		inner join (
+		select PRDCT_TIME ,MAX(ANLY_TIME)as MaxANLY_TIME  from TB_CTR_OPT_RST WHERE PUMP_GRP = '1' GROUP BY PRDCT_TIME ) as max_times
+		on t.PRDCT_TIME = max_times.PRDCT_TIME and t.ANLY_TIME = max_times.MaxANLY_TIME
+	where t.PRDCT_TIME >= CONCAT('2024-02-26', ' 00:00:00')  and  t.PRDCT_TIME < CONCAT('2024-02-26', ' 23:59:59')
+) t2 ON t1.TS = t2.PRDCT_TIME
+LEFT JOIN (
+    -- Query 2
+      select t.PRDCT_TIME as PRDCT_TIME2 , t.PRDCT_MEAN as PRDCT_MEAN2, t.PWR_PRDCT as PWR_PRDCT2, t.TUBE_PRSR_PRDCT as TUBE_PRSR_PRDCT2, t.PUMP_GRP from 
+		TB_CTR_OPT_RST t
+		inner join (
+		select PRDCT_TIME ,MAX(ANLY_TIME)as MaxANLY_TIME  from TB_CTR_OPT_RST WHERE PUMP_GRP = '2' GROUP BY PRDCT_TIME ) as max_times
+		on t.PRDCT_TIME = max_times.PRDCT_TIME and t.ANLY_TIME = max_times.MaxANLY_TIME
+	where t.PRDCT_TIME >= CONCAT('2024-02-26', ' 00:00:00')  and  t.PRDCT_TIME < CONCAT('2024-02-26', ' 23:59:59')
+) t2_1 ON t1.TS = t2_1.PRDCT_TIME2
+LEFT JOIN (
+    -- Query 3
+    SELECT 
+        TS, 
+        SUM(VALUE) AS pumpFlow1 
+    FROM 
+        TB_RAWDATA_HOUR
+    WHERE 
+        tagname IN (SELECT FRI_TAG FROM TB_CTR_PRF_PUMPMST_INF where PUMP_GRP='1') 
+        AND TS >= CONCAT('2024-02-26', ' 00:00:00') AND TS < CONCAT('2024-02-26', ' 23:59:59')
+    GROUP BY 
+        TS
+) t3 ON t1.TS = t3.TS
+LEFT JOIN (
+    -- Query 3
+    SELECT 
+        TS, 
+        SUM(VALUE) AS pumpFlow2 
+    FROM 
+        TB_RAWDATA_HOUR
+    WHERE 
+        tagname IN (SELECT FRI_TAG FROM TB_CTR_PRF_PUMPMST_INF where PUMP_GRP='2') 
+        AND TS >= CONCAT('2024-02-26', ' 00:00:00') AND TS < CONCAT('2024-02-26', ' 23:59:59')
+    GROUP BY 
+        TS
+) t3_2 ON t1.TS = t3_2.TS
+LEFT JOIN (
+    -- Query 3
+    SELECT 
+        TS, 
+        SUM(VALUE) AS pumpPri1
+    FROM 
+        TB_RAWDATA_HOUR
+    WHERE 
+        tagname IN (SELECT PRI_T_TAG FROM TB_CTR_PRF_PUMPMST_INF where PUMP_GRP='1') 
+        AND TS >= CONCAT('2024-02-26', ' 00:00:00') AND TS < CONCAT('2024-02-26', ' 23:59:59')
+    GROUP BY 
+        TS
+) t3_1 ON t1.TS = t3_1.TS
+LEFT JOIN (
+    -- Query 3
+    SELECT 
+        TS, 
+        SUM(VALUE) AS pumpPri2
+    FROM 
+        TB_RAWDATA_HOUR
+    WHERE 
+        tagname IN (SELECT PRI_T_TAG FROM TB_CTR_PRF_PUMPMST_INF where PUMP_GRP='2') 
+        AND TS >= CONCAT('2024-02-26', ' 00:00:00') AND TS < CONCAT('2024-02-26', ' 23:59:59')
+    GROUP BY 
+        TS
+) t3_1_1 ON t1.TS = t3_1_1.TS
+LEFT JOIN (
+    -- Query 4
+    SELECT 
+        TS, 
+        SUM(VALUE) AS pumpPower1 
+    FROM 
+        TB_RAWDATA_HOUR 
+    WHERE 
+        tagname IN (SELECT PWI_TAG FROM TB_CTR_PRF_PUMPMST_INF where PUMP_GRP='1') 
+        AND TS >= CONCAT('2024-02-26', ' 00:00:00') AND TS < CONCAT('2024-02-26', ' 23:59:59')
+    GROUP BY 
+        TS
+) t4 ON t1.TS = t4.TS
+
+LEFT JOIN (
+    -- Query 4
+    SELECT 
+        TS, 
+        SUM(VALUE) AS pumpPower2
+    FROM 
+        TB_RAWDATA_HOUR 
+    WHERE 
+        tagname IN (SELECT PWI_TAG FROM TB_CTR_PRF_PUMPMST_INF where PUMP_GRP='2') 
+        AND TS >= CONCAT('2024-02-26', ' 00:00:00') AND TS < CONCAT('2024-02-26', ' 23:59:59')
+    GROUP BY 
+        TS
+) t4_1 ON t1.TS = t4_1.TS
+
+LEFT JOIN (
+
+		SELECT
+				CONCAT(DATE_FORMAT('2024-02-26', '%Y-%m-%d '), TIME)   as TS,
+				AveragePower as PWR
+			FROM(
+				SELECT
+				    DATE_FORMAT(DATETIME, '%H:00:00.000') as TIME,
+				    MAX(DATE) as DATE,
+				    ROUND(AVG(PWR), 2) as AveragePower
+				FROM
+				(
+					SELECT
+						concat(DATE_FORMAT(ts, '%Y-%m-%d %H') , ':00:00.000')  as DATETIME,
+						DATE_FORMAT(MAX(ts), '%Y-%m-%d') as DATE,
+						SUM(Y) PWR
+					FROM (
+						SELECT
+							ts,
+							tagname,
+							ROUND(rdh.VALUE*pti.PWQ_UNIT_VALUE,2) AS y
+						FROM
+							TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti
+						WHERE
+							rdh.tagname = pti.PWQ_TAG and pti.IS_ALL ='1' AND rdh.VALUE > 0
+							AND rdh.ts >= DATE_SUB( DATE_SUB('2024-02-26', INTERVAL 15 DAY), INTERVAL 6 HOUR)
+							AND rdh.ts <= DATE_SUB( DATE_SUB('2024-02-26', INTERVAL 1 DAY), INTERVAL 18 HOUR)
+						) a
+					GROUP BY
+						ts
+				) a
+				GROUP BY
+					TIME
+			) t5a
+		) t5 on t5.TS = t1.TS
+		
+		LEFT JOIN (
+
+		SELECT
+				CONCAT(DATE_FORMAT('2024-02-26', '%Y-%m-%d '), TIME)   as TS,
+				AveragePower as PumpAvgPWR
+			FROM(
+				SELECT
+				    DATE_FORMAT(DATETIME, '%H:00:00.000') as TIME,
+				    MAX(DATE) as DATE,
+				    ROUND(AVG(PWR), 2) as AveragePower
+				FROM
+				(
+					SELECT
+						concat(DATE_FORMAT(ts, '%Y-%m-%d %H') , ':00:00.000')  as DATETIME,
+						DATE_FORMAT(MAX(ts), '%Y-%m-%d') as DATE,
+						SUM(Y) PWR
+					FROM (
+						SELECT
+							ts,
+							tagname,
+							ROUND(rdh.VALUE*pti.PWQ_UNIT_VALUE,2) AS y
+						FROM
+							TB_RAWDATA_HOUR_INGRT rdh, TB_PEAK_TAG_INF pti, TB_CTR_PRF_PUMPMST_INF tcppi 
+						WHERE
+							rdh.tagname = pti.PWQ_TAG and rdh.tagname = tcppi.PWQ_TAG  AND rdh.VALUE > 0
+							AND rdh.ts >= DATE_SUB( DATE_SUB('2024-02-26', INTERVAL 15 DAY), INTERVAL 6 HOUR)
+							AND rdh.ts <= DATE_SUB( DATE_SUB('2024-02-26', INTERVAL 1 DAY), INTERVAL 18 HOUR)
+						) a
+					GROUP BY
+						ts
+				) a
+				GROUP BY
+					TIME
+			) t5a
+		) t5_1 on t5_1.TS = t1.TS
+		
+		LEFT JOIN (
+
+		SELECT
+				CONCAT(DATE_FORMAT('2024-02-26', '%Y-%m-%d '), TIME)   as TS,
+				IFNULL(AveragePower, 0) as sunPwr
+			FROM(
+				SELECT
+				    DATE_FORMAT(DATETIME, '%H:00:00.000') as TIME,
+				    MAX(DATE) as DATE,
+				    ROUND(AVG(PWR), 2) as AveragePower
+				FROM
+				(
+					SELECT
+						concat(DATE_FORMAT(ts, '%Y-%m-%d %H') , ':00:00.000')  as DATETIME,
+						DATE_FORMAT(MAX(ts), '%Y-%m-%d') as DATE,
+						SUM(Y) PWR
+					FROM (
+						SELECT
+							ts,
+							tagname,
+							ROUND(rdh.VALUE*pti.PWI_UNIT_VALUE,2) AS y
+						FROM
+							TB_RAWDATA_HOUR rdh, TB_PEAK_TAG_INF pti
+						WHERE
+							rdh.tagname = '701-367-PWI-7605'
+							and pti.PWI_TAG = '701-367-PWI-7605'
+							and rdh.tagname = pti.PWI_TAG 
+							 AND rdh.VALUE > 0
+							AND rdh.ts >= DATE_SUB( DATE_SUB('2024-02-26', INTERVAL 15 DAY), INTERVAL 6 HOUR)
+							AND rdh.ts <= DATE_SUB( DATE_SUB('2024-02-26', INTERVAL 1 DAY), INTERVAL 18 HOUR)
+						) a
+					GROUP BY
+						ts
+				) a
+				GROUP BY
+					TIME
+			) t5a
+		) t6 on t6.TS = t1.TS
+		
+	LEFT JOIN (
+	    -- Query 7
+	    SELECT 
+	        TS, 
+	        value as 'pumpUse1'
+	    FROM 
+	        TB_RAWDATA_HOUR 
+	    WHERE 
+	        tagname IN (SELECT PMB_TAG FROM TB_CTR_PRF_PUMPMST_INF where PUMP_IDX='1') 
+	        AND TS >= CONCAT('2024-02-26', ' 00:00:00') AND TS < CONCAT('2024-02-26', ' 23:59:59')
+	    GROUP BY 
+	        TS
+	) t7_1 ON t1.TS = t7_1.TS
+	
+	LEFT JOIN (
+	    -- Query 7
+	    SELECT 
+	        TS, 
+	        value as 'pumpUse2'
+	    FROM 
+	        TB_RAWDATA_HOUR 
+	    WHERE 
+	        tagname IN (SELECT PMB_TAG FROM TB_CTR_PRF_PUMPMST_INF where PUMP_IDX='2') 
+	        AND TS >= CONCAT('2024-02-26', ' 00:00:00') AND TS < CONCAT('2024-02-26', ' 23:59:59')
+	    GROUP BY 
+	        TS
+	) t7_2 ON t1.TS = t7_2.TS
+	
+	LEFT JOIN (
+	    -- Query 7
+	    SELECT 
+	        TS, 
+	        value as 'pumpUse3'
+	    FROM 
+	        TB_RAWDATA_HOUR 
+	    WHERE 
+	        tagname IN (SELECT PMB_TAG FROM TB_CTR_PRF_PUMPMST_INF where PUMP_IDX='3') 
+	        AND TS >= CONCAT('2024-02-26', ' 00:00:00') AND TS < CONCAT('2024-02-26', ' 23:59:59')
+	    GROUP BY 
+	        TS
+	) t7_3 ON t1.TS = t7_3.TS
+	
+	LEFT JOIN (
+	    -- Query 7
+	    SELECT 
+	        TS, 
+	        value as 'pumpUse4'
+	    FROM 
+	        TB_RAWDATA_HOUR 
+	    WHERE 
+	        tagname IN (SELECT PMB_TAG FROM TB_CTR_PRF_PUMPMST_INF where PUMP_IDX='4') 
+	        AND TS >= CONCAT('2024-02-26', ' 00:00:00') AND TS < CONCAT('2024-02-26', ' 23:59:59')
+	    GROUP BY 
+	        TS
+	) t7_4 ON t1.TS = t7_4.TS
+	
+	LEFT JOIN (
+	    -- Query 7
+	    SELECT 
+	        TS, 
+	        value as 'pumpUse5'
+	    FROM 
+	        TB_RAWDATA_HOUR 
+	    WHERE 
+	        tagname IN (SELECT PMB_TAG FROM TB_CTR_PRF_PUMPMST_INF where PUMP_IDX='5') 
+	        AND TS >= CONCAT('2024-02-26', ' 00:00:00') AND TS < CONCAT('2024-02-26', ' 23:59:59')
+	    GROUP BY 
+	        TS
+	) t7_5 ON t1.TS = t7_5.TS
+	
+	LEFT JOIN (
+	    -- Query 7
+	    SELECT 
+	        TS, 
+	        value as 'pumpUse6'
+	    FROM 
+	        TB_RAWDATA_HOUR 
+	    WHERE 
+	        tagname IN (SELECT PMB_TAG FROM TB_CTR_PRF_PUMPMST_INF where PUMP_IDX='6') 
+	        AND TS >= CONCAT('2024-02-26', ' 00:00:00') AND TS < CONCAT('2024-02-26', ' 23:59:59')
+	    GROUP BY 
+	        TS
+	) t7_6 ON t1.TS = t7_6.TS
+	
+	LEFT JOIN (
+	    -- Query 7
+	    SELECT 
+	        TS, 
+	        value as 'pumpUse7'
+	    FROM 
+	        TB_RAWDATA_HOUR 
+	    WHERE 
+	        tagname IN (SELECT PMB_TAG FROM TB_CTR_PRF_PUMPMST_INF where PUMP_IDX='7') 
+	        AND TS >= CONCAT('2024-02-26', ' 00:00:00') AND TS < CONCAT('2024-02-26', ' 23:59:59')
+	    GROUP BY 
+	        TS
+	) t7_7 ON t1.TS = t7_7.TS
+	
+	LEFT JOIN (
+	    -- Query 7
+	    SELECT 
+	        TS, 
+	        value as 'pumpUse8'
+	    FROM 
+	        TB_RAWDATA_HOUR 
+	    WHERE 
+	        tagname IN (SELECT PMB_TAG FROM TB_CTR_PRF_PUMPMST_INF where PUMP_IDX='8') 
+	        AND TS >= CONCAT('2024-02-26', ' 00:00:00') AND TS < CONCAT('2024-02-26', ' 23:59:59')
+	    GROUP BY 
+	        TS
+	) t7_8 ON t1.TS = t7_8.TS
+	
+	LEFT JOIN (
+	    -- Query 7
+	    SELECT 
+	        TS, 
+	        value as 'pumpUse9'
+	    FROM 
+	        TB_RAWDATA_HOUR 
+	    WHERE 
+	        tagname IN (SELECT PMB_TAG FROM TB_CTR_PRF_PUMPMST_INF where PUMP_IDX='9') 
+	        AND TS >= CONCAT('2024-02-26', ' 00:00:00') AND TS < CONCAT('2024-02-26', ' 23:59:59')
+	    GROUP BY 
+	        TS
+	) t7_9 ON t1.TS = t7_9.TS
+	
+	LEFT JOIN (
+	    -- Query 7
+	    SELECT 
+	        TS, 
+	        value as 'pumpUse10'
+	    FROM 
+	        TB_RAWDATA_HOUR 
+	    WHERE 
+	        tagname IN (SELECT PMB_TAG FROM TB_CTR_PRF_PUMPMST_INF where PUMP_IDX='10') 
+	        AND TS >= CONCAT('2024-02-26', ' 00:00:00') AND TS < CONCAT('2024-02-26', ' 23:59:59')
+	    GROUP BY 
+	        TS
+	) t7_10 ON t1.TS = t7_10.TS
+	
+	LEFT JOIN (
+	    -- Query 7
+	    SELECT 
+	        TS, 
+	        value as 'pumpUse11'
+	    FROM 
+	        TB_RAWDATA_HOUR 
+	    WHERE 
+	        tagname IN (SELECT PMB_TAG FROM TB_CTR_PRF_PUMPMST_INF where PUMP_IDX='11') 
+	        AND TS >= CONCAT('2024-02-26', ' 00:00:00') AND TS < CONCAT('2024-02-26', ' 23:59:59')
+	    GROUP BY 
+	        TS
+	) t7_11 ON t1.TS = t7_11.TS
+	
+	
+	LEFT JOIN (
+	    -- Query 8
+	    SELECT 
+	        DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00')   as TS,
+	        PUMP_YN as 'pumpPrdctUse1'
+	    FROM 
+	        TB_CTR_PUMPYN_RST
+	    WHERE 
+	        PUMP_IDX = '1'
+	        AND PRDCT_TIME_DIFF = '5'
+	        AND RGSTR_TIME >= CONCAT('2024-02-26', ' 00:00:00') AND RGSTR_TIME < CONCAT('2024-02-26', ' 23:59:59')
+	    GROUP BY 
+	        DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00')
+	) t8_1 ON t1.TS = t8_1.TS
+	
+	LEFT JOIN (
+	    -- Query 8
+	    SELECT 
+	        DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00')   as TS,
+	        PUMP_YN as 'pumpPrdctUse2'
+	    FROM 
+	        TB_CTR_PUMPYN_RST
+	    WHERE 
+	        PUMP_IDX = '2'
+	        AND PRDCT_TIME_DIFF = '5'
+	        AND RGSTR_TIME >= CONCAT('2024-02-26', ' 00:00:00') AND RGSTR_TIME < CONCAT('2024-02-26', ' 23:59:59')
+	    GROUP BY 
+	        DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00')
+	) t8_2 ON t1.TS = t8_2.TS
+	
+	LEFT JOIN (
+	    -- Query 8
+	    SELECT 
+	        DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00')   as TS,
+	        PUMP_YN as 'pumpPrdctUse3'
+	    FROM 
+	        TB_CTR_PUMPYN_RST
+	    WHERE 
+	        PUMP_IDX = '3'
+	        AND PRDCT_TIME_DIFF = '5'
+	        AND RGSTR_TIME >= CONCAT('2024-02-26', ' 00:00:00') AND RGSTR_TIME < CONCAT('2024-02-26', ' 23:59:59')
+	    GROUP BY 
+	        DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00')
+	) t8_3 ON t1.TS = t8_3.TS
+	
+	LEFT JOIN (
+	    -- Query 8
+	    SELECT 
+	        DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00')   as TS,
+	        PUMP_YN as 'pumpPrdctUse4'
+	    FROM 
+	        TB_CTR_PUMPYN_RST
+	    WHERE 
+	        PUMP_IDX = '4'
+	        AND PRDCT_TIME_DIFF = '5'
+	        AND RGSTR_TIME >= CONCAT('2024-02-26', ' 00:00:00') AND RGSTR_TIME < CONCAT('2024-02-26', ' 23:59:59')
+	    GROUP BY 
+	        DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00')
+	) t8_4 ON t1.TS = t8_4.TS
+	
+	LEFT JOIN (
+	    -- Query 8
+	    SELECT 
+	        DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00')   as TS,
+	        PUMP_YN as 'pumpPrdctUse5'
+	    FROM 
+	        TB_CTR_PUMPYN_RST
+	    WHERE 
+	        PUMP_IDX = '5'
+	        AND PRDCT_TIME_DIFF = '5'
+	        AND RGSTR_TIME >= CONCAT('2024-02-26', ' 00:00:00') AND RGSTR_TIME < CONCAT('2024-02-26', ' 23:59:59')
+	    GROUP BY 
+	        DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00')
+	) t8_5 ON t1.TS = t8_5.TS
+	
+	LEFT JOIN (
+	    -- Query 8
+	    SELECT 
+	        DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00')   as TS,
+	        PUMP_YN as 'pumpPrdctUse6'
+	    FROM 
+	        TB_CTR_PUMPYN_RST
+	    WHERE 
+	        PUMP_IDX = '6'
+	        AND PRDCT_TIME_DIFF = '5'
+	        AND RGSTR_TIME >= CONCAT('2024-02-26', ' 00:00:00') AND RGSTR_TIME < CONCAT('2024-02-26', ' 23:59:59')
+	    GROUP BY 
+	        DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00')
+	) t8_6 ON t1.TS = t8_6.TS
+	
+	LEFT JOIN (
+	    -- Query 8
+	    SELECT 
+	        DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00')   as TS,
+	        PUMP_YN as 'pumpPrdctUse7'
+	    FROM 
+	        TB_CTR_PUMPYN_RST
+	    WHERE 
+	        PUMP_IDX = '7'
+	        AND PRDCT_TIME_DIFF = '5'
+	        AND RGSTR_TIME >= CONCAT('2024-02-26', ' 00:00:00') AND RGSTR_TIME < CONCAT('2024-02-26', ' 23:59:59')
+	    GROUP BY 
+	        DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00')
+	) t8_7 ON t1.TS = t8_7.TS
+	
+	LEFT JOIN (
+	    -- Query 8
+	    SELECT 
+	        DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00')   as TS,
+	        PUMP_YN as 'pumpPrdctUse8'
+	    FROM 
+	        TB_CTR_PUMPYN_RST
+	    WHERE 
+	        PUMP_IDX = '8'
+	        AND PRDCT_TIME_DIFF = '5'
+	        AND RGSTR_TIME >= CONCAT('2024-02-26', ' 00:00:00') AND RGSTR_TIME < CONCAT('2024-02-26', ' 23:59:59')
+	    GROUP BY 
+	        DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00')
+	) t8_8 ON t1.TS = t8_8.TS
+	
+	LEFT JOIN (
+	    -- Query 8
+	    SELECT 
+	        DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00')   as TS,
+	        PUMP_YN as 'pumpPrdctUse9'
+	    FROM 
+	        TB_CTR_PUMPYN_RST
+	    WHERE 
+	        PUMP_IDX = '9'
+	        AND PRDCT_TIME_DIFF = '5'
+	        AND RGSTR_TIME >= CONCAT('2024-02-26', ' 00:00:00') AND RGSTR_TIME < CONCAT('2024-02-26', ' 23:59:59')
+	    GROUP BY 
+	        DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00')
+	) t8_9 ON t1.TS = t8_9.TS
+	
+	LEFT JOIN (
+	    -- Query 8
+	    SELECT 
+	        DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00')   as TS,
+	        PUMP_YN as 'pumpPrdctUse10'
+	    FROM 
+	        TB_CTR_PUMPYN_RST
+	    WHERE 
+	        PUMP_IDX = '10'
+	        AND PRDCT_TIME_DIFF = '5'
+	        AND RGSTR_TIME >= CONCAT('2024-02-26', ' 00:00:00') AND RGSTR_TIME < CONCAT('2024-02-26', ' 23:59:59')
+	    GROUP BY 
+	        DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00')
+	) t8_10 ON t1.TS = t8_10.TS
+	
+	LEFT JOIN (
+	    -- Query 8
+	    SELECT 
+	        DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00')   as TS,
+	        PUMP_YN as 'pumpPrdctUse11'
+	    FROM 
+	        TB_CTR_PUMPYN_RST
+	    WHERE 
+	        PUMP_IDX = '11'
+	        AND PRDCT_TIME_DIFF = '5'
+	        AND RGSTR_TIME >= CONCAT('2024-02-26', ' 00:00:00') AND RGSTR_TIME < CONCAT('2024-02-26', ' 23:59:59')
+	    GROUP BY 
+	        DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:00:00')
+	) t8_11 ON t1.TS = t8_11.TS
+
+
+) a

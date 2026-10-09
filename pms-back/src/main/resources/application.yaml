@@ -1,0 +1,21 @@
+spring:
+  profiles:
+#     dev : 개발, 나머지 지역명: 운영
+    active: dev
+#    active: gs
+#    active: gm
+#    active: gm2
+#     active: hy
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+  mapper-locations: mapper/**/*.xml
+  type-aliases-package: com.wapplab.pms
+
+logging:
+  file:
+      path: logs
+  level:
+    jdbc.sqlonly: DEBUG
+    org.springframework.web: DEBUG

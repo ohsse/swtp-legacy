@@ -1,0 +1,112 @@
+]@charset "UTF-8";
+.k-window-titlebar.k-header>.k-window-title{font-family:"NanumSquareEB";font-size:20.83px; }
+table.k-editor{height:100%;}
+.k-loading-mask{display:none !important;}
+.k-grid td,.k-grid th{text-overflow: unset;font-family:"NanumSquareR";font-size:12px;}
+.k-grid tbody .k-button{ min-width: 40px;}
+
+
+.k-window-titlebar.k-header{
+	padding:19px 19px 20px 20px;
+}
+.k-window-titlebar .k-window-actions{
+	top:19px;right:19px;
+}
+.k-window-titlebar{
+	background-color: #fff;
+    /* box-shadow: 13px 13px 13px 13px #a0a5ae; */
+    border-bottom: 3px solid #eaf1f6
+}
+.k-grid .k-alt{
+	background-color:#FFF;
+}
+/* combobox ìƒ‰ìƒ ì ìš© */
+.k-list-container {
+	border-color: #489cf2 !important;
+    background-color: #15284e !important;
+    color: #ffffff;
+}
+.k-grid .k-alt.k-state-selected,.k-draghandle.k-state-selected:hover, .k-ghost-splitbar-horizontal, .k-ghost-splitbar-vertical, .k-list>.k-state-highlight, .k-list>.k-state-selected, .k-marquee-color, .k-panel>.k-state-selected, .k-scheduler .k-scheduler-toolbar .k-state-selected, .k-scheduler .k-today.k-state-selected, .k-state-selected, .k-state-selected:link, .k-state-selected:visited, .k-tool.k-state-selected {
+    background-color: #489cf2  !important;
+    border-color: #489cf2 !important;
+/*     background-color: #c6def7 !important;
+    border-color: #c6def7 !important; */
+}
+.k-item:hover{
+	background-color: #c6def7;
+}
+.k-list>.k-state-focused.k-state-selected, .k-listview>.k-state-focused.k-state-selected, .k-state-focused.k-state-selected, td.k-state-focused.k-state-selected {
+     box-shadow: inset 0 0 3px 1px #c6def7 !important;
+}
+.k-grid-norecords-template{
+   /*  margin-top: 140px !important; */
+       margin: 2em auto 0 auto !important;
+       width: 80% !important;
+           position: static !important;
+} 
+.k-grid-norecords{
+	height:4em !important;
+}
+
+#worklogGrid td{
+	padding: 0 .6em !important;
+}
+#SitemsGrid2 .k-filtercell>span{
+	padding:0;
+}
+.k-widget.k-editor{
+	height:164px;
+	border:0;
+}
+/* kendo editor css end */
+
+.k-grid td.k-state-selected:hover, .k-grid tr.k-state-selected:hover {
+   background-color:#d7e8fa !important;
+    /* background-image: none; */
+}
+/* kendo Grid css */
+/* .k-grid,.k-grid tr,.k-grid th,.k-grid td,th.k-header{
+	border:0px !important;
+} */
+.k-grid{
+	 border:0px !important; 
+}
+.k-grid-header th.k-header>.k-link{
+	font-family:"NanumSquareR";
+	font-size: 13px !important;
+}
+.k-grid th,.k-grid td{font-weight:800 !important;}
+.k-grid-header,.k-grid-header th.k-header{white-space: normal;    background-color: #f0f9ff;}
+.k-grid tr.toggleColor.k-state-selected{background-color:#c6def7 !important;}
+.k-grid td{border-width: 1px !important;}
+table{border-collapse: collapse !important;}
+.k-grid tr.toggleColor{background-color:#f5f5f5;}
+#SitemsGrid2 .k-header.k-grid-toolbar .k-grid-add{display:none !important;}
+#gumGrid .k-header.k-grid-toolbar .k-grid-add{display:none !important;}
+#swGrid .k-header.k-grid-toolbar .k-grid-add{display:none !important;}
+.k-dirty-cell{
+	box-shadow: 0px 0px 2px 2px #F00 inset;
+}
+.k-grid .k-alt.clickAuthItem{background: #bfb8b8;}
+.k-autocomplete, .k-dropdown-wrap.k-state-default, .k-numeric-wrap.k-state-default, .k-picker-wrap.k-state-default{background-color: #15284e;border-color: #489cf2;}
+.k-state-default>.k-select{border-color: #489cf2;display: flex; align-items: center;  justify-content: center;}
+.k-icon, .k-tool-icon{color: #489cf2;}
+.k-calendar .k-today .k-link{color: #489cf2; box-shadow: inset 0 0 0 1px #489cf2;} /* ë‹¬ë ¥ ê´€ë ¨ */
+.k-calendar td.k-state-focused .k-link{ box-shadow: inset 0 0 0 1px #489cf2;}
+.k-calendar td.k-state-selected .k-link{border-color: #489cf2; background-color: #489cf2;}
+.k-calendar .k-footer .k-nav-today{color:#489cf2;}
+.k-calendar .k-footer .k-nav-today:hover{color:#489cf2;}
+.k-button{background-color: #f0f9ff;}
+.k-multiselect-wrap .k-button{background-color: #e9eaea; border: 0px; font-size: 13px; color: #8e8e8e;font-family:"NanumSquareR";}
+.k-multiselect-wrap .k-button .k-select{margin-top: 2px;}
+.k-grid tr:hover td:not(.noChageColor):not(.k-item):not(.k-state-selected){background-color:#e6ecff !important;}
+@media screen and (min-width: 1921px) { 
+	#SitemsGrid2 .k-grid-header-wrap.k-auto-scrollable{width:calc(100% - 16px) !important;}
+	#SitemsGrid2 .k-grid-header-locked~.k-grid-header-wrap.k-auto-scrollable{width:calc(calc(100% - 153px) - 16px) !important;}
+#SitemsGrid2 .k-grid-header{padding-right:0 !important;}  
+}
+#bojengPopGrid .k-grid-content tr.k-state-selected td[data-field="col3"],
+#bojengPopGrid .k-grid-content tr.k-state-selected td[data-field="col4"],
+#bojengPopGrid .k-grid-content tr.k-state-selected td[data-field="col5"],
+#bojengPopGrid .k-grid-content tr.k-state-selected td[data-field="col6"],
+#bojengPopGrid .k-grid-content tr.k-state-selected td[data-field="col7"]{background-color:#FFF !important;}

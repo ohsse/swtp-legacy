@@ -1,0 +1,39 @@
+.monitoring-1 {
+    .s-left {
+        width: 75%;
+        display: flex;
+        gap: 10px;
+        flex-direction: column;
+
+        .chart-box {
+            background: #09192c9a;
+            position: relative;
+            width: 100%;
+            height: calc(100% / 2);
+            border: 1px solid #2660ab;
+            border-radius: 10px;
+
+            .chart {
+                width: 100%;
+                height: 100%;
+                padding: 10px;
+                display: flex;
+                flex-direction: column;
+                font-size: 14px;
+
+                .titlebox {
+                    margin-bottom: 10px;
+                    color: white;
+                    img {
+                        margin-right: 8px;
+                    }
+                }
+
+                .linechart {
+                    width: 100%;
+                    height: 100%;
+                }
+            }
+        }
+    }
+}

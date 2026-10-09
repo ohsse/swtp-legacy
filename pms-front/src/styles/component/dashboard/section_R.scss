@@ -1,0 +1,147 @@
+.dashboard{
+    .s-right{
+        width: 28%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        
+        .content-box{
+            height: 50%;
+            width: 100%;
+            padding: 0 20px 20px;
+            overflow: hidden;
+    
+            .table-box{
+                padding: 0;
+                width: 100%;
+                height: 100%;
+                background: #002a4e75;
+                border: 1px solid #2660AB;
+                border-radius: 12px;
+                position: relative;
+                display: flex;
+                flex-direction: column;
+    
+                .title-box{
+                    font-size: 14px;
+                    display: flex;
+                    align-items: center;
+                    height: 13%;
+    
+                    img{
+                        width: 3.5%;
+                        margin-right: 4px;
+                    }
+    
+                }
+                .table{
+                    width: 100%;
+                    height: 87%;
+                    padding: 15px;
+                    padding-top: 0;
+                    display: flex;
+                    flex-direction: column;
+    
+                    .thead{
+                        width: 100%;
+                        border-top: 1px solid #2264AF;
+                        border-bottom: 1px solid #2264AF;
+                        padding: 12px 0;
+                        display: flex;
+                        justify-content: space-between;
+                        text-align: center;
+                        color: #D0DEF8;
+                        font-size: 14px;
+                        background: linear-gradient(to bottom , #004b8d79,#001c4d6e,#004b8d79);
+    
+                        .num{
+                            width: 10%;
+                        }
+    
+                        .status{
+                            width: 20%;
+                        }
+    
+                        .list{
+                            width: 60%;
+                        }
+                    }
+    
+                    .tbody{
+                        width: 100%;
+                        flex:1;
+                        overflow-y: scroll;
+    
+                        
+    
+                        tr{
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 14px 0;
+                        text-align: center;
+                        color: white;
+                        font-size: 14px;
+                        font-weight: 200;
+                        border-bottom: 1px solid #183658;
+    
+                            .num{
+                                width: 10%;
+                            }
+        
+                            .status{
+                                width: 20%;
+                                display: flex;
+                                justify-content: center;
+                                align-items: center;
+                                .circle{
+                                    width: 15px;
+                                    height: 15px;
+                                    border-radius: 20px;
+                                    background: radial-gradient(#02469F ,#006CD8);
+                                    box-shadow: 0 0 5px #0088FF;
+                                }
+    
+                                .err{
+                                    background: radial-gradient(#81112F, #FE3076);
+                                    box-shadow: 0 0 5px #FF003D;
+                                }
+                            }
+        
+                            .list{
+                                width: 60%;
+                            }
+                        }
+                       
+                    }
+                }
+            }
+        }
+        
+        .light-circle{
+            top: 100%;
+            left: 100%;
+            bottom: 0;
+            right: 0;
+            width: 15%;
+            height: 15%;
+            position: absolute;
+            mix-blend-mode:color-dodge;
+            transform: translate(-54% , -54%);
+    
+        }
+    
+        .light-line{
+            top: -10px;
+            left: 80%;
+            mix-blend-mode: color-dodge;
+            position: absolute;
+            height: 5%;
+            width: auto;
+            transform: translateX(-50%);
+    
+        }
+    
+    }
+    
+}

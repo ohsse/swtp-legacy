@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+	군산 5분 제어 판단(TB_CTRL_CMD_RST, 벤더 소유) → 제어명령 대기열(TB_HMI_CTR_TAG) 연계.
+	벤더 계약: *_CMD_YN = 'Y' 이면 *_TGT_* 값을 제어값으로 송신한다.
+	장치는 PUMP / NATIONAL / LOCAL(지방산단, 2026-09-30 부활) 셋이다.
+	우리가 벤더 테이블에 하는 쓰기는 PUMP_CMD_STATUS / NATIONAL_CMD_STATUS / LOCAL_CMD_STATUS UPDATE 뿐이다.
+	설계: docs/gunsan-ctrl-workflow.html
+-->
+<mapper namespace="kr.co.mindone.ems.pump.CtrlCmdMapper">
+
+	<sql id="cmdColumns">
+		CTRL_ID,
+		DATE_FORMAT(CTRL_TS, '%Y-%m-%d %H:%i:%s') AS CTRL_TS,
+		CMD_YN,
+		PRED_STALE_YN,
+		PUMP_COMB,
+		PUMP_CMD_YN,
+		PUMP_CMD_STATUS,
+		PUMP_CUR_HZ,
+		PUMP_TGT_HZ,
+		NATIONAL_CMD_YN,
+		NATIONAL_CMD_STATUS,
+		NATIONAL_CUR_OPEN,
+		NATIONAL_TGT_OPEN,
+		LOCAL_CMD_YN,
+		LOCAL_CMD_STATUS,
+		LOCAL_CUR_OPEN,
+		LOCAL_TGT_OPEN,
+		REASON_CODE,
+		TIMESTAMPDIFF(SECOND, CTRL_TS, NOW()) AS AGE_SEC
+	</sql>
+
+	<!-- 처리 대상: 명령이 있고 아직 우리가 종결하지 않은(READY) 장치가 하나라도 있는 행 -->
+	<select id="selectReadyCmdList" resultType="hashMap">
+		SELECT <include refid="cmdColumns"/>
+		FROM TB_CTRL_CMD_RST
+		WHERE CTRL_TS &gt;= DATE_SUB(NOW(), INTERVAL #{LOOKBACK_MIN} MINUTE)
+		  AND ( (PUMP_CMD_YN = 'Y' AND PUMP_CMD_STATUS = 'READY')
+		     OR (NATIONAL_CMD_YN = 'Y' AND NATIONAL_CMD_STATUS = 'READY')
+		     OR (LOCAL_CMD_YN = 'Y' AND LOCAL_CMD_STATUS = 'READY') )
+		ORDER BY CTRL_TS ASC, CTRL_ID ASC
+	</select>
+
+	<!-- 판단 행 잠금. 승인·소비자·반영판정이 같은 행을 다투는 것을 막는다 -->
+	<select id="selectCmdForUpdate" resultType="hashMap">
+		SELECT <include refid="cmdColumns"/>
+		FROM TB_CTRL_CMD_RST
+		WHERE CTRL_ID = #{CTRL_ID}
+		FOR UPDATE
+	</select>
+
+	<select id="selectCmd" resultType="hashMap">
+		SELECT <include refid="cmdColumns"/>
+		FROM TB_CTRL_CMD_RST
+		WHERE CTRL_ID = #{CTRL_ID}
+	</select>
+
+	<!-- 최신 판단 행 1건 (화면 카드) -->
+	<select id="selectLatestCmd" resultType="hashMap">
+		SELECT <include refid="cmdColumns"/>
+		FROM TB_CTRL_CMD_RST
+		ORDER BY CTRL_TS DESC, CTRL_ID DESC
+		LIMIT 1
+	</select>
+
+	<!-- 같은 장치에 더 새로운 명령이 있는지 (SUPERSEDED 판정. 판단 마감의 안전장치) -->
+	<select id="countNewerDeviceCmd" resultType="int">
+		SELECT COUNT(*)
+		FROM TB_CTRL_CMD_RST
+		WHERE CTRL_TS &gt; #{CTRL_TS}
+		<choose>
+			<when test='DEVICE == "PUMP"'>AND PUMP_CMD_YN = 'Y'</when>
+			<when test='DEVICE == "LOCAL"'>AND LOCAL_CMD_YN = 'Y'</when>
+			<otherwise>AND NATIONAL_CMD_YN = 'Y'</otherwise>
+		</choose>
+	</select>
+
+	<!-- 상태 전이. FROM_STATUS 일 때만 바꾼다(비교 후 교체) -->
+	<update id="updateDeviceStatus">
+		UPDATE TB_CTRL_CMD_RST
+		<choose>
+			<when test='DEVICE == "PUMP"'>
+				SET PUMP_CMD_STATUS = #{TO_STATUS}
+				WHERE CTRL_ID = #{CTRL_ID} AND PUMP_CMD_YN = 'Y' AND PUMP_CMD_STATUS = #{FROM_STATUS}
+			</when>
+			<when test='DEVICE == "LOCAL"'>
+				SET LOCAL_CMD_STATUS = #{TO_STATUS}
+				WHERE CTRL_ID = #{CTRL_ID} AND LOCAL_CMD_YN = 'Y' AND LOCAL_CMD_STATUS = #{FROM_STATUS}
+			</when>
+			<otherwise>
+				SET NATIONAL_CMD_STATUS = #{TO_STATUS}
+				WHERE CTRL_ID = #{CTRL_ID} AND NATIONAL_CMD_YN = 'Y' AND NATIONAL_CMD_STATUS = #{FROM_STATUS}
+			</otherwise>
+		</choose>
+	</update>
+
+	<!-- 판단 이력 (기간) -->
+	<select id="selectCmdHistory" resultType="hashMap">
+		SELECT <include refid="cmdColumns"/>
+		FROM TB_CTRL_CMD_RST
+		WHERE CTRL_TS &gt;= #{FROM} AND CTRL_TS &lt;= #{TO}
+		<if test='CMD_ONLY == "Y"'>AND CMD_YN = 'Y'</if>
+		ORDER BY CTRL_TS DESC, CTRL_ID DESC
+		LIMIT 2000
+	</select>
+
+	<!-- ===================== 대기열 (TB_HMI_CTR_TAG) ===================== -->
+
+	<!-- 한 판단·장치 묶음의 대기열 행 -->
+	<select id="selectQueueByOptIdx" resultType="hashMap">
+		SELECT
+			CTR_IDX, CTR_NM, OPT_IDX, TAG, VALUE, ANLY_CD, FLAG,
+			DATE_FORMAT(RGSTR_TIME, '%Y-%m-%d %H:%i:%s') AS RGSTR_TIME,
+			DATE_FORMAT(UPDT_TIME, '%Y-%m-%d %H:%i:%s') AS UPDT_TIME,
+			TIMESTAMPDIFF(SECOND, RGSTR_TIME, NOW()) AS RGSTR_AGE_SEC,
+			TIMESTAMPDIFF(SECOND, UPDT_TIME, NOW()) AS UPDT_AGE_SEC
+		FROM TB_HMI_CTR_TAG
+		WHERE OPT_IDX = #{OPT_IDX}
+		ORDER BY CTR_IDX ASC
+	</select>
+
+	<!-- 판단 행 묶음 전체의 대기열 행 (OPT_IDX 접두 CTRL:<id>:) -->
+	<select id="selectQueueByCtrlId" resultType="hashMap">
+		SELECT CTR_IDX, CTR_NM, OPT_IDX, TAG, VALUE, ANLY_CD, FLAG,
+			DATE_FORMAT(UPDT_TIME, '%Y-%m-%d %H:%i:%s') AS UPDT_TIME
+		FROM TB_HMI_CTR_TAG
+		WHERE OPT_IDX LIKE CONCAT('CTRL:', #{CTRL_ID}, ':%')
+		ORDER BY CTR_IDX ASC
+	</select>
+
+	<!-- 다른 명령이 진행 중인지: 이 판단 행이 아닌 FLAG 0/1 행 수 -->
+	<select id="countForeignActiveQueue" resultType="int">
+		SELECT COUNT(*)
+		FROM TB_HMI_CTR_TAG
+		WHERE FLAG IN ('0', '1')
+		  AND (OPT_IDX IS NULL OR OPT_IDX NOT LIKE CONCAT('CTRL:', #{CTRL_ID}, ':%'))
+	</select>
+
+	<!-- 우리 행이 멈춰 있으면(송신 예외 등) 폐기해 대기열을 푼다 -->
+	<update id="discardQueueRows">
+		UPDATE TB_HMI_CTR_TAG
+		SET FLAG = '3'
+		WHERE OPT_IDX = #{OPT_IDX} AND FLAG IN ('0', '1')
+	</update>
+
+	<!-- ===================== 태그·상태 ===================== -->
+
+	<!-- 펌프 마스터: 운전상태 태그와 주파수 쓰기 태그 -->
+	<select id="selectPumpMaster" resultType="hashMap">
+		SELECT PUMP_IDX, PUMP_NM, PMB_TAG, SPI_TAG, CTR_AUTO_FREQ_TAG
+		FROM TB_CTR_PRF_PUMPMST_INF
+		WHERE USE_YN = '1' AND PUMP_GRP = #{PUMP_GRP}
+		ORDER BY PUMP_IDX
+	</select>
+
+	<!-- 태그 최신값 1건. 집계(GROUP BY)는 원시테이블에서 타임아웃이 나므로 태그별 단건 조회만 쓴다 -->
+	<select id="selectLatestRaw" resultType="hashMap">
+		SELECT TAGNAME, VALUE,
+			DATE_FORMAT(TS, '%Y-%m-%d %H:%i:%s') AS TS
+		FROM TB_RAWDATA
+		WHERE TAGNAME = #{TAG}
+		  AND TS &gt;= DATE_SUB(NOW(), INTERVAL #{FRESH_MIN} MINUTE)
+		ORDER BY TS DESC
+		LIMIT 1
+	</select>
+
+	<!-- 밸브 제어 태그. 현장에서 SQL 로 채운다 (docs/sql/gunsan_ctrl_cmd.sql). 운전 여부는 PumpStatus 하나로 정한다 -->
+	<select id="selectCtrlCmdTagConfig" resultType="hashMap">
+		SELECT TAG_DSC, TAG, DEFAULT_VALUE
+		FROM TB_WPP_TAG_CODE
+		WHERE FUNC_TYP = 'CtrlCmdTag'
+	</select>
+
+	<!-- ===================== 추적 (TB_CTRL_CMD_TRACE, 우리 소유) ===================== -->
+
+	<insert id="insertTrace">
+		INSERT INTO TB_CTRL_CMD_TRACE
+			(CTRL_ID, DEVICE, ACTION, REASON, TGT_VALUE, USER_ID, DETAIL)
+		VALUES
+			(#{CTRL_ID}, #{DEVICE}, #{ACTION}, #{REASON}, #{TGT_VALUE}, #{USER_ID}, #{DETAIL})
+	</insert>
+
+	<select id="selectTraceByCtrlIds" resultType="hashMap">
+		SELECT TRACE_ID, CTRL_ID, DEVICE, ACTION, REASON, TGT_VALUE, USER_ID, DETAIL,
+			DATE_FORMAT(TS, '%Y-%m-%d %H:%i:%s') AS TS
+		FROM TB_CTRL_CMD_TRACE
+		WHERE CTRL_ID IN
+		<foreach collection="CTRL_IDS" item="id" open="(" separator="," close=")">#{id}</foreach>
+		ORDER BY TRACE_ID ASC
+	</select>
+
+</mapper>

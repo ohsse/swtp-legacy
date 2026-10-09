@@ -1,0 +1,41 @@
+# 빌드 산출물
+build/
+.gradle/
+out/
+target/
+dist/
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# IDE·OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# 로그·덤프
+logs/
+*.log
+*.log.*
+stdout*
+*.stackdump
+
+# 로컬 설정·비밀정보
+.env
+.mcp.json
+.claude/settings.local.json
+
+# 현장 데이터·학습 산출물 (공개본에서 제외)
+*.pkl
+*.pt
+*.joblib
+*.h5
+*.keras
+saved_model*/
+models*/

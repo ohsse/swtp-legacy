@@ -1,0 +1,43 @@
+#고산
+server:
+  port: 10016
+
+spring:
+  datasource:
+    #DB세팅
+    url: jdbc:mariadb://localhost:3306/PMS_DB
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.mariadb.jdbc.Driver
+  kafka:
+    bootstrap-servers: localhost:9092, localhost:9092, localhost:9093
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+
+
+
+##kafka setting
+kafka:
+  centerId: gosan
+  #topic
+  topic:
+    scada1:
+      name: DGSWGS1_data
+    scada2:
+      name: DGSWGS2_data
+    scada3:
+      name: DGSWGS_PMS_rawdata
+  #group id
+  group:
+    scada1:
+      id: DGSWGS1_PMS_rawdata_240118_1
+    scada2:
+      id: DGSWGS2_PMS_rawdata_240118_1
+    scada3:
+      id: DGSWGS3_PMS_rawdata_240118_1
+  new:
+    group:
+      id: DGSWGS_PMS_rawdata_first_1
+

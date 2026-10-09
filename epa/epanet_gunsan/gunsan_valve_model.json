@@ -1,0 +1,323 @@
+{
+  "schema_version": 1,
+  "valve_id": "국가산단밸브",
+  "model_kind": "monotone_log_resistance",
+  "resistance_unit": "s^2/m^5",
+  "formula": "headloss_m = R_SI(opening_pct) * (flow_m3h/3600)^2",
+  "pressure_unit": "legacy_div10",
+  "pressure_units_per_head_m": 0.1,
+  "sensor_dz_m": 0.0,
+  "assumptions": [
+    "압력 단위는 기존 legacy_div10 기준(1단위=10m), 현장 단위 미확인",
+    "압력계 높이 차=0.0m. INP의 임시 노드 표고를 계기 높이로 사용하지 않음",
+    "압력계 사이 추가 관로 손실과 속도수두 차는 별도로 분리하지 않은 등가 저항",
+    "실제 밸브 구경과 별개로 R을 보존하여 모델 구경 기준의 등가 TCV K로 변환",
+    "유량은 m3/h, 개도율은 0~100의 열림 비율로 해석"
+  ],
+  "data_period": [
+    "2025-03-01 00:01:00",
+    "2025-05-08 23:59:00"
+  ],
+  "aligned_rows": 99350,
+  "valid_national_rows": 99300,
+  "stable_national_rows": 94067,
+  "filter": {
+    "accepted_third_column": 100,
+    "min_flow_m3h_exclusive": 100,
+    "min_headloss_m_exclusive": 0.1,
+    "consecutive_minutes": 5,
+    "max_opening_range_percentage_points": 0.5,
+    "min_bin_samples": 60
+  },
+  "opening_min_pct": 11.06875,
+  "opening_max_pct": 51.43125,
+  "points": [
+    {
+      "opening_pct": 11.1,
+      "R_SI": 917.9156083823783,
+      "samples": 325
+    },
+    {
+      "opening_pct": 13.1,
+      "R_SI": 368.9659588723863,
+      "samples": 1342
+    },
+    {
+      "opening_pct": 14.09375,
+      "R_SI": 220.46027694953662,
+      "samples": 3766
+    },
+    {
+      "opening_pct": 15.08125,
+      "R_SI": 158.8677883101214,
+      "samples": 4188
+    },
+    {
+      "opening_pct": 16.06875,
+      "R_SI": 118.05875344105522,
+      "samples": 4086
+    },
+    {
+      "opening_pct": 17.0625,
+      "R_SI": 91.55109658992629,
+      "samples": 4481
+    },
+    {
+      "opening_pct": 18.05,
+      "R_SI": 65.73388215202955,
+      "samples": 3791
+    },
+    {
+      "opening_pct": 19.05625,
+      "R_SI": 54.16733979455494,
+      "samples": 6367
+    },
+    {
+      "opening_pct": 20.03125,
+      "R_SI": 36.35166835895104,
+      "samples": 7261
+    },
+    {
+      "opening_pct": 20.98125,
+      "R_SI": 36.12436692160889,
+      "samples": 4870
+    },
+    {
+      "opening_pct": 22.03125,
+      "R_SI": 30.534875392093394,
+      "samples": 3368
+    },
+    {
+      "opening_pct": 22.9625,
+      "R_SI": 27.550323186050697,
+      "samples": 1026
+    },
+    {
+      "opening_pct": 24.0375,
+      "R_SI": 25.718624644420657,
+      "samples": 5124
+    },
+    {
+      "opening_pct": 25.0,
+      "R_SI": 21.146047433240533,
+      "samples": 4020
+    },
+    {
+      "opening_pct": 25.95,
+      "R_SI": 21.011887509671627,
+      "samples": 4847
+    },
+    {
+      "opening_pct": 26.90625,
+      "R_SI": 19.99429132350791,
+      "samples": 637
+    },
+    {
+      "opening_pct": 27.975,
+      "R_SI": 19.32252128878046,
+      "samples": 418
+    },
+    {
+      "opening_pct": 29.00625,
+      "R_SI": 17.496295215145643,
+      "samples": 1596
+    },
+    {
+      "opening_pct": 30.00625,
+      "R_SI": 14.753467246321085,
+      "samples": 3948
+    },
+    {
+      "opening_pct": 30.95,
+      "R_SI": 14.753467246321085,
+      "samples": 6470
+    },
+    {
+      "opening_pct": 31.95,
+      "R_SI": 14.753467246321085,
+      "samples": 313
+    },
+    {
+      "opening_pct": 32.95,
+      "R_SI": 13.447098755593716,
+      "samples": 419
+    },
+    {
+      "opening_pct": 33.95625,
+      "R_SI": 13.447098755593716,
+      "samples": 876
+    },
+    {
+      "opening_pct": 35.425,
+      "R_SI": 11.780866698905987,
+      "samples": 2635
+    },
+    {
+      "opening_pct": 36.425,
+      "R_SI": 11.768146285529246,
+      "samples": 299
+    },
+    {
+      "opening_pct": 37.45,
+      "R_SI": 10.898665860580474,
+      "samples": 269
+    },
+    {
+      "opening_pct": 38.35625,
+      "R_SI": 10.898665860580474,
+      "samples": 159
+    },
+    {
+      "opening_pct": 39.4125,
+      "R_SI": 10.763864965706636,
+      "samples": 1094
+    },
+    {
+      "opening_pct": 40.375,
+      "R_SI": 9.732667078786864,
+      "samples": 2672
+    },
+    {
+      "opening_pct": 43.371875,
+      "R_SI": 8.196750372037805,
+      "samples": 322
+    },
+    {
+      "opening_pct": 44.33125,
+      "R_SI": 8.196750372037805,
+      "samples": 87
+    },
+    {
+      "opening_pct": 45.44375,
+      "R_SI": 7.79819624915917,
+      "samples": 7592
+    },
+    {
+      "opening_pct": 47.4125,
+      "R_SI": 7.79819624915917,
+      "samples": 170
+    },
+    {
+      "opening_pct": 50.4,
+      "R_SI": 6.969072873653801,
+      "samples": 4927
+    },
+    {
+      "opening_pct": 51.4,
+      "R_SI": 6.386035636099924,
+      "samples": 299
+    }
+  ],
+  "local_valve": {
+    "id": "지방산단밸브",
+    "valid_rows": 99347,
+    "opening_min_pct": 98.58125,
+    "opening_median_pct": 98.775,
+    "opening_max_pct": 98.95,
+    "fully_open_approx_min_pct": 98.0,
+    "model": "OPEN approximation only; downstream pressure missing; no variable-opening curve"
+  },
+  "validation": {
+    "train_start": "2025-03-01 00:05:00",
+    "train_end": "2025-04-30 23:59:00",
+    "test_start": "2025-05-01 00:00:00",
+    "test_end": "2025-05-08 23:59:00",
+    "test_eligible": 11005,
+    "test_outside_training_range": 631,
+    "headloss_given_measured_flow": {
+      "n": 10374,
+      "mae": 0.39827916559198095,
+      "mape_percent": 11.374017376931075,
+      "r2": 0.8089833732049807
+    },
+    "flow_given_measured_pressure_drop": {
+      "n": 10374,
+      "mae": 89.96264274585982,
+      "mape_percent": 5.16196909421613,
+      "r2": 0.7438794502551209
+    },
+    "meaning": "밸브 구간의 시간 분리 평가. 전체 EPANET 유량/압력 정확도가 아님."
+  },
+  "final_curve_refit": "전체 정상 안정 기록으로 재적합. 위 평가는 3~4월 학습/5월 평가의 별도 모델.",
+  "snapshot_20250508_100000": {
+    "891-365-FRI-8601": 1940.2,
+    "891-365-FRI-8602": 1339.313,
+    "891-365-POI-8600": 98.69375,
+    "891-365-POI-8601": 20.11875,
+    "891-365-PRI-8600": 3.0625,
+    "891-365-PRI-8601": 2.9,
+    "891-365-PRI-8603": 2.28875
+  },
+  "sources": [
+    {
+      "file": "GSSCADA.891-365-FRI-8601.F_CV.csv",
+      "tag": "891-365-FRI-8601",
+      "rows": 99350,
+      "flag_counts": {
+        "100": 99347,
+        "0": 3
+      },
+      "sha256": "e4e358bcd674079416dbc68c6a229132baaa312a244385a11adc346928eef69c"
+    },
+    {
+      "file": "GSSCADA.891-365-FRI-8602.F_CV.csv",
+      "tag": "891-365-FRI-8602",
+      "rows": 99350,
+      "flag_counts": {
+        "100": 99300,
+        "0": 50
+      },
+      "sha256": "28a3a3cda329a2af38ed78ec454f5e0d5e719747f381588adcea5e5358a84307"
+    },
+    {
+      "file": "GSSCADA.891-365-POI-8600.F_CV(1).csv",
+      "tag": "891-365-POI-8600",
+      "rows": 99350,
+      "flag_counts": {
+        "100": 99347,
+        "0": 3
+      },
+      "sha256": "24066ec7c38185956849ee82f25cc35ab6dc8befd0fdaefbbc6602ee78e3b0e0"
+    },
+    {
+      "file": "GSSCADA.891-365-POI-8601.F_CV(1).csv",
+      "tag": "891-365-POI-8601",
+      "rows": 99350,
+      "flag_counts": {
+        "100": 99300,
+        "0": 50
+      },
+      "sha256": "52f728bb04a272fc232bdfb31db9accf64dbafaecb2135e5a1610de47249913f"
+    },
+    {
+      "file": "GSSCADA.891-365-PRI-8600.F_CV.csv",
+      "tag": "891-365-PRI-8600",
+      "rows": 99350,
+      "flag_counts": {
+        "100": 99347,
+        "0": 3
+      },
+      "sha256": "9b1eea3049e9383939a2c4f65f67e5a6146d01c53298ffc88d252ba21951d17c"
+    },
+    {
+      "file": "GSSCADA.891-365-PRI-8601.F_CV.csv",
+      "tag": "891-365-PRI-8601",
+      "rows": 99350,
+      "flag_counts": {
+        "100": 99300,
+        "0": 50
+      },
+      "sha256": "55f9d2ebd4a4dbc57c59865049ae8187c5f2af519bac30c5e628e97eca5aedcf"
+    },
+    {
+      "file": "GSSCADA.891-365-PRI-8603.F_CV.csv",
+      "tag": "891-365-PRI-8603",
+      "rows": 99350,
+      "flag_counts": {
+        "100": 99300,
+        "0": 50
+      },
+      "sha256": "c10c4bd657ae753a5d960d101d8b15d6d0eaa8536498f18aec3de075ddaccaec"
+    }
+  ]
+}

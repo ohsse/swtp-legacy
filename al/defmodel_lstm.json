@@ -1,0 +1,1459 @@
+{
+    "s10_fri8100": {
+        "input_file": "DJEPGS0_input_fri8100_202107_10.csv",
+        "validation_file": "DJEPGS0_input_fri8100_202110_12.csv",
+        "model_output_name": "lstm_sft10",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width":1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2021-07-01",
+            "ref_days": 80
+        },
+
+        "meta": {
+            "scaler": "MinMaxScaler",
+            "scaler._scale": 199.93400110201677,
+            "scaler._mean": 562.7486032519197
+        },
+
+        "window_generator": {
+            "shift": 10,
+            "input_width": 9,
+            "label_width": 1
+        },
+
+        "train_options": {
+            "epochs": 10
+        }
+    },
+    
+    "s10": {
+        "input_file": "DJEPGS0_input_ss_8100_2021.csv",
+        "validation_file": "DJEPGS0_input_ss_2022.csv",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width":1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2021-03-17",
+            "ref_days": 100
+        },
+
+        "meta": {
+            "scaler": "MinMaxScaler",
+            "scaler._mean": 55.53503647846014, 
+            "scaler._scale": 30.40842489383762
+        },
+
+        "window_generator": {
+            "shift": 10,
+            "input_width": 9,
+            "label_width": 1
+        }
+    },
+    "lstm_auto_encoder_sft10": {
+        "input_file": "DJEPGS0_input_ss_2021.csv",
+        "validation_file": "DJEPGS0_input_ss_2022.csv",
+        "model_output_name": "lstm_sft10",
+        "model_name": "models.LSTMAutoEncoder",
+        "model_args": {
+            "n_features": 9,
+            "n_output_dim": 1,
+            "timesteps": 9
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2021-03-17",
+            "ref_days": 100
+        },
+
+        "meta": {
+            "scaler": "MinMaxScaler",
+            "scaler._scale": 30.40842489383762,
+            "scaler._mean": 55.53503647846014
+        },
+
+        "window_generator": {
+            "shift": 10,
+            "input_width": 9,
+            "label_width": 1
+        }
+    },
+
+    "s10_fri8100_ap_180_6h": {
+        "input_file": "DJEPGS0_input_fri8100_2021_2022.csv",
+        "validation_file": "DJEPGS0_input_fri8100_2021_2022.csv",
+        "model_output_name": "s10_fri8100_ap_180_6h_s10m",
+        "scaler_output_name": "s10_fri8100_ap_180_6h._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 6,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2021-01-01",
+            "ref_days": 700,
+            "label_col": "511-FRI-8100"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 180,
+            "output_time_min_unit": 60,
+            "output_min_time": 360,
+            "shift_min": 60,
+            "slide_min": 60
+        },
+
+        "train_options": {
+            "epochs": 20
+        },
+
+        "adj_callbacks": [
+            "p + psqr(p - m, 0.5)"
+        ]
+    },
+
+    "s10_fri8100_ap_180_1h": {
+        "input_file": "DJEPGS0_input_fri8100_2021_2022.csv",
+        "validation_file": "DJEPGS0_input_fri8100_2021_2022.csv",
+        "model_output_name": "s10_fri8100_ap_180_1h_s10m",
+        "scaler_output_name": "s10_fri8100_ap_180_1h._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2021-01-01",
+            "label_col": "511-FRI-8100",
+            "ref_days": 700
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 180,
+            "output_time_min_unit": 60,
+            "output_min_time": 60,
+            "shift_min": 60,
+            "slide_min": 60
+        },
+
+        "train_options": {
+            "epochs": 20
+        },
+
+        "adj_callbacks": [
+            "p + max((p - 690), 0) ** 1.4", 
+            "p - abs(min((p - 200), 0)) ** 0.5"
+        ]
+
+    },
+
+    "s10_fri8100_ap_180_4h": {
+        "input_file": "DJEPGS0_input_fri8100_2021_2022.csv",
+        "validation_file": "DJEPGS0_input_fri8100_2021_2022.csv",
+        "model_output_name": "lstm_sft10_180",
+        "scaler_output_name": "s10_fri8100_ap._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 4
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2021-01-01",
+            "ref_days": 700,
+            "label_col": "511-FRI-8100"
+        },
+
+        "meta": {
+            "scaler": "MinMaxScaler",
+            "scaler._scale": 199.93400110201677,
+            "scaler._mean": 562.7486032519197
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 180,
+            "output_time_min_unit": 60,
+            "output_min_time": 240,
+            "shift_min": 60
+        },
+
+        "train_options": {
+            "epochs": 40
+        }
+    },
+
+    "s10_fri8100_ap": {
+        "input_file": "DJEPGS0_input_fri8100_2022.csv",
+        "validation_file": "DJEPGS0_input_fri8100_2021.csv",
+        "model_output_name": "lstm_sft10",
+        "scaler_output_name": "s10_fri8100_ap._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 4
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2022-01-01",
+            "ref_days": 365,
+            "label_col": "511-FRI-8100"
+        },
+
+        "meta": {
+            "scaler": "MinMaxScaler",
+            "scaler._scale": 199.93400110201677,
+            "scaler._mean": 562.7486032519197
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 120,
+            "output_time_min_unit": 60,
+            "output_min_time": 240,
+            "shift_min": 60
+        },
+
+        "train_options": {
+            "epochs": 200
+        }
+    },
+
+
+    "s10_fri8450_ap_180_1h_10s": {
+        "input_file": "DJEPGS0_input_fri8100_2021_2022.csv",
+        "validation_file": "DJEPGS0_input_fri8100_2021_2022.csv",
+        "model_output_name": "s10_fri8450_ap_180_1h_s10m",
+        "scaler_output_name": "s10_fri8450_ap_180_1h._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2021-01-01",
+            "ref_days": 700,
+            "label_col": "511-FRI-8450"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 180,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 0,
+            "slide_min": 10
+        },
+
+        "train_options": {
+            "epochs": 20
+        },
+        "adj_callbacks": [
+            "p + psqr(p - 70, 0.7)",
+            "p"
+        ]
+    },
+
+    "s10_fri8450_ap_180_1h": {
+        "input_file": "DJEPGS0_input_fri8100_2021_2022.csv",
+        "validation_file": "DJEPGS0_input_fri8100_2021_2022.csv",
+        "model_output_name": "s10_fri8450_ap_180_1h_s60m",
+        "scaler_output_name": "s10_fri8450_ap_180_1h._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2021-01-01",
+            "ref_days": 700,
+            "label_col": "511-FRI-8450"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 180,
+            "output_time_min_unit": 60,
+            "output_min_time": 360,
+            "shift_min": 60,
+            "slide_min": 60
+        },
+
+        "train_options": {
+            "epochs": 20
+        },
+        "adj_callbacks": [
+            "p + psqr(p - m, 0.5)"
+        ]
+
+    },
+    
+    "lei_vl_120_1h": {
+        "input_file": "DJEPGS0_input_l_2022.csv",
+        "validation_file": "DJEPGS0_input_l_2022.csv",
+        "model_output_name": "lei_vl_120_1h",
+        "scaler_output_name": "lei_vl_120_1h._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2021-01-01",
+            "ref_days": 700,
+            "label_col": "511-FRI-8100"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 120,
+            "output_time_min_unit": 60,
+            "output_min_time": 60,
+            "shift_min": 0,
+            "slide_min": 60
+        },
+
+        "train_options": {
+            "epochs": 10
+        }
+
+    },
+    "lei_vl_120_2h": {
+        "input_file": "DJEPGS0_input_l_2022.csv",
+        "validation_file": "DJEPGS0_input_l_2022.csv",
+        "model_output_name": "lei_vl_120_2h",
+        "scaler_output_name": "lei_vl_120_2h._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2021-01-01",
+            "ref_days": 700,
+            "label_col": "511-FRI-8100"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 120,
+            "output_time_min_unit": 60,
+            "output_min_time": 60,
+            "shift_min": 60,
+            "slide_min": 60
+        },
+
+        "train_options": {
+            "epochs": 10
+        }
+
+    },
+    "lei_vl_120_3h": {
+        "input_file": "DJEPGS0_input_l_2022.csv",
+        "validation_file": "DJEPGS0_input_l_2022.csv",
+        "model_output_name": "lei_vl_120_2h",
+        "scaler_output_name": "lei_vl_120_2h._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2021-01-01",
+            "ref_days": 700,
+            "label_col": "511-FRI-8100"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 120,
+            "output_time_min_unit": 60,
+            "output_min_time": 60,
+            "shift_min": 0,
+            "slide_min": 60
+        },
+
+        "train_options": {
+            "epochs": 10
+        }
+
+    },
+
+    "cm_60_1__5h": {
+        "input_file": "cm_input.csv",
+        "validation_file": "cm_input.csv",
+        "model_output_name": "./models/cm_60_1h",
+        "scaler_output_name": "./models/cm_60_1h._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2020-01-01",
+            "ref_days": 1000,
+            "label_col": "FRI-8017"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 10
+        },
+
+        "train_options": {
+            "epochs": 10
+        },
+
+        "adj_callbacks": [
+        ]
+
+    },
+
+    "cm_60_.5__5h": {
+        "input_file": "cm_input.csv",
+        "validation_file": "cm_input.csv",
+        "model_output_name": "./models/cm_60_2h",
+        "scaler_output_name": "./models/cm_60_2h._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2020-01-01",
+            "ref_days": 1000,
+            "label_col": "FRI-8017"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 50,
+            "slide_min": 5 
+        },
+
+        "train_options": {
+            "epochs": 10
+        }
+
+    },
+
+    "cm_fri8910_60_.5__5h": {
+        "input_file": "cm_input_8910.csv",
+        "validation_file": "cm_input_8910.csv",
+        "model_output_name": "./models/cm_f8910_60_2h",
+        "scaler_output_name": "./models/cm_f8910_60_2h._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-01",
+            "ref_days": 1000,
+            "label_col": "FRI-8910"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 1
+        },
+
+        "train_options": {
+            "epochs": 10
+        }
+
+    },
+    
+    "cm_fri_8017_.5__5h": {
+        "input_file": "cm_input_8017.csv",
+        "validation_file": "cm_input_8017.csv",
+        "model_output_name": "./models/cm_f8017_60_2h",
+        "scaler_output_name": "./models/cm_f017_60_2h._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-01",
+            "ref_days": 1000,
+            "label_col": "FRI-8017"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 5 
+        },
+
+        "train_options": {
+            "epochs": 10
+        },
+
+        "adj_callbacks": [
+            "p * 1.1 if p > 2000 else p"
+        ]
+
+    },
+
+    "gs_fri_2004.1__5h": {
+        "input_file": "gs_input_fri2004.csv",
+        "validation_file": "gs_input_fri2004.csv",
+        "model_output_name": "./models/gs_f2004_60_2h",
+        "scaler_output_name": "./models/gs_f2004_60_2h._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2022-01-01",
+            "ref_days": 365,
+            "label_col": "701-367-FRI-2004"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 10
+        },
+
+        "train_options": {
+            "epochs": 10
+        }
+
+    },
+
+    "gs_fri_1010.1__5h": {
+        "input_file": "./data/gs_input_fri1010.csv",
+        "validation_file": "./data/gs_input_fri1010.csv",
+        "model_output_name": "./models/gs_f1010_60_2h",
+        "scaler_output_name": "./models/gs_f1010_60_2h._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2022-01-01",
+            "ref_days": 365,
+            "label_col": "701-367-FRI-1010"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 5 
+        },
+
+        "train_options": {
+            "epochs": 10
+        }
+
+    },
+
+    "fri_4004.1__5h": {
+        "input_file": "../data/gs_new/KSSCADA.701-367-FRI-4004.F_CV.csv",
+        "validation_file": "../data/gs_new/KSSCADA.701-367-FRI-4004.F_CV.csv",
+        "model_output_name": "./models/gs_f4004.md",
+        "scaler_output_name": "./models/gs_f4004._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-02",
+            "ref_days": 365,
+            "label_col": "701-367-FRI-4004"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 5 
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "fri_8950.1__5h": {
+        "input_file": "../data/gunsan/GSSCADA.891-365-FRI-8950.F_CV.csv",
+        "validation_file": "../data/gunsan/GSSCADA.891-365-FRI-8950.F_CV.csv",
+        "model_output_name": "./models/gs_f8950.md",
+        "scaler_output_name": "./models/gs_f8950._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2016-01-02",
+            "ref_days": 365,
+            "label_col": "891-365-FRI-8950"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 5 
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "fri_4500.1__5h": {
+        "input_file": "../data/ba/DBAWGS0.892-360-FRI-4500.F_CV.csv",
+        "validation_file": "../data/ba/DBAWGS0.892-360-FRI-4500.F_CV.csv",
+        "model_output_name": "./models/gs_f4500.md",
+        "scaler_output_name": "./models/gs_f4500._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-02",
+            "ref_days": 365,
+            "label_col": "892-360-FRI-4500"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 5 
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "fri_4001.1__5h": {
+        "input_file": "../data/DJEPGS0.701-363-FRI-4001.F_CV.csv",
+        "validation_file": "../data/DJEPGS0.701-363-FRI-4001.F_CV.csv",
+        "model_output_name": "./models/gs_f4001.md",
+        "scaler_output_name": "./models/gs_f4001._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-02",
+            "ref_days": 365,
+            "label_col": "701-363-FRI-4001"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 5 
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+    "fri_4301.1__5h": {
+        "input_file": "../data/FGMWGS0.865-337-FRI-4301.F_CV.csv",
+        "validation_file": "../data/FGMWGS0.865-337-FRI-4301.F_CV.csv",
+        "model_output_name": "./models/gs_f4301.md",
+        "scaler_output_name": "./models/gs_f4301._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-02",
+            "ref_days": 365,
+            "label_col": "865-334-FRI-4301"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 5 
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "fri_4306.1__5h": {
+        "input_file": "../data/FGMWGS0.865-337-FRI-4306.F_CV.csv",
+        "validation_file": "../data/FGMWGS0.865-337-FRI-4306.F_CV.csv",
+        "model_output_name": "./models/gs_f4306.md",
+        "scaler_output_name": "./models/gs_f4306._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-02",
+            "ref_days": 365,
+            "label_col": "865-334-FRI-4306"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 5 
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+    "fri_4307.1__5h": {
+        "input_file": "../data/FGMWGS0.865-337-FRI-4307.F_CV.csv",
+        "validation_file": "../data/FGMWGS0.865-337-FRI-4307.F_CV.csv",
+        "model_output_name": "./models/gs_f4307.md",
+        "scaler_output_name": "./models/gs_f4307._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-02",
+            "ref_days": 365,
+            "label_col": "865-334-FRI-4307"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 5 
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+    "fri_4309.1__5h": {
+        "input_file": "../data/FGMWGS0.865-337-FRI-4309.F_CV.csv",
+        "validation_file": "../data/FGMWGS0.865-337-FRI-4309.F_CV.csv",
+        "model_output_name": "./models/gs_f4309.md",
+        "scaler_output_name": "./models/gs_f4309._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-02",
+            "ref_days": 365,
+            "label_col": "865-334-FRI-4309"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 5 
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "fri_4000.1__5h": {
+        "input_file": "../data/FJIWGS0.565-339-FRI-4000.F_CV.csv",
+        "validation_file": "../data/FJIWGS0.565-339-FRI-4000.F_CV.csv",
+        "model_output_name": "./models/gs_f4000.md",
+        "scaler_output_name": "./models/gs_f4000._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-02",
+            "ref_days": 365,
+            "label_col": "565-339-FRI-4000"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 5 
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "fri_4007.1__5h": {
+        "input_file": "../data/FHYWGS0.725-378-FRI-4007.F_CV.csv",
+        "validation_file": "../data/FHYWGS0.725-378-FRI-4007.F_CV.csv",
+        "model_output_name": "./models/gs_f4007.md",
+        "scaler_output_name": "./models/gs_f4007._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-02",
+            "ref_days": 365,
+            "label_col": "725-378-FRI-4007"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 5 
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "fri_4009.1__5h": {
+        "input_file": "../data/FWMWGS0.565-340-FRI-4009.F_CV.csv",
+        "validation_file": "../data/FWMWGS0.565-340-FRI-4009.F_CV.csv",
+        "model_output_name": "./models/gs_f4009.md",
+        "scaler_output_name": "./models/gs_f4009._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-02",
+            "ref_days": 365,
+            "label_col": "565-340-FRI-4009"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 5 
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "fri_4600.1__5h": {
+        "input_file": "../data/FWMWGS0.565-340-FRI-4009.F_CV.csv",
+        "validation_file": "../data/FWMWGS0.565-340-FRI-4009.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/gm_f4600.md",
+        "scaler_output_name": "./models/gm_f4600._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2023-08-01",
+            "ref_days": 25,
+            "label_col": "865-337-FRI-4600"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 5 
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+    "fri_2501.1__5h": {
+        "input_file": "../data/FGRWGS0.780-344-FIT-2501.F_CV.csv",
+        "validation_file": "../data/FGRWGS0.780-344-FIT-2501.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/gm_f2501.md",
+        "scaler_output_name": "./models/gm_f2501._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-01",
+            "ref_days": 365,
+            "label_col": "780-344-FIT-2501"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 5 
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+    "fri_2502.1__5h": {
+        "input_file": "../data/FGRWGS0.780-344-FIT-2502.F_CV.csv",
+        "validation_file": "../data/FGRWGS0.780-344-FIT-2502.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/gm_f2502.md",
+        "scaler_output_name": "./models/gm_f2502._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-01",
+            "ref_days": 365,
+            "label_col": "780-344-FIT-2502"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 5 
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "FGMWGS0.865-334-FRI-4001": {
+        "input_file": "../data/FGMWGS0.865-334-FRI-4001.F_CV.csv",
+        "validation_file": "../data/FGMWGS0.865-334-FRI-4001.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/gm_334_f4001.md",
+        "scaler_output_name": "./models/gm_334_f4001._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-01",
+            "ref_days": 365,
+            "label_col": "865-334-FRI-4001"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 5 
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "FGMWGS0.865-338-FRI-4001": {
+        "input_file": "../data/FGMWGS0.865-338-FRI-4001.F_CV.csv",
+        "validation_file": "../data/FGMWGS0.865-338-FRI-4001.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/gm_338_f4001.md",
+        "scaler_output_name": "./models/gm_338_f4001._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 1,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-01",
+            "ref_days": 365,
+            "label_col": "865-338-FRI-4001"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 60,
+            "output_time_min_unit": 10,
+            "output_min_time": 10,
+            "shift_min": 60,
+            "slide_min": 5 
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "FGMWGS0.865-338-FRI-4001_2": {
+        "input_file": "../data/FGMWGS0.865-338-FRI-4001.F_CV.csv",
+        "validation_file": "../data/FGMWGS0.865-338-FRI-4001.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/gm_338_f4001.md",
+        "scaler_output_name": "./models/gm_338_f4001._scaler",
+
+        "model_name": "models.VanillaLSTM",
+        "model_args": {
+            "hidden_dimension": 32,
+            "out_features": 24,
+            "drop_rate": 0.1,
+            "label_width": 1
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-01",
+            "ref_days": 200,
+            "label_col": "865-338-FRI-4001"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 1440,
+            "output_time_min_unit": 60,
+            "output_min_time": 1440,
+            "shift_min": 60,
+            "slide_min": 60
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    },
+
+    "FGMWGS0.865-338-FRI-4001_2_vcnn": {
+        "input_file": "../data/FGMWGS0.865-338-FRI-4001.F_CV.csv",
+        "validation_file": "../data/FGMWGS0.865-338-FRI-4001.F_CV.csv",
+
+        "feeder": "predict_fri_gumi",
+
+        "input_table": "TB_RAWDATA",
+        "validation_table": "TB_RAWDATA",
+
+        "model_output_name": "./models/gm_338_f4001.md",
+        "scaler_output_name": "./models/gm_338_f4001._scaler",
+
+        "model_name": "models.VanillaCNN",
+
+        "model_args": {
+            "num_filters": 32, 
+            "conv_width" :4, 
+            "out_features": 24, 
+            "strides": 2, 
+            "padding": "valid",
+            "drop_rate": 0.4,
+            "label_width":1 
+        },
+
+        "loss": "tf.keras.losses.MeanSquaredError()",
+
+        "dataset": {
+            "resample": "1min",
+            "start_date": "2018-01-01",
+            "ref_days": 200,
+            "label_col": "865-338-FRI-4001"
+        },
+
+        "window_generator": {
+            "_class": "WindowGeneratorV2",
+            "input_time_min_unit": 1,
+            "input_time_min_range": 1440,
+            "output_time_min_unit": 60,
+            "output_min_time": 1440,
+            "shift_min": 60,
+            "slide_min": 30
+        },
+
+        "train_options": {
+            "epochs": 3
+        }
+
+    }
+}

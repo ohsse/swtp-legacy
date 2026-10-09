@@ -1,0 +1,23 @@
+SELECT
+		DATE_FORMAT(DATE_SUB(tctr.RGSTR_TIME, interval 5 minute), '%Y-%m-%d %H:%i') as ts,
+		tctr.FLW_ALG_RST_VAL
+		 as value,
+		tcti.SRTTN as srttn
+		from
+		TB_CTR_TNK_INF tcti
+		join
+		TB_FR_VAL tctr on tcti.LINK_ID = tctr.LINK_ID
+				WHERE
+			tctr.FLG = 'PRE'
+		AND
+			tcti.TYPE = 1
+		AND
+			tcti.NODE_ID IS NOT NULL
+		AND
+			tctr.RGSTR_TIME <= DATE_ADD('2023-10-27 04:00:00', interval 5 minute)
+		AND
+			tctr.RGSTR_TIME >= DATE_SUB(DATE_ADD('2023-10-27 04:00:00', interval 5 minute), INTERVAL 4 hour)
+		AND
+			MINUTE(tctr.RGSTR_TIME) % 5 = 0
+		order by
+		tctr.RGSTR_TIME;

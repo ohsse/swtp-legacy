@@ -1,0 +1,233 @@
+.dashboard{
+    .s-left{
+        width: 28%;
+        display: flex;
+        flex-direction: column;
+    
+        .content-box{
+            flex: 1;
+            width: 100%;
+            padding: 0 20px 20px;
+            overflow: hidden;
+    
+            .charts{
+                width: 100%;
+                height: 100%;
+                background: #002a4e75;
+                border: 1px solid #2660AB;
+                border-radius: 12px;
+                position: relative;
+                display: flex;
+                flex-direction: column;
+    
+              
+                .title-box{
+                    font-size: 14px;
+                    display: flex;
+                    align-items: center;
+                    height: 13%;
+    
+                    img{
+                        width: 3.5%;
+                        margin-right: 4px;
+                    }
+                }
+    
+                
+                .piechart{
+                    width: 100%;
+                    position: relative;
+                    padding: 0 10px 15px 10px;
+                }
+    
+                .chart-box{
+                    width: 100%;
+                    height: 87%;
+                    padding: 0 0 10px 0;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 6px;
+                    position: relative;
+    
+    
+                    .chart{
+                        height: calc(100% / 8);
+                        width: 100%;
+                        position: relative;
+    
+                            .child-chart{
+                                display: flex;
+                                align-content: center;
+                                width: 100%;
+                                height: 100%;
+                                display: flex;
+                                justify-content: space-between;
+                                padding: 0 10px;
+                                position: relative;
+                                cursor: pointer;
+    
+                                .chart-title{
+                                    width: 12%;
+                                   display: flex;
+                                   align-items: center;
+                                   justify-content: center;
+    
+                                   .circle{
+                                       width: 4px;
+                                       height: 4px;
+                                       background: white;
+                                       border-radius: 3px;
+                                       margin-right: 6px;
+                                   }
+    
+                                   .title{
+                                       font-size: 14px;
+                                     color: white;
+                                     width: 70%;
+                                     line-height: 17px;
+                                     font-weight: 300;
+                                   }
+                                }
+    
+                                .child{
+                                    width: 40%;
+                                    height: 100%;
+    
+                                }
+    
+                                .chart-infobox{
+                                    width: 43%;
+                                    display: flex;
+                                    justify-content: center;
+                                    align-items: center;
+                                    
+                                    .info{
+                                        font-size: 10px;
+                                        display: flex;
+                                        color: white;
+                                        font-weight: 300;
+                                        align-items: center;
+                                        margin-right: 12px;
+                                        position: relative;
+    
+                                        .label{
+                                            margin-right: 2px;
+                                        }
+                                        .per{
+                                            font-size: 12px;
+                                            font-weight: 400;
+                                            margin-right: 2px;
+                                        }
+    
+                                        .blue{
+                                            color: #77A7FF;
+                                        }
+    
+                                        .yellow{
+                                            color: #FFE43B;
+                                        }
+                                    }
+    
+                                    .info:after{
+                                        content: '';
+                                        width: 1px;
+                                        position: absolute;
+                                        top: 50%;
+                                        right: -6px;
+                                        height: 80%;
+                                        background: rgba(255,255,255,0.3);
+                                        transform: translateY(-50%);
+                                    }
+                                    .info:last-child{
+                                        margin-right: 0;
+                                    }
+                                    .info:last-child:after{
+                                        width: 0;
+                                    }
+                                }
+                            }
+    
+    
+                        }
+                        .chart::after{
+                            content: '';
+                            position: absolute;
+                            bottom: -3px;
+                            left: 50%;
+                            transform: translateX(-50%);
+                            width: 95%;
+                            height: 1px;
+                            background: rgba(255,255,225,0.1);
+                        }
+                        
+                        .chart:last-child::after{
+                            height: 0;
+                        }
+                        
+                         .selectbox{
+                             width: 100%;
+                             height: 100%;
+                             position: absolute;
+                             top: 0;
+                             left: 0;
+                             
+                         }
+    
+                         .chartSelected{
+                             border: 1px dashed #05D591;
+                             background: #01ffdd27;
+                             border-radius: 5px;
+                             animation: select 2s infinite;
+                         }
+    
+                         @keyframes select {
+                             from{ background: #01ffdd17;}
+                             50%{ background: #01ffdd41;}
+                             to{ background: #01ffdd17;}
+                         }
+                    }
+                .text{
+                    position: absolute;
+                    top: 45%;
+                    left: 48%;
+                    color: white;
+                    transform: translate(-50%,-50%);
+                    text-shadow: 2px 2px 6px rgba(0,0,0,0.2);
+                }
+            }
+            .bar_main{
+                padding: 0;
+            }
+        }
+    
+        .light-circle{
+            top: 100%;
+            left: 100%;
+            bottom: 0;
+            right: 0;
+            width: 100px;
+            height: 100px;
+            position: absolute;
+            mix-blend-mode:color-dodge;
+            transform: translate(-54%,-54%);
+        }
+    
+        .light-line{
+            mix-blend-mode: color-dodge;
+            position: absolute;
+            top: 1%;
+            left: 75%;
+            height: 6%;
+            width: auto;
+            transform: translate(-50%,-50%);
+        }
+        .sub-sec{
+            height: 50%;
+            position: relative;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+    }
+    
+}

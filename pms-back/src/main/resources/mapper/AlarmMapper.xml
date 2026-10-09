@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.wapplab.pms.repository.AlarmMapper">
+    <select id="weeklyAlarmTrend" resultType="java.util.HashMap" parameterType="java.util.HashMap">
+        SELECT
+            DATE_FORMAT(m.ACQ_DATE, '%Y-%m-%d') as ts,
+            sum(
+                m.unbalance_alarm = 1
+                or
+                m.misalignment_alarm = 1
+                or
+                m.rotor_alarm = 1
+                or
+                m.de_bpfo_alarm = 1
+                or
+                m.DE_BPFI_alarm = 1
+                or
+                m.DE_BSF_alarm = 1
+                or
+                m.DE_FTF_alarm = 1
+                or
+                m.NDE_BPFO_alarm = 1
+                or
+                m.NDE_BPFI_alarm = 1
+                or
+                m.NDE_BSF_alarm = 1
+                or
+                m.NDE_FTF_alarm = 1
+                or
+                m.DE_RMS_ALARM = 1
+                or
+                m.NDE_RMS_ALARM = 1
+                or
+                p.impeller_alarm = 1
+                or
+                p.cavitation_alarm = 1
+                or
+                p.de_bpfo_alarm = 1
+                or
+                p.DE_BPFI_alarm = 1
+                or
+                p.DE_BSF_alarm = 1
+                or
+                p.DE_FTF_alarm = 1
+                or
+                p.NDE_BPFO_alarm = 1
+                or
+                p.NDE_BPFI_alarm = 1
+                or
+                p.NDE_BSF_alarm = 1
+                or
+                p.NDE_FTF_alarm =1
+                or
+                m.DE_RMS_ALARM = 1
+                or
+                m.NDE_RMS_ALARM = 1
+            ) as Alram
+        FROM
+            TB_AI_DIAG_MOTOR as m
+            LEFT JOIN TB_AI_DIAG_PUMP as p
+            on
+            m.motor_id = p.PUMP_ID
+            and
+            m.ACQ_DATE = p.ACQ_DATE
+            JOIN
+            TB_PUMP_INF as tpi ON tpi.motor_id = p.PUMP_ID and tpi.motor_id = m.motor_id
+        WHERE
+            m.ACQ_DATE &lt;= CONCAT(DATE_FORMAT(#{endDate}, '%Y-%m-%d'),' 23:59:59')
+                and
+            m.ACQ_DATE &gt;= CONCAT(DATE_FORMAT(#{startDate}, '%Y-%m-%d'),' 00:00:00')
+        GROUP BY DATE_FORMAT(m.ACQ_DATE, '%Y-%m-%d')
+        ORDER BY m.ACQ_DATE DESC;
+    </select>
+    
+    <select id="alarmStatusDefect" resultType="java.util.HashMap" parameterType="hashmap">
+        SELECT
+            count(*) as all_count,
+            sum(
+            m.unbalance_alarm = 1
+            or
+            m.misalignment_alarm = 1
+            or
+            m.rotor_alarm = 1
+            or
+            m.de_bpfo_alarm = 1
+            or
+            m.DE_BPFI_alarm = 1
+            or
+            m.DE_BSF_alarm = 1
+            or
+            m.DE_FTF_alarm = 1
+            or
+            m.NDE_BPFO_alarm = 1
+            or
+            m.NDE_BPFI_alarm = 1
+            or
+            m.NDE_BSF_alarm = 1
+            or
+            m.NDE_FTF_alarm = 1
+            or
+            m.DE_RMS_ALARM = 1
+            or
+            m.NDE_RMS_ALARM = 1
+            or
+            p.impeller_alarm = 1
+            or
+            p.cavitation_alarm = 1
+            or
+            p.de_bpfo_alarm = 1
+            or
+            p.DE_BPFI_alarm = 1
+            or
+            p.DE_BSF_alarm = 1
+            or
+            p.DE_FTF_alarm = 1
+            or
+            p.NDE_BPFO_alarm = 1
+            or
+            p.NDE_BPFI_alarm = 1
+            or
+            p.NDE_BSF_alarm = 1
+            or
+            p.NDE_FTF_alarm =1
+            or
+            m.DE_RMS_ALARM = 1
+            or
+            m.NDE_RMS_ALARM = 1
+            ) as alarm,
+            SUM(
+                CASE
+                    WHEN
+                    m.DE_RMS_ALARM > 0
+                    OR
+                    m.NDE_RMS_ALARM > 0
+                    THEN 1
+                    ELSE 0
+                END
+            ) AS '펌프 총진동량',
+            SUM(
+                CASE
+                    WHEN
+                    m.DE_BPFO_ALARM > 0
+                    OR
+                    m.DE_BPFI_ALARM > 0
+                    OR
+                    m.DE_BSF_ALARM > 0
+                    OR
+                    m.DE_FTF_ALARM > 0
+                    OR
+                    m.NDE_BPFO_ALARM > 0
+                    OR
+                    m.NDE_BPFI_ALARM > 0
+                    OR
+                    m.NDE_BSF_ALARM > 0
+                    OR
+                    m.NDE_FTF_ALARM > 0
+                    THEN 1
+                    ELSE 0
+                END
+            ) AS '펌프 베어링',
+            SUM(
+                p.IMPELLER_ALARM
+            ) AS '펌프 임펠러',
+            SUM(
+                p.CAVITATION_ALARM
+            ) AS '펌프 케비테이션',
+            SUM(
+                m.MISALIGNMENT_ALARM
+            ) AS '펌프모터 축정렬',
+            SUM(
+                m.UNBALANCE_ALARM
+            ) AS '펌프모터 질량 불평형',
+            SUM(
+                CASE
+                    WHEN
+                    p.DE_RMS_ALARM > 0
+                    OR
+                    m.NDE_RMS_ALARM > 0
+                    THEN 1
+                    ELSE 0
+                END
+            ) AS '모터 총진동량',
+            SUM(
+                CASE
+                    WHEN
+                    p.DE_BPFO_ALARM > 0 OR
+                    p.DE_BPFI_ALARM > 0 OR
+                    p.DE_BSF_ALARM > 0 OR
+                    p.DE_FTF_ALARM > 0 OR
+                    p.NDE_BPFO_ALARM > 0 OR
+                    p.NDE_BPFI_ALARM > 0 OR
+                    p.NDE_BSF_ALARM > 0 OR
+                    p.NDE_FTF_ALARM > 0
+                    THEN 1
+                    ELSE 0
+                END
+            ) AS '모터 베어링',
+            SUM(
+                m.ROTOR_ALARM
+            ) AS '모터 회전자'
+        FROM
+            TB_AI_DIAG_MOTOR as m
+            LEFT JOIN TB_AI_DIAG_PUMP as p
+            on
+            m.motor_id = p.PUMP_ID
+            and
+            m.ACQ_DATE = p.ACQ_DATE
+            JOIN
+            TB_PUMP_INF as tpi ON tpi.motor_id = p.PUMP_ID and tpi.motor_id = m.motor_id
+        WHERE
+            m.ACQ_DATE &lt;= CONCAT(#{nowDate},' 23:59:59')
+            and
+            <if test="interval == 'week'">
+                m.ACQ_DATE &gt;= DATE_SUB(CONCAT(DATE_FORMAT(#{nowDate}, '%Y-%m-%d'),' 00:00:00'), INTERVAL #{range} WEEK);
+            </if>
+            <if test="interval == 'month'">
+                m.ACQ_DATE &gt;= DATE_SUB(CONCAT(DATE_FORMAT(#{nowDate}, '%Y-%m-%d'),' 00:00:00'), INTERVAL #{range} MONTH);
+            </if>
+            
+    </select>
+    
+    <select id="alarmList" resultType="java.util.HashMap">
+        SELECT
+            DATE_FORMAT(ALR_TIME, '%Y-%m-%d %H:%i') as ALR_TIME,
+            FAC_NAME,
+            FAC_INFO,
+            DIAG_STUS,
+            (
+                CASE
+                    WHEN
+                    FLAG = 1
+                    THEN 'Alert'
+                    WHEN
+                    FLAG = 2
+                    THEN 'TRIP'
+                    ELSE 'None'
+                END
+            ) AS 'FLAG'
+        FROM
+            TB_PMS_ALR
+        WHERE
+            ALR_TIME &lt;= CONCAT(DATE_FORMAT(#{endDate}, '%Y-%m-%d'), ' 23:59:59')
+                AND
+        ALR_TIME &gt;= CONCAT(DATE_FORMAT(#{startDate}, '%Y-%m-%d'), ' 00:00:00')
+        order by ALR_TIME desc;
+    </select>
+    
+</mapper>

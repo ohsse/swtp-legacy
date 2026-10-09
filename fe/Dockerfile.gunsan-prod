@@ -1,0 +1,82 @@
+# 군산 운영 스택 전용 프런트 빌드 (deploy/gunsan/docker-compose.prod.yml)
+#
+# 이 이미지는 더 이상 서버 IP 에 종속되지 않는다. src/main.js 의 $apiURL/$pythonURL 이
+# '/ems-api', '/epa' 상대경로이고 default.conf 의 nginx 가 컨테이너 서비스명으로 넘긴다.
+# 예전에는 절대 URL 을 sed 로 박아 넣어 현장마다 프런트를 다시 말아야 했다.
+#
+# 남은 환경 의존은 두 개뿐이다.
+#   EMS_API_UPSTREAM_PORT : nginx 가 프록시할 ems-java-api 의 컨테이너 내부 포트
+#   INP_EDITOR_PORT       : 새 탭으로 여는 inpEditor 의 호스트 포트(브라우저가 직접 붙는다)
+# 둘 다 IP 가 아니라 포트라서 현장이 바뀌어도 잘 안 바뀐다.
+
+# ems-java-api 의 컨테이너 내부 포트. 스프링 프로파일이 정한다 -- 운영 gu 는 10014,
+# 개발서버/로컬 dev 는 9000 이다. 기본값이 운영값이라 인자 없이 부르면 운영본이 나온다.
+# compose 의 ports: 왼쪽(호스트 포트)이 아니라 오른쪽(컨테이너 포트)이라는 점에 주의.
+ARG EMS_API_UPSTREAM_PORT=10014
+# 자율운영 포털(:10021) 로그인 리다이렉트를 우회할지 여부.
+# router/index.js 는 루트(/) 진입 시 토큰이 없으면 ${autoURL}:10021/login 으로 튄다.
+# 운영에는 포털이 있으므로 false 가 맞고, 포털이 없는 개발서버에서만 true 로 준다.
+ARG SSO_BYPASS=false
+
+# ---- 1단계: Vue 빌드 ----
+FROM node:18 AS build
+ARG SSO_BYPASS
+WORKDIR /app
+ENV NODE_OPTIONS=--max-old-space-size=4096
+COPY package.json package-lock.json ./
+# package-lock.json이 package.json과 불일치(echarts-stat, ol 등 누락)라 npm ci 불가 → npm install 사용
+# --legacy-peer-deps: ag-grid 27/30, bootstrap-vue 2/3 혼재로 peer 의존성 충돌 우회
+RUN npm install --legacy-peer-deps
+COPY . .
+
+# 소스 전제 검증. 이제 주소를 치환하지 않으므로 sed 는 없고, "기대한 소스가 맞는지"만 본다.
+# 전제가 깨진 채로 빌드가 통과하면 서버에서야 증상이 나타나므로 여기서 즉시 깨뜨린다.
+#  - $area : 라우터 구성 자체를 결정한다. gosan 이면 군산 DB에 고산 화면이 뜬다.
+#  - $apiURL / $pythonURL : 상대경로여야 한다. 누가 절대 URL 로 되돌리면 그 IP 가 번들에
+#    인라인되어 현장마다 프런트를 다시 말아야 하는 예전 상태로 조용히 돌아간다.
+RUN set -eu; \
+    grep -qF "area = 'gunsan'" src/main.js \
+      || { echo "ERROR: src/main.js 의 area 가 gunsan 이 아닙니다. 운영본을 말 수 없습니다."; exit 1; }; \
+    grep -qF '$apiURL = "/ems-api"' src/main.js \
+      || { echo "ERROR: \$apiURL 이 상대경로(/ems-api)가 아닙니다. default.conf 프록시와 짝이 맞지 않습니다."; exit 1; }; \
+    grep -qF '$pythonURL = "/epa"' src/main.js \
+      || { echo "ERROR: \$pythonURL 이 상대경로(/epa)가 아닙니다. default.conf 프록시와 짝이 맞지 않습니다."; exit 1; }; \
+    echo "소스 전제 확인 완료: area=gunsan, apiURL=/ems-api, pythonURL=/epa"
+
+# 포털이 없는 환경(개발서버)에서 루트 진입이 죽지 않도록 리다이렉트 대상을 앱 내부 경로로 돌린다.
+# "/devsrv" 는 라우터의 /:token? 에 걸리고 JWT 형식이 아니라 App.vue 가 기본 사용자로 진행한다
+# (로컬용 Dockerfile.gunsan 의 local-test-kwater1 과 같은 원리).
+RUN if [ "$SSO_BYPASS" = "true" ]; then \
+      sed -i 's#window.location.href = `${autoURL}:${serverPort}/login`;#console.warn("[devsrv] SSO portal skipped, port", serverPort); window.location.href = "/devsrv";#' src/router/index.js \
+   && grep -n '"/devsrv"' src/router/index.js; \
+    else echo "SSO_BYPASS=false - 포털 리다이렉트를 그대로 둔다(운영 기본값)"; \
+    fi
+
+# 주의: 이 스택에는 PMS 가 없다. pmsURL 은 고산 운영망(localhost:10015) 하드코딩으로 남아
+#       /pms 링크가 군산에서 죽은 링크가 된다. PMS 를 함께 올릴 때 이 줄도 패치할 것.
+
+# inpEditor 의 호스트 노출 포트를 번들에 인라인한다. 컨테이너 내부는 항상 30090 이고 호스트
+# 매핑만 스택마다 다른데, EmsSubMenu 의 window.open 은 브라우저에서 도는 코드라 호스트 포트를
+# 알아야 한다. compose 의 inp-editor-fe ports: 왼쪽 값과 반드시 같아야 한다.
+ARG INP_EDITOR_PORT=30090
+ENV VUE_APP_INP_EDITOR_PORT=$INP_EDITOR_PORT
+
+RUN npm run build
+
+# ---- 2단계: nginx 서빙 (운영 Dockerfile 과 동일 구성) ----
+FROM nginx:stable-alpine
+ARG EMS_API_UPSTREAM_PORT
+ENV TZ=Asia/Seoul
+RUN rm -rf /usr/share/nginx/html/*
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY default.conf /etc/nginx/conf.d/default.conf
+
+# 프록시 대상 포트를 환경에 맞춘다. default.conf 는 9000(dev 프로파일)을 기본으로 두고 있어
+# 개발서버/로컬은 치환이 no-op 이고, 운영(gu=10014)만 실제로 바뀐다.
+# nginx -t 로 문법까지 확인해, 잘못된 설정이 서버에서야 드러나는 일을 막는다.
+RUN set -eu; \
+    sed -i "s#ems-java-api:9000#ems-java-api:${EMS_API_UPSTREAM_PORT}#" /etc/nginx/conf.d/default.conf; \
+    grep -n "ems-java-api:${EMS_API_UPSTREAM_PORT}" /etc/nginx/conf.d/default.conf; \
+    nginx -t
+EXPOSE 10013
+CMD ["nginx", "-g", "daemon off;"]

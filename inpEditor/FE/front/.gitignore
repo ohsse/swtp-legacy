@@ -1,0 +1,16 @@
+node_modules/
+
+# Vite 빌드 산출물. Dockerfile 이 이미지 안에서 yarn build 로 재생성한다.
+dist/
+
+# Yarn Berry: install-state.gz 는 머신별 캐시라 공유하지 않는다.
+# 반대로 releases/plugins/patches 는 빌드 재현에 필요하므로 추적한다.
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# 로컬 환경 파일
+.env.local
+.env.*.local

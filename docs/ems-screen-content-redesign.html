@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>스마트EMS 화면 재구성 안</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* 레이아웃: 좌측 고정 목차 + 우측 본문. 본문은 섹션 단위, 샘플 화면은 탭으로 전환 */
+:root {
+  --bg: #f3f5f7;          /* 바탕: 푸른 기 도는 회색 */
+  --panel: #ffffff;       /* 패널 */
+  --panel-2: #e9edf1;     /* 와이어프레임 박스 */
+  --fg: #1a2430;          /* 본문 글자 */
+  --fg-2: #52606f;        /* 보조 글자 */
+  --line: #cdd5dd;        /* 선 */
+  --accent: #0d5c7a;      /* 정수장 물빛 청록 */
+  --accent-soft: #d7eaf2;
+  --bad: #b3261e;         /* 문제 */
+  --bad-soft: #f9dedc;
+  --warn: #8a5a00;        /* 주의 */
+  --warn-soft: #fbe9c4;
+  --good: #1b6b3a;        /* 제안·개선 */
+  --good-soft: #d5ecdc;
+  --pred: #a0569c;        /* 예측(점선) */
+  --font-body: "IBM Plex Sans KR", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  --font-mono: "IBM Plex Mono", "Consolas", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11171d; --panel: #1a222b; --panel-2: #243040; --fg: #e4eaf0; --fg-2: #9fadbb; --line: #34414f;
+    --accent: #5fb3d3; --accent-soft: #163442; --bad: #ff8a80; --bad-soft: #4a1f1c; --warn: #f2c14e; --warn-soft: #4a3a0f;
+    --good: #7fd49a; --good-soft: #17392a; --pred: #d59bd0; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11171d; --panel: #1a222b; --panel-2: #243040; --fg: #e4eaf0; --fg-2: #9fadbb; --line: #34414f;
+  --accent: #5fb3d3; --accent-soft: #163442; --bad: #ff8a80; --bad-soft: #4a1f1c; --warn: #f2c14e; --warn-soft: #4a3a0f;
+  --good: #7fd49a; --good-soft: #17392a; --pred: #d59bd0; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 14px; line-height: 1.6; }
+a { color: var(--accent); }
+code, .mono { font-family: var(--font-mono); font-size: 12px; }
+h1, h2, h3, h4 { text-wrap: balance; margin: 0; line-height: 1.3; }
+h1 { font-size: 26px; font-weight: 700; }
+h2 { font-size: 20px; font-weight: 700; margin-block: 0 12px; padding-top: 8px; border-top: 2px solid var(--accent); }
+h3 { font-size: 15px; font-weight: 600; }
+p { margin: 0 0 8px; max-width: 72ch; }
+.layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; padding: 20px 16px 48px; max-width: 1380px; margin: 0 auto; }
+nav.toc { position: sticky; top: env(safe-area-inset-top, 0px); align-self: start; display: flex; flex-direction: column; gap: 4px; padding-top: 8px; }
+nav.toc a { text-decoration: none; color: var(--fg-2); padding: 6px 10px; border-left: 3px solid transparent; font-size: 13px; }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--accent); border-left-color: var(--accent); outline: none; background: var(--accent-soft); }
+main { min-width: 0; display: flex; flex-direction: column; gap: 40px; }
+header.top { display: flex; flex-direction: column; gap: 8px; }
+.eyebrow { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+.meta { color: var(--fg-2); font-size: 12px; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.kpi { background: var(--panel); border: 1px solid var(--line); padding: 12px 14px; }
+.kpi .n { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.kpi .l { font-size: 12px; color: var(--fg-2); }
+.kpi.bad .n { color: var(--bad); } .kpi.good .n { color: var(--good); }
+.chip { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--fg-2); white-space: nowrap; }
+.chip.bad { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
+.chip.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.chip.good { background: var(--good-soft); color: var(--good); border-color: transparent; }
+.chip.acc { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.chip.pred { color: var(--pred); border-color: var(--pred); }
+/* 전/후 2열 */
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+.col { background: var(--panel); border: 1px solid var(--line); padding: 14px 16px; min-width: 0; }
+.col > h3 { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.col.before > h3::before { content: "현재"; } .col.after > h3::before { content: "제안"; }
+.col > h3::before { font-size: 11px; padding: 1px 8px; border-radius: 999px; font-weight: 600; }
+.col.before > h3::before { background: var(--bad-soft); color: var(--bad); }
+.col.after > h3::before { background: var(--good-soft); color: var(--good); }
+/* 메뉴 트리 */
+ul.tree { list-style: none; margin: 0; padding: 0; }
+ul.tree ul { list-style: none; margin: 0; padding-left: 18px; border-left: 1px dashed var(--line); margin-left: 6px; flex-basis: 100%; }
+ul.tree li { padding: 3px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+ul.tree li > span.name { font-weight: 500; }
+ul.tree li.hidden-screen > span.name { color: var(--fg-2); text-decoration: line-through; }
+ul.tree li.dup > span.name { color: var(--bad); }
+ul.tree li.l1 > span.name { font-weight: 700; }
+ul.tree .q { color: var(--fg-2); font-size: 12px; }
+/* 흡수 매핑 */
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.tablewrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); }
+th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+th { font-size: 12px; color: var(--fg-2); font-weight: 600; background: var(--panel-2); white-space: nowrap; }
+td .mono { color: var(--fg-2); }
+/* 문제 카드 */
+.filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.filters button { font: inherit; font-size: 12px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--fg-2); cursor: pointer; }
+.filters button[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+.filters button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--bad); padding: 10px 12px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.card.sev-warn { border-left-color: var(--warn); }
+.card .chip { align-self: flex-start; }
+.card .t { font-weight: 600; }
+.card .d { font-size: 13px; color: var(--fg-2); }
+.card .w { font-size: 12px; }
+.card .w b { color: var(--good); font-weight: 600; }
+.card .src { font-family: var(--font-mono); font-size: 11px; color: var(--fg-2); word-break: break-all; }
+/* 샘플 화면 탭 */
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+.tabs button { font: inherit; font-size: 13px; padding: 8px 14px; border: 1px solid transparent; border-bottom: none; background: transparent; color: var(--fg-2); cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--panel); border-color: var(--line); color: var(--accent); font-weight: 600; margin-bottom: -1px; }
+.tabs button:focus-visible { outline: 2px solid var(--accent); }
+.panel { display: flex; flex-direction: column; gap: 12px; }
+.panel .lead { color: var(--fg-2); font-size: 13px; }
+/* 와이어프레임 */
+.wf { background: var(--panel-2); border: 1px solid var(--line); padding: 8px; display: grid; gap: 6px; font-size: 11px; min-width: 0; }
+.wf .box { background: var(--panel); border: 1px solid var(--line); padding: 6px 8px; min-width: 0; position: relative; display: flex; flex-direction: column; gap: 3px; }
+.wf .box .h { font-weight: 600; font-size: 11px; color: var(--fg-2); display: flex; justify-content: space-between; gap: 6px; align-items: center; }
+.wf .box .big { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.wf .box .big small { font-size: 11px; font-weight: 500; color: var(--fg-2); }
+.wf .box .row { display: flex; flex-wrap: wrap; gap: 4px 10px; font-variant-numeric: tabular-nums; }
+.wf .box .row span b { font-weight: 600; }
+.wf .box.bad { border-color: var(--bad); }
+.wf .box.good { border-color: var(--good); }
+.wf .box.dim { opacity: .6; }
+.wf .mark { position: absolute; top: -8px; right: -6px; background: var(--bad); color: #fff; font-size: 10px; width: 18px; height: 18px; border-radius: 999px; display: grid; place-items: center; font-weight: 700; }
+.wf .mark.g { background: var(--good); }
+.wf svg { width: 100%; height: auto; display: block; }
+.wf .bars { display: flex; align-items: flex-end; gap: 3px; height: 44px; }
+.wf .bars i { flex: 1; background: var(--accent); opacity: .75; display: block; }
+.wf .bars i.over { background: var(--bad); opacity: 1; }
+.wf .gauge { height: 8px; background: var(--line); position: relative; }
+.wf .gauge i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); }
+.wf .gauge i.warn { background: var(--warn); } .wf .gauge i.bad { background: var(--bad); }
+.wf .gauge b { position: absolute; top: -3px; width: 2px; height: 14px; background: var(--fg); }
+.wf .pill { font-size: 10px; padding: 0 6px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+.wf .pill.on { background: var(--good-soft); color: var(--good); } .wf .pill.off { background: var(--panel-2); color: var(--fg-2); }
+.wf .pill.wait { background: var(--warn-soft); color: var(--warn); }
+.wf .tbl { width: 100%; font-size: 10.5px; } .wf .tbl th, .wf .tbl td { padding: 2px 4px; border-bottom: 1px solid var(--line); }
+.wf .tbl th { background: transparent; }
+.wf .tree { font-size: 10.5px; line-height: 1.5; } .wf .tree div { padding-left: 10px; } .wf .tree .sel { color: var(--accent); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--fg-2); }
+.legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--accent); vertical-align: middle; margin-right: 4px; }
+.legend i.pred { border-top-style: dashed; border-color: var(--pred); }
+.legend i.goal { border-color: var(--bad); }
+.legend i.area { height: 8px; background: var(--accent-soft); border: none; }
+.notes { font-size: 12px; color: var(--fg-2); display: grid; gap: 2px; }
+.notes b { color: var(--bad); font-weight: 600; } .notes b.g { color: var(--good); }
+/* 실행 단계 */
+ol.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; counter-reset: s; }
+ol.steps li { background: var(--panel); border: 1px solid var(--line); padding: 12px 14px; counter-increment: s; min-width: 0; }
+ol.steps li::before { content: counter(s) "단계"; font-size: 11px; color: var(--accent); font-weight: 700; letter-spacing: .08em; }
+ol.steps li h3 { margin: 2px 0 6px; }
+ol.steps li ul { margin: 0; padding-left: 16px; font-size: 13px; color: var(--fg-2); }
+.callout { background: var(--accent-soft); border-left: 4px solid var(--accent); padding: 10px 14px; font-size: 13px; }
+.sample-note { font-size: 11px; color: var(--fg-2); }
+@media (max-width: 860px) {
+  .layout { grid-template-columns: 1fr; }
+  nav.toc { position: static; flex-direction: row; flex-wrap: wrap; }
+  h1 { font-size: 22px; }
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc" aria-label="목차">
+  <a href="#summary">요약</a>
+  <a href="#menu">메뉴 전·후</a>
+  <a href="#problems">문제점</a>
+  <a href="#samples">화면 샘플</a>
+  <a href="#metrics">지표 사전</a>
+  <a href="#steps">실행 단계</a>
+</nav>
+<main>
+
+<header class="top" id="summary">
+  <div class="eyebrow">착수 전 설계 · 코드 변경 없음</div>
+  <h1>스마트EMS 화면 컨텐츠 재구성 안</h1>
+  <div class="meta">
+    <span>조사 기준 <code>master / 20c7513</code></span>
+    <span>1차 대상 군산, 현장 분기 보존</span>
+    <span>주 사용자 현장 운영자</span>
+    <span>본문 문서 <code>docs/ems-screen-content-redesign.md</code></span>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><div class="n">14 + 7</div><div class="l">메뉴 화면 + 숨김 화면</div></div>
+    <div class="kpi good"><div class="n">12</div><div class="l">제안 화면 수 (운영 9 + 설정 3)</div></div>
+    <div class="kpi bad"><div class="n">5</div><div class="l">같은 데이터를 다시 그리는 화면 쌍</div></div>
+    <div class="kpi bad"><div class="n">6</div><div class="l">"전체 전력량" SQL 출처 수</div></div>
+    <div class="kpi bad"><div class="n">3 / 2 / 2</div><div class="l">피크 / CO2 / 계절 정의 수</div></div>
+    <div class="kpi bad"><div class="n">21</div><div class="l">근거가 확인된 문제 지점</div></div>
+  </div>
+  <div class="callout">화면이 서로 다른 숫자를 보여주는 원인은 프런트가 아니라 <b>화면마다 따로 있는 SQL</b>입니다. 화면을 합치기 전에 지표 사전(한 지표 = 한 정의 = 한 출처)을 먼저 세워야 겉모습만 바뀌는 일을 막을 수 있습니다.</div>
+</header>
+
+<!-- ───────── 메뉴 전·후 ───────── -->
+<section id="menu">
+  <h2>1. 메뉴 구조 전·후</h2>
+  <p>왼쪽은 군산 빌드 기준 현재 메뉴입니다. 취소선은 라우트만 남고 메뉴가 주석 처리된 화면, 붉은 글자는 다른 화면과 같은 데이터를 다시 그리는 화면입니다. 오른쪽은 운영자의 질문 단위로 다시 묶은 안입니다.</p>
+  <div class="two">
+    <div class="col before"><h3>스마트EMS 메뉴 (EmsSubMenu.vue)</h3>
+      <ul class="tree">
+        <li class="l1"><span class="name">대시보드</span><span class="chip">현장별 10벌 복붙</span></li>
+        <li class="l1"><span class="name">AI 분석</span>
+          <ul>
+            <li><span class="name">송수펌프 제어</span>
+              <ul>
+                <li class="dup"><span class="name">송수펌프 제어 분석</span><span class="chip bad">≈ 세부현황</span></li>
+                <li class="hidden-screen dup"><span class="name">송수펌프 제어 세부 현황</span><span class="chip">숨김</span></li>
+                <li class="hidden-screen dup"><span class="name">송수펌프 제어 트렌드</span><span class="chip">숨김</span><span class="chip bad">≈ 가동이력</span></li>
+                <li><span class="name">운전현황 분석</span><span class="chip">현장별 7종</span></li>
+                <li><span class="name">성능곡선관리</span><span class="chip">외부</span></li>
+                <li class="dup"><span class="name">송수펌프 제어 가동이력</span></li>
+                <li><span class="name">송수펌프 제어 이력</span></li>
+                <li class="hidden-screen dup"><span class="name">주요 배수지 수위 현황</span><span class="chip">숨김</span><span class="chip bad">⊂ 트렌드</span></li>
+              </ul></li>
+            <li><span class="name">관망해석</span>
+              <ul>
+                <li><span class="name">관망해석 모니터링</span></li>
+                <li><span class="name">관망해석 시뮬레이션</span></li>
+                <li><span class="name">관망최적화</span><span class="chip">외부</span></li>
+              </ul></li>
+            <li><span class="name">전력피크</span>
+              <ul>
+                <li class="dup"><span class="name">전력피크 분석</span><span class="chip bad">차트 3벌</span></li>
+                <li class="hidden-screen dup"><span class="name">전력피크 세부현황</span><span class="chip">숨김</span></li>
+              </ul></li>
+          </ul></li>
+        <li class="l1"><span class="name">에너지 사용 현황</span>
+          <ul>
+            <li class="dup"><span class="name">시설별 사용량</span><span class="chip bad">같은 합계 3번</span></li>
+            <li class="dup"><span class="name">설비별 사용량</span></li>
+            <li class="dup"><span class="name">사용량 트렌드</span><span class="chip warn">필터 일부만</span></li>
+          </ul></li>
+        <li class="l1"><span class="name">에너지 절감 관리</span>
+          <ul>
+            <li><span class="name">최적요금제 분석</span><span class="chip warn">비교 없음</span></li>
+            <li><span class="name">절감목표 달성 현황</span><span class="chip warn">기준선 없음</span></li>
+          </ul></li>
+        <li class="l1"><span class="name">설정</span>
+          <ul>
+            <li class="hidden-screen"><span class="name">태그 정보</span><span class="chip">숨김</span></li>
+            <li><span class="name">송수펌프 운영</span></li>
+            <li><span class="name">전력요금제</span></li>
+            <li><span class="name">절감목표</span><span class="chip warn">연도 저장 오류</span></li>
+            <li class="hidden-screen"><span class="name">목표 전력피크</span><span class="chip">숨김</span></li>
+          </ul></li>
+        <li class="l1 hidden-screen"><span class="name">보고서 › 일일 보고서</span><span class="chip">숨김</span><span class="chip bad">가짜 값</span></li>
+      </ul>
+    </div>
+    <div class="col after"><h3>질문 단위 메뉴 (12 화면)</h3>
+      <ul class="tree">
+        <li class="l1"><span class="name">대시보드</span><span class="q">지금 내가 손대야 할 게 있나?</span></li>
+        <li class="l1"><span class="name">펌프 운전</span><span class="chip acc">features.pumpControl</span>
+          <ul>
+            <li><span class="name">송수펌프 운전</span><span class="q">지금 어떻게 돌고 있고 AI는 뭘 권하나?</span></li>
+            <li><span class="name">송수펌프 이력</span><span class="q">지난 기간 어떻게 돌렸고 추천을 얼마나 따랐나?</span></li>
+            <li><span class="name">운전효율 분석</span><span class="q">펌프 효율은 성능곡선 대비 어떤가? (기존 유지)</span></li>
+            <li><span class="name">관망해석</span><span class="chip acc">features.epa</span><span class="q">모델이 계측과 맞나? 바꾸면 어떻게 되나?</span></li>
+          </ul></li>
+        <li class="l1"><span class="name">전력</span>
+          <ul>
+            <li><span class="name">피크 관리</span><span class="q">오늘 목표 피크를 넘길 위험이 있나?</span></li>
+            <li><span class="name">사용량 분석</span><span class="q">어디서·언제·얼마나 쓰나? 작년 대비는?</span></li>
+            <li><span class="name">요금제 비교</span><span class="q">선택 I/II/III 중 어느 것이 유리한가?</span></li>
+            <li><span class="name">절감목표 달성</span><span class="q">목표 대비 어디까지 왔고 얼마나 아꼈나?</span></li>
+          </ul></li>
+        <li class="l1"><span class="name">설정</span>
+          <ul>
+            <li><span class="name">송수펌프 운영</span><span class="q">기존 유지</span></li>
+            <li><span class="name">전력요금제</span><span class="q">계절·부하시간대의 유일한 출처</span></li>
+            <li><span class="name">목표 관리</span><span class="q">월별 kWh 목표 + 목표 피크 kW 한 곳에</span></li>
+          </ul></li>
+      </ul>
+    </div>
+  </div>
+  <h3 style="margin:16px 0 8px">흡수 매핑</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>제안 화면</th><th>흡수 후보 기존 화면</th><th>달라지는 점</th></tr></thead>
+    <tbody>
+      <tr><td>송수펌프 운전</td><td>송수펌프 제어 분석 · 제어 세부현황(숨김) · 주요 배수지(숨김)</td><td>실측/예측을 실선·점선으로 구분, 압력 합산 대신 대표 센서 1개, 예측 생성 시각 표기</td></tr>
+      <tr><td>송수펌프 이력</td><td>가동이력 · 제어 이력 · 제어 트렌드(숨김)</td><td>탭 2개(가동 / 제어·추천). "건수"를 "추천 발생 건수"로 정의하고 이행률 분모 명시</td></tr>
+      <tr><td>관망해석</td><td>모니터링 · 시뮬레이션</td><td>한 화면 두 탭. 초기 더미값·고정 시각 제거, 결측은 "미흡"이 아니라 "계측 없음"</td></tr>
+      <tr><td>피크 관리</td><td>전력피크 분석 · 피크 세부현황(숨김) · 목표 전력피크(숨김)</td><td>차트 3벌 → 1벌. 현재 순시·목표 출처 단일화. 대시보드는 이 위젯을 임베드</td></tr>
+      <tr><td>사용량 분석</td><td>시설별 · 설비별 · 사용량 트렌드</td><td>정수장→시설→설비 트리 선택형. 백엔드 <code>selectEnergyUse</code> 하나로 통합. 필터가 모든 위젯에 적용</td></tr>
+      <tr><td>요금제 비교</td><td>최적요금제 분석</td><td>선택 I 고정 → 3안 나란히 비교, 최저 대비 차액. 계절은 DB 값</td></tr>
+      <tr><td>절감목표 달성</td><td>절감목표 달성 현황 · 일일보고서(숨김)</td><td>일수 비례 목표와 비교, 판정 색. 가짜 예상/발생전력 제거 후 일일 요약표로</td></tr>
+      <tr><td>목표 관리</td><td>절감목표 · 전력피크 분석의 피크치 입력</td><td>저장 연도 버그 수정. 태그 정보(숨김)는 흡수처 없음</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ───────── 문제점 ───────── -->
+<section id="problems">
+  <h2>2. 확인된 문제점</h2>
+  <p>각 카드의 출처는 <code>파일:라인</code>입니다. 분류 버튼으로 걸러 볼 수 있습니다.</p>
+  <div class="filters" role="group" aria-label="문제 분류 필터">
+    <button type="button" data-f="all" aria-pressed="true">전체</button>
+    <button type="button" data-f="dup" aria-pressed="false">화면 중복</button>
+    <button type="button" data-f="def" aria-pressed="false">지표 정의 불일치</button>
+    <button type="button" data-f="unit" aria-pressed="false">단위 오류</button>
+    <button type="button" data-f="fake" aria-pressed="false">가짜·무언 대체</button>
+    <button type="button" data-f="base" aria-pressed="false">기준 없는 비교</button>
+    <button type="button" data-f="agg" aria-pressed="false">의미 없는 집계</button>
+  </div>
+  <div class="cards" id="cards">
+    <div class="card" data-c="dup"><span class="chip bad">화면 중복</span><div class="t">제어 분석 ≈ 제어 세부현황</div><div class="d">둘 다 현재 그룹별 관압·유량을 실측/예측으로 나란히 둔다. 세부현황의 AI 토글은 알림만 띄우고 동작하지 않는다.</div><div class="w"><b>제안</b> 송수펌프 운전 한 화면으로</div><div class="src">PumpControl.vue · PumpControlDetailed.vue · PumpDetailed/AiOperation.vue:31</div></div>
+    <div class="card" data-c="dup"><span class="chip bad">화면 중복</span><div class="t">제어 트렌드 ≈ 가동이력, 주요 배수지 ⊂ 트렌드</div><div class="d">같은 API와 같은 PMB 히트맵을 쓴다. 주요 배수지의 수위 차트는 트렌드의 부분집합이다.</div><div class="w"><b>제안</b> 송수펌프 이력 탭A</div><div class="src">/es/selectPumpPerformList · enerSpend_mssql.xml:197</div></div>
+    <div class="card" data-c="dup"><span class="chip bad">화면 중복</span><div class="t">전력피크 차트 3벌</div><div class="d">전력피크 분석 하단, 피크 세부현황, 대시보드 피크 관리가 같은 "발생 vs 예상 전력" 차트다. 기준선 수만 다르다.</div><div class="w"><b>제안</b> 피크 관리 위젯 1개를 대시보드에 임베드</div><div class="src">components/Func/PowerPeakFunc.js · RightContents/BottomPeak.vue</div></div>
+    <div class="card" data-c="dup"><span class="chip bad">화면 중복</span><div class="t">한 화면 안에서도 같은 값 3번</div><div class="d">시설별 사용량은 같은 합계를 카드·합계 막대·분포 도넛에 그린다. 전력피크 분석은 총 순시·요금적용 피크를 카드와 "주요인자" 표에 두 번 쓴다.</div><div class="w"><b>제안</b> 위젯당 질문 하나</div><div class="src">ZoneUse.vue · PowerPeakAnalysis_totalUsage.vue:12-24</div></div>
+    <div class="card" data-c="def"><span class="chip bad">정의 불일치</span><div class="t">"전체 전력량" 출처 6종</div><div class="d">대시보드 selectYMD, 트렌드 selectPwrSumList, 보고서 selectReport_kwh, 절감목표 getUsageData, 요금제 TB_RT_RATE_RST, 시설별 selectZoneUseList_sum. 같은 달에도 숫자가 다를 수 있다.</div><div class="w"><b>제안</b> selectEnergyUse 하나로</div><div class="src">enerSpend_mssql.xml:386 · ai_mssql.xml:1972 · setting_mssql.xml:555</div></div>
+    <div class="card" data-c="def"><span class="chip bad">정의 불일치</span><div class="t">부하구분 사용량: 이번 달 단가로 연간을 분류</div><div class="d">사용량 트렌드는 RATE_IDX='1' AND MNTH = month(CURDATE()) 로 연간 값까지 이번 달 시간대로 나눈다. 일일보고서는 월별 단가로 나눈다.</div><div class="w"><b>제안</b> 시간대·계절은 설정 화면 DB 값 하나</div><div class="src">ai_mssql.xml:1997 · setting_mssql.xml:583</div></div>
+    <div class="card" data-c="def"><span class="chip bad">정의 불일치</span><div class="t">피크 정의 3종</div><div class="d">시설 순시 합의 시간당 최대 / 월별 최대 순시 / PWQ(kWh) 최대를 "전력 피크값(kW)"으로. 화면마다 피크가 다르다.</div><div class="w"><b>제안</b> 15분 평균 PWI 최대(요금 기준)로 통일</div><div class="src">ai_mssql.xml:1940-1969 · setting_mssql.xml:829-836</div></div>
+    <div class="card sev-warn" data-c="def"><span class="chip warn">정의 불일치</span><div class="t">계절 2종, 부하 용어 2종, CO2 2종</div><div class="d">최적요금제는 계절을 월로 하드코딩, 설정은 DB. '중부하'와 '중간부하' 혼용. CO2는 프런트 상수 0.4663(kg)과 TB_RST_SAVINGS_TARGET(tCO2)이 따로.</div><div class="w"><b>제안</b> 지표 사전으로 라벨·단위·출처 고정</div><div class="src">CostAnaylsis.vue:77-85 · ReductionTarget.vue:109-110</div></div>
+    <div class="card" data-c="unit"><span class="chip bad">단위</span><div class="t">순시전력(kW)을 kWh로 표기</div><div class="d">사용량 트렌드 전력 사용량 차트, 시설별 트렌드, 최대 피크('kwh'), 가동이력 PWI 차트, 피크 차트 전부.</div><div class="w"><b>제안</b> metrics.js 상수로 라벨 통일</div><div class="src">UseTrand_topLeft.vue:23 · ZoneUse_bottomRig.vue:71 · PumpHistory.vue:214</div></div>
+    <div class="card" data-c="unit"><span class="chip bad">단위</span><div class="t">관압 단위 3종, 유량 m³/h와 m³ 혼용</div><div class="d">kg/cm²(제어 분석) · "m"(제어 트렌드, 배수지 태그 전부를 m으로 고정) · kgf/cm²(관망해석). 세부현황 예상 유량은 "m³".</div><div class="w"><b>제안</b> 현장 태그 단위를 라벨에 명시</div><div class="src">PumpControlTrand.vue:156,200 · DetailedPumpBox.vue:55</div></div>
+    <div class="card sev-warn" data-c="unit"><span class="chip warn">단위</span><div class="t">단위가 아예 없는 곳</div><div class="d">세부현황 열 머리(유입유량/개도율/수위/유출유량), 정격양정, 운영대수, 시뮬레이션 수요량 모달, 지도 팝업(압력을 정수로 반올림). 수위 트렌드 Y축은 'kWh'.</div><div class="w"><b>제안</b> 모든 수치에 단위 필수</div><div class="src">MapStatusLayer.vue:104-106 · DailyReport_WaterLevelTrend.vue:50</div></div>
+    <div class="card" data-c="fake"><span class="chip bad">가짜 값</span><div class="t">일일보고서 "예상전력·발생전력" = 사용량 × 0.98 / × 1.02</div><div class="d">측정값도 예측값도 아니다. 무엇과 비교하라는 표인지 알 수 없고 단위도 없다.</div><div class="w"><b>제안</b> 제거 후 일일 요약표로</div><div class="src">setting_mssql.xml:803-804</div></div>
+    <div class="card" data-c="fake"><span class="chip bad">무언 대체</span><div class="t">예측이 0이면 실측으로 바꿔 표시</div><div class="d">"분석 결과" 카드는 예측 합이 0이면 실측 PRI/FRI를 넣고 라벨은 그대로다. "운영현황"과 생김새가 같아 실측/예측을 구분할 수 없다.</div><div class="w"><b>제안</b> "예측 없음"으로 비우고 점선·생성 시각으로 구분</div><div class="src">PumpControlAnly/PumpControlRig.vue:187-214</div></div>
+    <div class="card sev-warn" data-c="fake"><span class="chip warn">더미</span><div class="t">관망해석 초기 더미값과 고정 시각</div><div class="d">실제 데이터가 오기 전에 더미 건수(39/6/3)와 "2025-10-21 18:31:00"이 보인다. 시뮬레이션 결과 표도 기본값이 더미다.</div><div class="w"><b>제안</b> 로딩 상태를 설계</div><div class="src">EpaAnalysisMonitoring.vue:61-80 · AnalysisResults.vue:59-70</div></div>
+    <div class="card" data-c="agg"><span class="chip bad">집계</span><div class="t">펌프별 압력을 합산해 그룹 관압으로</div><div class="d">PRI 값을 그룹 안에서 더한다. 압력은 더해지는 양이 아니다.</div><div class="w"><b>제안</b> 그룹 대표 토출 압력 센서 1개</div><div class="src">PumpControlLeft.vue:127-159 · PumpControlDetailed.vue:249</div></div>
+    <div class="card" data-c="agg"><span class="chip bad">집계</span><div class="t">배수지 수위 합을 도넛 비율로</div><div class="d">서로 다른 배수지의 수위를 더해 비중으로 그린다. 물리적 의미가 없다.</div><div class="w"><b>제안</b> 배수지별 수위 막대 + 하한/상한선</div><div class="src">MajorDrainage.vue:147-159</div></div>
+    <div class="card sev-warn" data-c="agg"><span class="chip warn">집계</span><div class="t">_sum API가 실제로는 AVG, 개도율에 0/1 신호</div><div class="d">설비별 "분포" 도넛은 평균값의 비중이라 뜻이 없다. "개도율 %"에는 밸브 열림 신호(0/1)가 들어간다.</div><div class="w"><b>제안</b> 합계는 합계로, 열림 신호는 열림/닫힘으로</div><div class="src">enerSpend_mssql.xml:162-170 · PumpControl.vue:360</div></div>
+    <div class="card" data-c="base"><span class="chip bad">기준 없음</span><div class="t">진행 중인 달 누계를 월 전체 목표와 비교</div><div class="d">월초엔 늘 '달성'처럼 보인다. %가 높을수록 좋은지 나쁜지 색도 기준선도 없다. 연도를 고를 수 없다.</div><div class="w"><b>제안</b> 경과 일수 비례 목표와 비교하고 판정 색</div><div class="src">ReductionTarget.vue:65,105-110</div></div>
+    <div class="card" data-c="base"><span class="chip bad">기준 없음</span><div class="t">최적요금제 분석에 요금제 비교가 없다</div><div class="d">선택 버튼이 주석 처리돼 항상 '선택 I'. "추천 요금제"는 정의만 있고 표시되지 않는다. 금액에 천 단위 구분도 없다.</div><div class="w"><b>제안</b> 선택 I/II/III 나란히, 최저 대비 차액</div><div class="src">CostAnaysis_right.vue:73-80 · CostAnaylsis.vue:30-33</div></div>
+    <div class="card sev-warn" data-c="base"><span class="chip warn">기준 없음</span><div class="t">대시보드 "목표대비 %"의 목표는 selectNowPeak</div><div class="d">이름은 peak인데 월별 값을 일수로 나눠 사용량 목표로 쓴다. 피크 목표인지 사용량 목표인지 알 수 없다.</div><div class="w"><b>제안</b> 사용 목표는 getGoalData, 피크 목표는 selectPeakGoal</div><div class="src">gunsan/RotationContents.vue:57-63</div></div>
+    <div class="card sev-warn" data-c="base"><span class="chip warn">기준 없음</span><div class="t">정의 없는 "AI 운영 현황 건수", 하드코딩 게이지 80</div><div class="d">제어 이력의 건수가 무엇을 센 건지 없다. 세부현황 게이지 최대값 80은 상수. "최소요구관압 기준 배수지"는 첫 번째 배수지일 뿐이다.</div><div class="w"><b>제안</b> "추천 발생 건수"로 정의, 기준값은 설정</div><div class="src">PumpControlHistory.vue:39-52 · DetailedPipe.vue:99 · PumpControl.vue:280-282</div></div>
+    <div class="card sev-warn" data-c="base"><span class="chip warn">저장 오류</span><div class="t">절감목표 저장 연도가 항상 올해</div><div class="d">고른 연도와 상관없이 date_format(NOW(),'%Y')로 저장한다. 사용량 트렌드의 기간 필터는 좌상단 차트에만 먹는다.</div><div class="w"><b>제안</b> 연도 파라미터화, 필터는 모든 위젯에</div><div class="src">setting_mssql.xml:369,409 · UseTrand.vue:107-125</div></div>
+  </div>
+</section>
+
+<!-- ───────── 화면 샘플 ───────── -->
+<section id="samples">
+  <h2>3. 화면 샘플 (현재 → 제안)</h2>
+  <p>와이어프레임입니다. 숫자는 모두 <b>예시값</b>이며 실제 계측값이 아닙니다. 붉은 번호는 현재 화면의 문제 지점, 초록 번호는 제안 화면에서 달라지는 점입니다.</p>
+  <div class="legend"><span><i></i>실측</span><span><i class="pred"></i>예측(생성 시각 표기)</span><span><i class="goal"></i>목표·기준선</span><span><i class="area"></i>관망해석 결과</span></div>
+  <div class="tabs" role="tablist" aria-label="화면 샘플">
+    <button type="button" role="tab" data-tab="dash" aria-selected="true" id="tab-dash">대시보드</button>
+    <button type="button" role="tab" data-tab="pump" aria-selected="false" id="tab-pump">송수펌프 운전</button>
+    <button type="button" role="tab" data-tab="peak" aria-selected="false" id="tab-peak">피크 관리</button>
+    <button type="button" role="tab" data-tab="usage" aria-selected="false" id="tab-usage">사용량 분석</button>
+    <button type="button" role="tab" data-tab="tariff" aria-selected="false" id="tab-tariff">요금제 비교</button>
+    <button type="button" role="tab" data-tab="target" aria-selected="false" id="tab-target">절감목표 달성</button>
+  </div>
+
+  <!-- 대시보드 -->
+  <div class="panel" role="tabpanel" data-panel="dash" aria-labelledby="tab-dash">
+    <div class="lead">현재(군산 A형)는 롤링 카드·3D 맵·펌프 토글·피크 차트가 각자 다른 주기로 갱신됩니다. 제안은 운영자 질문 순서로 다섯 줄을 고정 배치합니다.</div>
+    <div class="two">
+      <div class="col before"><h3>MainDashBoard_gunsan.vue</h3>
+        <div class="wf" style="grid-template-columns: 1fr 1.4fr 1fr">
+          <div style="display:grid;gap:6px">
+            <div class="box bad"><span class="mark">1</span><div class="h">소비 현황 <span class="pill">롤링</span></div><div class="big">1,284 <small>kW</small></div><div class="row"><span>금일 <b>18,420</b> kWh</span><span>목표대비 <b>96</b>%</span></div></div>
+            <div class="box bad"><span class="mark">2</span><div class="h">절감 현황</div><div class="big" style="opacity:.3">— <small>kW</small></div><div class="row"><span>금월 <b>12,300</b> kWh</span></div></div>
+            <div class="box"><div class="h">탄소절감</div><div class="row"><span>금년 <b>84,200</b> kg</span></div></div>
+          </div>
+          <div class="box bad" style="min-height:150px"><span class="mark">3</span><div class="h">3D 정수장 맵</div><div class="row" style="margin-top:20px;justify-content:space-around"><span>송수 <b>41%</b></span><span>침전 <b>12%</b></span><span>소독 <b>9%</b></span><span>농축 <b>7%</b></span></div><div class="sample-note" style="margin-top:auto">% 의 분모 표기 없음 · 클릭 시 전체 리로드</div></div>
+          <div style="display:grid;gap:6px">
+            <div class="box bad"><span class="mark">4</span><div class="h">신정수지 <span class="pill">AI 추천</span></div><div class="row"><span>#1 <span class="pill on">ON</span> 반자동</span><span>#2 <span class="pill off">OFF</span></span><span>#3 <span class="pill on">ON</span> 반자동</span></div><div class="sample-note">모드 변경 → location.reload()</div></div>
+            <div class="box bad"><span class="mark">5</span><div class="h">피크 관리 <span>kWh · 축 "날짜"</span></div>
+              <svg viewBox="0 0 200 60" aria-hidden="true"><polyline points="0,45 25,40 50,42 75,30 100,22 125,28 150,20 175,26 200,30" fill="none" stroke="var(--accent)" stroke-width="1.5"/><polyline points="0,46 25,41 50,40 75,33 100,26 125,24 150,18 175,24 200,28" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity=".5"/><line x1="0" y1="18" x2="200" y2="18" stroke="var(--bad)" stroke-width="1"/></svg>
+              <div class="sample-note">발생/예상 둘 다 실선, 1회 로드</div></div>
+          </div>
+        </div>
+        <div class="notes">
+          <span><b>1</b> 큰 값은 kW, 롤링 값은 kWh. "목표"는 selectNowPeak 를 일수로 나눈 값</span>
+          <span><b>2</b> 절감 큰 값은 0으로 고정돼 숨겨짐. 단위 선언 'kW', 내용은 kWh</span>
+          <span><b>3</b> 건물별 %의 분모·범례 없음. 설비별 사용량의 축약본</span>
+          <span><b>4</b> "AI 추천"이 펌프에선 "반자동". ON/OFF 는 1회, AI 상태는 1분 갱신</span>
+          <span><b>5</b> 시간대 데이터인데 축 라벨 "날짜", 단위 kWh 에 kW 목표선. 전력피크 분석과 같은 차트</span>
+        </div>
+      </div>
+      <div class="col after"><h3>MainDashBoard.vue + config/sites/gunsan.js</h3>
+        <div class="wf" style="grid-template-columns: 1.3fr 1fr">
+          <div class="box good"><span class="mark g">1</span><div class="h">피크 위험 <span class="pill wait">14:15 예측 초과</span></div>
+            <div class="row"><span>현재 <b>1,284</b> kW</span><span>목표 <b>1,500</b> kW</span><span>여유 <b>216</b> kW (14%)</span></div>
+            <div class="gauge"><i class="warn" style="width:86%"></i><b style="left:100%"></b></div>
+            <svg viewBox="0 0 200 54" aria-hidden="true"><line x1="0" y1="14" x2="200" y2="14" stroke="var(--bad)" stroke-width="1"/><polyline points="0,44 20,40 40,41 60,33 80,26 100,24" fill="none" stroke="var(--accent)" stroke-width="2"/><polyline points="100,24 120,18 140,12 160,16 180,22 200,26" fill="none" stroke="var(--pred)" stroke-width="1.5" stroke-dasharray="4 3"/><line x1="100" y1="4" x2="100" y2="50" stroke="var(--fg-2)" stroke-width="1" stroke-dasharray="2 2"/><text x="102" y="50" font-size="7" fill="var(--fg-2)">지금</text><text x="2" y="12" font-size="7" fill="var(--bad)">목표 1,500 kW</text></svg>
+            <div class="sample-note">15분 평균 kW · 예측 생성 10:30 · 출처 selectPeakControl 하나</div></div>
+          <div class="box good"><span class="mark g">2</span><div class="h">AI 운전 <span class="pill wait">추천 대기 1건</span></div>
+            <div class="row"><span>송수펌프 <span class="pill">AI 추천</span></span><span>#1 <span class="pill on">ON 48 Hz</span></span><span>#2 <span class="pill off">OFF</span></span><span>#3 <span class="pill on">ON 48 Hz</span></span></div>
+            <div class="sample-note">승인 → 기존 CtrlCmdApprove 모달. 모드 변경은 펌프 운전 화면에서</div></div>
+          <div class="box good" style="grid-column: 1 / -1"><span class="mark g">3</span><div class="h">사용량 vs 일수 비례 목표</div>
+            <div class="row" style="justify-content:space-between">
+              <span>금일 <b>18,420</b> kWh · 목표 19,100 · <span class="pill on">96%</span></span>
+              <span>금월 <b>131,500</b> kWh · 비례 목표 128,000 · <span class="pill wait">103%</span></span>
+              <span>금년 <b>1,402,000</b> kWh · 비례 목표 1,450,000 · <span class="pill on">97%</span></span>
+              <span class="sample-note">절감 12,300 kWh · 5.7 tCO2</span></div></div>
+          <div class="box good"><span class="mark g">4</span><div class="h">배수지 수위 · 관망 오차</div>
+            <div class="row"><span>1배수지 <b>4.2</b> m</span><span>2배수지 <b>3.1</b> m <span class="pill wait">하한 근접</span></span></div>
+            <div class="gauge"><i style="width:70%"></i><b style="left:30%"></b></div>
+            <div class="sample-note">해석 오차 상위: J-335 7.8% · J-11 5.9%</div></div>
+          <div class="box good"><span class="mark g">5</span><div class="h">전력 분포 (현장 맵)</div><div class="row"><span>송수 <b>41%</b></span><span>침전 <b>12%</b></span><span>소독 <b>9%</b></span></div><div class="sample-note">분모 = 전체 순시 kW 1,284 · 클릭 → 사용량 분석(라우터 이동)</div></div>
+        </div>
+        <div class="notes">
+          <span><b class="g">1</b> 피크 관리 화면의 위젯을 그대로 임베드. 실선/점선/목표선 구분, 예측 생성 시각</span>
+          <span><b class="g">2</b> 추천 대기 건수가 가장 먼저 보임. 동작하지 않는 토글 제거</span>
+          <span><b class="g">3</b> 롤링 대신 고정 3타일. 경과 일수 비례 목표와 비교, 판정 색</span>
+          <span><b class="g">4</b> 수위에 하한/상한선. EPA 현장만 오차 상위 노출(features.epa)</span>
+          <span><b class="g">5</b> 맵만 현장 고유 컴포넌트. 나머지 위젯은 config 로 순서·표시 결정</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 송수펌프 운전 -->
+  <div class="panel" role="tabpanel" data-panel="pump" aria-labelledby="tab-pump" hidden>
+    <div class="lead">제어 분석 + 제어 세부현황(숨김) + 주요 배수지(숨김)를 한 화면으로. 질문은 "지금 어떻게 돌고 있고 AI는 뭘 권하나".</div>
+    <div class="two">
+      <div class="col before"><h3>PumpControl.vue</h3>
+        <div class="wf" style="grid-template-columns: 1fr 1fr">
+          <div class="box bad"><span class="mark">1</span><div class="h">운영현황 · 신정수지</div><div class="big">7.6 <small>kg/cm²</small></div><div class="row"><span>유량 <b>1,820</b> m³/h</span></div><div class="sample-note">관압 = 펌프별 PRI 합산</div></div>
+          <div class="box bad"><span class="mark">2</span><div class="h">분석 결과 · 신정수지</div><div class="big">7.6 <small>kg/cm²</small></div><div class="row"><span>유량 <b>1,820</b> m³/h</span></div><div class="sample-note">예측이 0이면 실측으로 대체, 모양 동일</div></div>
+          <div class="box bad"><span class="mark">3</span><div class="h">주요인자 · 1배수지</div><div class="row"><span>유입 <b>910</b> m³/h</span><span>개도율 <b>1.00</b> %</span><span>수위 <b>4.2</b> m</span></div></div>
+          <div class="box bad"><span class="mark">4</span><div class="h">배수지 요구 관압</div><div class="row"><span>기준 배수지 <b>1배수지</b></span><span>분기점 <b>3.2</b></span><span>최소요구 <b>3.2</b></span></div></div>
+        </div>
+        <div class="notes">
+          <span><b>1</b> 압력을 더해 그룹 관압으로 표시</span>
+          <span><b>2</b> 실측/예측 구분 불가. 예측 기준 시각 없음. 세부현황과 합산 기준이 다름</span>
+          <span><b>3</b> 개도율에 밸브 열림 신호 0/1</span>
+          <span><b>4</b> "기준 배수지"는 첫 번째 배수지, 분기점과 최소요구가 같은 값</span>
+        </div>
+      </div>
+      <div class="col after"><h3>/pump/operation</h3>
+        <div class="wf" style="grid-template-columns: 1.2fr 1fr">
+          <div class="box good"><span class="mark g">1</span><div class="h">송수펌프 그룹 <span class="pill">AI 추천</span> <span class="pill wait">대기 1건</span></div>
+            <table class="tbl"><thead><tr><th>펌프</th><th>가동</th><th>Hz</th><th>kW</th><th>추천</th></tr></thead>
+            <tbody><tr><td>#1</td><td><span class="pill on">ON</span></td><td>48</td><td>212</td><td>48 → 46 Hz</td></tr><tr><td>#2</td><td><span class="pill off">OFF</span></td><td>—</td><td>0</td><td>유지</td></tr><tr><td>#3</td><td><span class="pill on">ON</span></td><td>48</td><td>208</td><td>48 → 46 Hz</td></tr></tbody></table></div>
+          <div class="box good"><span class="mark g">2</span><div class="h">토출 관압 · 유량 (대표 센서)</div><div class="big">3.8 <small>kgf/cm² · PRI-4010</small></div><div class="gauge"><i style="width:60%"></i><b style="left:50%"></b></div><div class="sample-note">최소요구 3.2 (1배수지 기준, 요구치 최대)</div><div class="row"><span>유량 <b>1,820</b> m³/h · FRI-4001</span></div></div>
+          <div class="box good" style="grid-column:1 / -1"><span class="mark g">3</span><div class="h">금일 전력 · 실측 vs 예측 <span class="chip pred">예측 생성 10:30</span></div>
+            <svg viewBox="0 0 300 50" aria-hidden="true"><polyline points="0,40 30,36 60,38 90,30 120,24 150,22" fill="none" stroke="var(--accent)" stroke-width="2"/><polyline points="150,22 180,18 210,20 240,26 270,30 300,32" fill="none" stroke="var(--pred)" stroke-width="1.5" stroke-dasharray="4 3"/><line x1="150" y1="4" x2="150" y2="48" stroke="var(--fg-2)" stroke-dasharray="2 2"/><text x="153" y="47" font-size="7" fill="var(--fg-2)">지금</text></svg></div>
+          <div class="box good"><span class="mark g">4</span><div class="h">배수지</div>
+            <table class="tbl"><thead><tr><th>배수지</th><th>수위 m</th><th>유입 m³/h</th><th>밸브</th></tr></thead>
+            <tbody><tr><td>1배수지</td><td>4.2</td><td>910</td><td><span class="pill on">열림</span></td></tr><tr><td>2배수지</td><td>3.1 <span class="pill wait">하한</span></td><td>620</td><td><span class="pill on">열림</span></td></tr></tbody></table></div>
+          <div class="box good"><span class="mark g">5</span><div class="h">현재 조합 vs 추천 조합</div><div class="row"><span>현재 #1·#3 48 Hz <b>420</b> kW</span><span>추천 #1·#3 46 Hz <b>388</b> kW</span><span class="pill on">−7.6%</span></div><div class="sample-note">원단위 0.231 → 0.213 kWh/m³</div></div>
+        </div>
+        <div class="notes">
+          <span><b class="g">1</b> 펌프별 가동·Hz·kW 와 추천 변경을 한 표에. 모드 변경·승인은 여기서만</span>
+          <span><b class="g">2</b> 합산 대신 대표 센서 1개, 태그명·단위 명시, 최소요구 기준선</span>
+          <span><b class="g">3</b> 실선/점선, 예측 생성 시각. 예측 없으면 점선 자체를 비움</span>
+          <span><b class="g">4</b> 수위 하한/상한, 밸브는 열림/닫힘으로(개도율 % 아님)</span>
+          <span><b class="g">5</b> 추천의 근거(전력·원단위 차이)를 함께</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 피크 관리 -->
+  <div class="panel" role="tabpanel" data-panel="peak" aria-labelledby="tab-peak" hidden>
+    <div class="lead">전력피크 분석 + 피크 세부현황(숨김) + 목표 전력피크(숨김). 질문은 "오늘 목표 피크를 넘길 위험이 있나, 넘긴 적이 있나".</div>
+    <div class="two">
+      <div class="col before"><h3>PowerPeakAnalysis.vue</h3>
+        <div class="wf" style="grid-template-columns: 1fr 1fr">
+          <div class="box bad" style="grid-column:1 / -1"><span class="mark">1</span><div class="h">피크치 설정</div><div class="row"><span>[ 1500 ] <span class="pill">저장</span> → 페이지 새로고침</span></div></div>
+          <div class="box bad"><span class="mark">2</span><div class="h">주요 전력</div><div class="row"><span>총 순시 <b>1,284</b> kW</span><span>목표 피크 <b>1,500</b> kW</span><span>요금적용 피크 <b>1,612</b> kW</span></div></div>
+          <div class="box bad"><span class="mark">2</span><div class="h">주요인자</div><table class="tbl"><tr><td>총 순시 전력</td><td>1,284 kw</td></tr><tr><td>송수 펌프 순시 전력</td><td>420 kw</td></tr><tr><td>요금 적용 전력 피크</td><td>1,612 kw</td></tr></table></div>
+          <div class="box bad" style="grid-column:1 / -1"><span class="mark">3</span><div class="h">전력 피크 예상 시간 <span>kWh</span></div>
+            <svg viewBox="0 0 300 50" aria-hidden="true"><polyline points="0,40 40,36 80,38 120,28 160,22 200,26 240,20 280,24 300,28" fill="none" stroke="var(--accent)" stroke-width="1.5"/><polyline points="0,41 40,37 80,36 120,30 160,24 200,22 240,16 280,22 300,26" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity=".5"/><line x1="0" y1="18" x2="300" y2="18" stroke="var(--bad)"/><line x1="0" y1="12" x2="300" y2="12" stroke="var(--warn)"/></svg></div>
+        </div>
+        <div class="notes">
+          <span><b>1</b> 설정 입력이 분석 화면에. 저장하면 전체 리로드</span>
+          <span><b>2</b> 같은 두 값이 카드와 표에 중복. 순시 출처는 selectPeakControl, 대시보드는 selectNowElec</span>
+          <span><b>3</b> 발생/예상 모두 실선, 단위 kWh 에 kW 기준선. 시각 문자열 "10:5" 비교 버그</span>
+        </div>
+      </div>
+      <div class="col after"><h3>/power/peak</h3>
+        <div class="wf" style="grid-template-columns: 1fr 1fr">
+          <div class="box good" style="grid-column:1 / -1"><span class="mark g">1</span><div class="h">지금</div><div class="row" style="gap:16px"><span>현재 <b style="font-size:16px">1,284</b> kW</span><span>목표 피크 <b style="font-size:16px">1,500</b> kW</span><span>여유 <b style="font-size:16px">216</b> kW <span class="pill wait">14%</span></span><span>예측 초과 <b>14:15 ~ 14:45</b></span></div></div>
+          <div class="box good" style="grid-column:1 / -1"><span class="mark g">2</span><div class="h">금일 15분 kW <span class="chip pred">예측 생성 10:30</span></div>
+            <svg viewBox="0 0 300 54" aria-hidden="true"><line x1="0" y1="14" x2="300" y2="14" stroke="var(--bad)"/><text x="2" y="12" font-size="7" fill="var(--bad)">목표 1,500</text><polyline points="0,44 30,40 60,41 90,33 120,26 150,24" fill="none" stroke="var(--accent)" stroke-width="2"/><polyline points="150,24 180,16 200,11 220,10 240,16 270,22 300,26" fill="none" stroke="var(--pred)" stroke-width="1.5" stroke-dasharray="4 3"/><rect x="198" y="6" width="26" height="42" fill="var(--bad-soft)" opacity=".7"/><line x1="150" y1="4" x2="150" y2="50" stroke="var(--fg-2)" stroke-dasharray="2 2"/></svg></div>
+          <div class="box good"><span class="mark g">3</span><div class="h">월별 최대 kW · 12개월</div><div class="bars"><i style="height:60%"></i><i style="height:55%"></i><i style="height:70%"></i><i style="height:65%"></i><i style="height:80%"></i><i style="height:92%" class="over"></i><i style="height:98%" class="over"></i><i style="height:85%"></i><i style="height:72%"></i><i style="height:66%"></i><i style="height:60%"></i><i style="height:58%"></i></div><div class="sample-note">목표선 1,500 kW · 15분 평균 기준</div></div>
+          <div class="box good"><span class="mark g">4</span><div class="h">초과 이력</div><table class="tbl"><thead><tr><th>일시</th><th>최대</th><th>지속</th><th>가동 펌프</th></tr></thead><tbody><tr><td>07-14 14:30</td><td>1,612</td><td>30분</td><td>#1 #2 #3</td></tr><tr><td>06-28 15:00</td><td>1,540</td><td>15분</td><td>#1 #3</td></tr></tbody></table></div>
+        </div>
+        <div class="notes">
+          <span><b class="g">1</b> 현재·목표·여유를 한 줄에, 출처는 selectPeakControl 하나. 피크치 입력은 설정 &gt; 목표 관리로</span>
+          <span><b class="g">2</b> 실선/점선/목표선, 초과 예상 구간을 음영으로</span>
+          <span><b class="g">3</b> 피크 정의를 15분 평균으로 통일, 목표선 대비 초과 월 강조</span>
+          <span><b class="g">4</b> "넘긴 적이 있나"에 답하는 표. 당시 가동 펌프로 원인 추적</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 사용량 분석 -->
+  <div class="panel" role="tabpanel" data-panel="usage" aria-labelledby="tab-usage" hidden>
+    <div class="lead">시설별 + 설비별 + 사용량 트렌드를 트리 선택형 한 화면으로. 질문은 "어디서·언제·얼마나 쓰나, 작년 대비는".</div>
+    <div class="two">
+      <div class="col before"><h3>ZoneUse · FacUse · UseTrand</h3>
+        <div class="wf" style="grid-template-columns: 1fr 1fr 1fr">
+          <div class="box bad"><span class="mark">1</span><div class="h">시설별 · 카드</div><div class="row"><span>송수 <b>7,540</b> kWh</span></div></div>
+          <div class="box bad dim"><div class="h">시설별 · 합계 막대</div><div class="bars"><i style="height:90%"></i><i style="height:40%"></i><i style="height:30%"></i></div></div>
+          <div class="box bad dim"><div class="h">시설별 · 분포 도넛</div><div class="sample-note">같은 data2 세 번째</div></div>
+          <div class="box bad"><span class="mark">2</span><div class="h">설비별 · "분포"</div><div class="sample-note">_sum 이 실제로는 AVG</div></div>
+          <div class="box bad"><span class="mark">3</span><div class="h">트렌드 · 전력 사용량 <span>kWh</span></div><div class="sample-note">값은 PWI(kW)</div></div>
+          <div class="box bad"><span class="mark">4</span><div class="h">트렌드 · 금월 부하구분</div><div class="row"><span>경 <b>31%</b></span><span>중 <b>42%</b></span><span>최대 <b>27%</b></span></div><div class="sample-note">이번 달 단가로 연간 분류</div></div>
+        </div>
+        <div class="notes">
+          <span><b>1</b> 같은 합계를 카드·막대·도넛 3번. 시설 목록이 화면마다 다름(use_yn 필터 유무)</span>
+          <span><b>2</b> 평균값의 비중 도넛</span>
+          <span><b>3</b> 순시 kW 를 kWh 로 표기. 기간 필터가 이 차트에만 적용</span>
+          <span><b>4</b> 오늘/월/년 고정, 단가 적용 방식이 보고서와 다름</span>
+        </div>
+      </div>
+      <div class="col after"><h3>/power/usage</h3>
+        <div class="wf" style="grid-template-columns: .8fr 1.6fr">
+          <div class="box good"><span class="mark g">1</span><div class="h">구역</div><div class="tree">정수장 전체<div>착수·혼화</div><div class="sel">송수동<div>송수펌프 #1</div><div>송수펌프 #2</div><div>송수펌프 #3</div></div><div>침전</div><div>소독</div><div>관리동</div></div></div>
+          <div style="display:grid;gap:6px">
+            <div class="box good"><span class="mark g">2</span><div class="h">송수동 · 2026-09 (월)</div><div class="row" style="gap:14px"><span><b style="font-size:16px">98,400</b> kWh</span><span>전월 92,100 <span class="pill wait">+6.8%</span></span><span>전년동월 104,000 <span class="pill on">−5.4%</span></span><span>현재 순시 <b>420</b> kW</span></div></div>
+            <div class="box good"><span class="mark g">3</span><div class="h">일별 kWh</div><div class="bars"><i style="height:50%"></i><i style="height:55%"></i><i style="height:48%"></i><i style="height:62%"></i><i style="height:70%"></i><i style="height:66%"></i><i style="height:58%"></i><i style="height:52%"></i><i style="height:60%"></i><i style="height:75%"></i><i style="height:72%"></i><i style="height:64%"></i><i style="height:57%"></i><i style="height:50%"></i></div></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+              <div class="box good"><span class="mark g">4</span><div class="h">부하구분 (단가 미적용)</div><div class="row"><span>경부하 <b>31%</b></span><span>중간부하 <b>42%</b></span><span>최대부하 <b>27%</b></span></div><div class="sample-note">시간대·계절 = 설정 DB</div></div>
+              <div class="box good"><span class="mark g">5</span><div class="h">하위 Top 3</div><div class="row"><span>#1 <b>34,100</b></span><span>#3 <b>33,800</b></span><span>#2 <b>30,500</b></span></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="notes">
+          <span><b class="g">1</b> 정수장 → 시설 → 설비 트리 하나. 선택이 모든 위젯에 적용</span>
+          <span><b class="g">2</b> 기준선은 전월·전년동월. 순시 kW 는 별도 라벨로 분리</span>
+          <span><b class="g">3</b> kWh 막대, 시/일/월/년 전환(CalendarBox 재사용)</span>
+          <span><b class="g">4</b> 부하구분은 순수 kWh. 요금은 요금제 비교 화면에서</span>
+          <span><b class="g">5</b> 분포 도넛 대신 순위. 백엔드 selectEnergyUse 하나</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 요금제 비교 -->
+  <div class="panel" role="tabpanel" data-panel="tariff" aria-labelledby="tab-tariff" hidden>
+    <div class="lead">최적요금제 분석의 이름값을 되찾는 화면. 질문은 "선택 I/II/III 중 어느 것이 우리 패턴에 유리한가".</div>
+    <div class="two">
+      <div class="col before"><h3>CostAnaylsis.vue</h3>
+        <div class="wf" style="grid-template-columns: 1fr 1fr 1fr">
+          <div class="box bad"><span class="mark">1</span><div class="h">9월 전력 사용량</div><table class="tbl"><tr><td>용도</td><td>산업용(을)</td></tr><tr><td>계약 전력</td><td>2,000 kw</td></tr><tr><td>전력 사용량</td><td>412,300</td></tr><tr><td>중간부하</td><td>173,000</td></tr></table></div>
+          <div class="box bad"><span class="mark">2</span><div class="h">9월 전체요금 <span class="pill">여름철</span></div><div class="big">48213400 <small>원</small></div><div class="sample-note">천 단위 구분 없음</div></div>
+          <div class="box bad"><span class="mark">3</span><div class="h">요금 내역</div><div class="row"><span>기본 <b>13,200,000</b></span><span>최대부하 <b>19,800,000</b></span></div><div class="sample-note">선택 I 고정 · 선택 버튼 주석</div></div>
+        </div>
+        <div class="notes">
+          <span><b>1</b> 데이터 없으면 "산업용(을)" 기본값</span>
+          <span><b>2</b> 계절은 월 하드코딩. 설정 화면의 계절과 무관</span>
+          <span><b>3</b> 비교 없음. "추천 요금제"는 정의만 있고 미표시</span>
+        </div>
+      </div>
+      <div class="col after"><h3>/power/tariff</h3>
+        <div class="wf" style="grid-template-columns: 1fr">
+          <div class="box good"><span class="mark g">1</span><div class="h">2026-09 · 산업용(을) 고압A <span class="pill">여름철 (설정 DB)</span></div>
+            <table class="tbl"><thead><tr><th>요금제</th><th>기본요금</th><th>전력량요금</th><th>합계</th><th>최저 대비</th></tr></thead>
+            <tbody><tr><td>선택 I <span class="pill">현재</span></td><td>13,200,000</td><td>35,013,400</td><td><b>48,213,400</b></td><td><span class="pill wait">+2,140,000 (+4.6%)</span></td></tr><tr><td>선택 II</td><td>14,600,000</td><td>31,473,400</td><td><b>46,073,400</b></td><td><span class="pill on">최저</span></td></tr><tr><td>선택 III</td><td>16,100,000</td><td>30,610,000</td><td><b>46,710,000</b></td><td>+636,600 (+1.4%)</td></tr></tbody></table></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <div class="box good"><span class="mark g">2</span><div class="h">부하구분 kWh × 단가 (선택 II)</div><table class="tbl"><tr><td>경부하</td><td>127,800 kWh</td><td>× 84.6</td></tr><tr><td>중간부하</td><td>173,000 kWh</td><td>× 149.2</td></tr><tr><td>최대부하</td><td>111,500 kWh</td><td>× 204.5</td></tr></table></div>
+            <div class="box good"><span class="mark g">3</span><div class="h">연간 누적 차액 (선택 II 기준)</div><svg viewBox="0 0 200 50" aria-hidden="true"><polyline points="0,45 20,42 40,40 60,36 80,33 100,28 120,24 140,19 160,16 180,12 200,8" fill="none" stroke="var(--accent)" stroke-width="2"/><text x="120" y="10" font-size="7" fill="var(--fg-2)">누적 +18.4백만 원</text></svg></div>
+          </div>
+        </div>
+        <div class="notes">
+          <span><b class="g">1</b> 선택 I/II/III 나란히, 현재 요금제와 최저 대비 차액. 천 단위 구분</span>
+          <span><b class="g">2</b> 단가표는 selectRateInfo, 계절은 selectMonthSeason</span>
+          <span><b class="g">3</b> 바꿨을 때 연간 얼마가 달라지는지</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 절감목표 달성 -->
+  <div class="panel" role="tabpanel" data-panel="target" aria-labelledby="tab-target" hidden>
+    <div class="lead">절감목표 달성 현황 + 일일보고서(숨김). 질문은 "목표 대비 어디까지 왔고 AI로 얼마나 아꼈나".</div>
+    <div class="two">
+      <div class="col before"><h3>ReductionTarget.vue · DailyReport.vue</h3>
+        <div class="wf" style="grid-template-columns: 1fr 1fr">
+          <div class="box bad"><span class="mark">1</span><div class="h">금월 목표대비 사용량</div><div class="big">42 <small>%</small></div><div class="row"><span>사용 <b>131,500</b> kWh</span><span>목표 <b>312,000</b> kWh</span></div><div class="sample-note">10월 7일 기준 · 월 전체 목표와 비교</div></div>
+          <div class="box bad"><span class="mark">2</span><div class="h">목표대비 탄소 절감량</div><div class="row"><span>CO2절감량 <b>61,300</b> kg</span></div><div class="sample-note">아래 문구는 "CO2발생량"</div></div>
+          <div class="box bad" style="grid-column:1 / -1"><span class="mark">3</span><div class="h">일일보고서 · 시간대별 전력사용현황(kWh)</div><table class="tbl"><thead><tr><th>구분</th><th>예상전력</th><th>발생전력</th><th>사용량</th></tr></thead><tbody><tr><td>14시</td><td>1,254.6</td><td>1,305.8</td><td>1,280.2</td></tr><tr><td>15시</td><td>1,219.4</td><td>1,269.2</td><td>1,244.3</td></tr></tbody></table><div class="sample-note">예상 = 사용량 × 0.98 · 발생 = × 1.02</div></div>
+        </div>
+        <div class="notes">
+          <span><b>1</b> 진행 중인 달 누계 vs 월 전체 목표. 42% 가 좋은지 나쁜지 알 수 없음. 연도 선택 불가</span>
+          <span><b>2</b> 같은 값을 "절감량"과 "발생량"으로 다르게 부름. kg / tCO2 혼용</span>
+          <span><b>3</b> 측정값이 아닌 가짜 열 두 개. 메뉴에서 숨겨져 URL 로만 접근</span>
+        </div>
+      </div>
+      <div class="col after"><h3>/power/target</h3>
+        <div class="wf" style="grid-template-columns: 1fr 1fr 1fr">
+          <div class="box good"><span class="mark g">1</span><div class="h">금일</div><div class="big">18,420 <small>kWh</small></div><div class="gauge"><i style="width:96%"></i><b style="left:100%"></b></div><div class="row"><span>목표 19,100 · <span class="pill on">96%</span></span></div></div>
+          <div class="box good"><div class="h">금월 (7일 경과)</div><div class="big">131,500 <small>kWh</small></div><div class="gauge"><i class="warn" style="width:100%"></i><b style="left:97%"></b></div><div class="row"><span>비례 목표 128,000 · <span class="pill wait">103%</span></span></div></div>
+          <div class="box good"><div class="h">금년</div><div class="big">1,402,000 <small>kWh</small></div><div class="gauge"><i style="width:97%"></i><b style="left:100%"></b></div><div class="row"><span>비례 목표 1,450,000 · <span class="pill on">97%</span></span></div></div>
+          <div class="box good" style="grid-column:1 / span 2"><span class="mark g">2</span><div class="h">월별 사용 vs 목표 · 2026 <span class="pill">연도 선택</span></div><div class="bars"><i style="height:70%"></i><i style="height:65%"></i><i style="height:60%"></i><i style="height:62%"></i><i style="height:75%"></i><i style="height:88%"></i><i style="height:95%" class="over"></i><i style="height:90%"></i><i style="height:72%"></i><i style="height:40%"></i><i style="height:0"></i><i style="height:0"></i></div><div class="sample-note">목표선 대비 초과 월 강조 · getGoalData</div></div>
+          <div class="box good"><span class="mark g">3</span><div class="h">절감 (단일 정의)</div><div class="row"><span>금월 <b>12,300</b> kWh</span><span><b>1.84</b> 백만 원</span><span><b>5.7</b> tCO2</span></div><div class="sample-note">TB_RST_SAVINGS_TARGET 값 그대로</div></div>
+          <div class="box good" style="grid-column:1 / -1"><span class="mark g">4</span><div class="h">일일 요약 <span class="pill">엑셀</span></div><table class="tbl"><thead><tr><th>날짜</th><th>사용 kWh</th><th>목표</th><th>절감</th><th>피크 kW</th><th>가동 펌프</th></tr></thead><tbody><tr><td>10-06</td><td>18,900</td><td>19,100</td><td>410</td><td>1,320</td><td>#1 #3</td></tr><tr><td>10-05</td><td>19,600</td><td>19,100</td><td>280</td><td>1,480</td><td>#1 #2 #3</td></tr></tbody></table></div>
+        </div>
+        <div class="notes">
+          <span><b class="g">1</b> 경과 일수 비례 목표와 비교. 100% 초과는 주의색</span>
+          <span><b class="g">2</b> 연도 선택 가능(저장 버그도 함께 수정)</span>
+          <span><b class="g">3</b> 절감·원·tCO2 한 출처, 한 단위</span>
+          <span><b class="g">4</b> 가짜 열 제거. 일일보고서의 쓸 만한 표만 흡수</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── 지표 사전 ───────── -->
+<section id="metrics">
+  <h2>4. 지표 사전 (발췌)</h2>
+  <p>전체 15개는 본문 문서 §5에 있습니다. 여기서는 화면 샘플에 쓰인 것만 싣습니다.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>지표</th><th>정의</th><th>단위</th><th>단일 출처</th><th>현재 어긋난 곳</th></tr></thead>
+    <tbody>
+      <tr><td>전력량</td><td>기간·노드(전체/시설/설비)의 PWQ 적산 합</td><td>kWh</td><td><span class="mono">신설 /es/selectEnergyUse</span></td><td>출처 6종</td></tr>
+      <tr><td>순시전력</td><td>최신 1건 PWI. 전체 = 같은 시각 시설 합</td><td>kW</td><td><span class="mono">/ai/selectPeakControl</span></td><td>대시보드 selectNowElec, kW→kWh 라벨</td></tr>
+      <tr><td>피크</td><td>15분 평균 PWI 의 기간 최대</td><td>kW</td><td><span class="mono">/ai/peakSelect</span> (15분 SQL 미확정)</td><td>정의 3종</td></tr>
+      <tr><td>목표 피크</td><td>운영자 설정 상한</td><td>kW</td><td><span class="mono">/st/selectPeakGoal</span></td><td>기준선 주석 kWh</td></tr>
+      <tr><td>부하구분 사용량</td><td>경/중/최대 시간대별 PWQ 합, 시간대·계절은 설정 DB</td><td>kWh</td><td><span class="mono">selectEnergyUse(groupBy=load)</span></td><td>단가 적용 3종, 용어 2종</td></tr>
+      <tr><td>전력요금</td><td>기본요금 + Σ(부하구분 kWh × 계절·요금제 단가)</td><td>원</td><td><span class="mono">/ai/selectRtRate</span> 선택 I/II/III 전부</td><td>선택 I 고정</td></tr>
+      <tr><td>목표 대비 진척</td><td>누계 ÷ (월 목표 × 경과일 / 월 일수)</td><td>%</td><td><span class="mono">/st/getGoalData</span> + selectEnergyUse</td><td>월 전체 목표와 비교</td></tr>
+      <tr><td>CO2 절감량</td><td>절감 kWh × 배출계수(설정값 1개)</td><td>tCO2</td><td><span class="mono">baseElec.savingCo2</span></td><td>kg/t 혼용, 프런트 상수</td></tr>
+      <tr><td>관압</td><td>그룹 대표 토출 압력 센서 1개의 PRI</td><td>현장 태그 단위</td><td><span class="mono">/ai/selectValve</span> 대표 태그</td><td>펌프별 합산</td></tr>
+      <tr><td>예측 기준시각</td><td>예측 생성 시각과 대상 구간을 함께 표기</td><td>시각</td><td><span class="mono">selectPwrPrdctList</span>, <span class="mono">selectPumpPrdct</span></td><td>미표기, 0→실측 대체</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ───────── 실행 단계 ───────── -->
+<section id="steps">
+  <h2>5. 실행 단계 (각각 별도 착수)</h2>
+  <p>어느 단계에서도 숨김 화면 파일은 지우지 않습니다. 구 라우트는 한 릴리스 동안 신규 라우트로 redirect 합니다.</p>
+  <ol class="steps">
+    <li><h3>메뉴·플래그 데이터화</h3><ul><li>EmsSubMenu 플래그 4종 → <code>siteConfig.features</code></li><li>신규 라우트 + 구 라우트 redirect 표</li><li>jain 운전현황 분석 오매핑 수정</li><li>리스크: 현장 10개 빌드 통과 확인</li></ul></li>
+    <li><h3>지표 사전 적용</h3><ul><li><code>selectEnergyUse</code> 신설, 피크 정의 통일</li><li>저장 연도 파라미터화, ×0.98 가짜 열 제거</li><li>프런트 <code>metrics.js</code> 라벨·단위 상수</li><li>리스크: 숫자 변동 → 전후 비교표 한 달치 공유</li></ul></li>
+    <li><h3>화면 통합</h3><ul><li>펌프 운전·이력, 관망해석, 피크, 사용량, 요금제, 절감목표</li><li>기존 뷰를 기반으로 부품 흡수</li><li>리스크: 현장별 API 변종(pumpSelect / _new)</li></ul></li>
+    <li><h3>대시보드</h3><ul><li><code>config/sites/*.js</code> 10개</li><li>위젯 렌더러 1개, 맵만 현장 고유</li><li>폴링 단일화</li><li>리스크: gumi 는 별도 위젯 세트로 config 기술</li></ul></li>
+  </ol>
+</section>
+
+</main>
+</div>
+<script>
+(function () {
+  // 문제 카드 필터
+  var fbtns = document.querySelectorAll('.filters button');
+  var cards = document.querySelectorAll('#cards .card');
+  fbtns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      var f = b.getAttribute('data-f');
+      fbtns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+      cards.forEach(function (c) { c.hidden = !(f === 'all' || c.getAttribute('data-c') === f); });
+    });
+  });
+  // 화면 샘플 탭 (마지막 탭은 이 브라우저에만 기억)
+  var tabs = document.querySelectorAll('.tabs [role="tab"]');
+  var panels = document.querySelectorAll('[role="tabpanel"]');
+  function show(name) {
+    tabs.forEach(function (t) { t.setAttribute('aria-selected', t.getAttribute('data-tab') === name ? 'true' : 'false'); });
+    panels.forEach(function (p) { p.hidden = p.getAttribute('data-panel') !== name; });
+    try { localStorage.setItem('ems-redesign-tab', name); } catch (e) {}
+  }
+  tabs.forEach(function (t) { t.addEventListener('click', function () { show(t.getAttribute('data-tab')); }); });
+  var saved = null;
+  try { saved = localStorage.getItem('ems-redesign-tab'); } catch (e) {}
+  var hash = (location.hash || '').replace('#', '');
+  var names = Array.prototype.map.call(tabs, function (t) { return t.getAttribute('data-tab'); });
+  if (names.indexOf(hash) >= 0) show(hash); else if (saved && names.indexOf(saved) >= 0) show(saved);
+})();
+</script>
+</body>
+</html>

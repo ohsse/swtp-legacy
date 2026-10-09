@@ -1,0 +1,29 @@
+# ---- 1단계: Vue 빌드 ----
+# 운영은 pm2 + dev server 상시 구동이지만 로컬용은 정적 빌드 + nginx 서빙
+FROM node:18 AS build
+WORKDIR /app
+ENV NODE_OPTIONS=--max-old-space-size=4096
+COPY package.json package-lock.json ./
+RUN npm install --legacy-peer-deps
+COPY . .
+# 로컬 실측용 소스 패치(리포 원본 무수정 원칙) — 실측 DB가 학야 덤프(pms_db_hy_dump)이므로:
+#  1) area gosan → hakya
+#  2) API 호스트를 localhost:4040(pms-back 컨테이너)으로
+#  3) 루트 진입 시 자율운영(localhost) 로그인 강제 이동 무력화
+#  4) MainDashBoardHakya.vue 고아 `*/` CSS(레거시 결함)가 프로덕션 css 압축을 깨뜨려 제거
+#     — 이 결함 때문에 `npm run build`가 원래 실패하며, 운영이 dev server(pm2) 구동인 원인으로 추정
+RUN sed -i "s/area: 'gosan'/area: 'hakya'/" src/store/index.js \
+ && sed -i "s#http://localhost:4040/#http://localhost:4040/#g" src/store/index.js \
+ && sed -i "s/pop() === undefined \&\& (!localStorage/pop() === '__local_disabled__' \&\& (!localStorage/" src/router/index.js \
+ && sed -i "s#\*/ \.map-contents {#.map-contents {#" src/views/DashBoard/MainDashBoardHakya.vue \
+ && sed -i 's#const emsURL = "http://localhost:3000";#const emsURL = "http://localhost:8200";#' src/router/index.js
+# 레거시 코드에 잠재된 lint 오류로 빌드가 중단되지 않도록 eslint 플러그인 제외
+RUN npm run build -- --skip-plugins @vue/cli-plugin-eslint
+
+# ---- 2단계: nginx 서빙 ----
+FROM nginx:stable-alpine
+RUN rm -rf /usr/share/nginx/html/*
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY default.conf /etc/nginx/conf.d/default.conf
+EXPOSE 10015
+CMD ["nginx", "-g", "daemon off;"]

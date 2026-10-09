@@ -1,0 +1,53 @@
+@import 'bootstrap/dist/css/bootstrap.min.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+	font-family: 'KHNPHUotfR';
+	src: url('/assets/fonts/KHNPHUotfR.otf') format('opentype');
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'LABDigital';
+	src: url('/assets/fonts/LABDigital.ttf') format('truetype');
+	font-display: swap;
+}
+
+:root {
+	--background: 222.2 84% 4.9%;
+	--foreground: 210 40% 98%;
+	--muted: 217.2 32.6% 17.5%;
+	--muted-foreground: 215 20.2% 65.1%;
+	--border: 217.2 32.6% 17.5%;
+	--input: 217.2 32.6% 17.5%;
+	--ring: 212.7 26.8% 83.9%;
+	--radius: 0.5rem;
+}
+
+html, body, #root {
+	min-height: 100%;
+}
+
+body {
+	margin: 0;
+	background-color: hsl(var(--background));
+	color: hsl(var(--foreground));
+	font-family:
+		'Pretendard',
+		'Segoe UI',
+		system-ui,
+		-apple-system,
+		BlinkMacSystemFont,
+		sans-serif;
+	font-synthesis: none;
+	text-rendering: optimizeLegibility;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+* {
+	box-sizing: border-box;
+}

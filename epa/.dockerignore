@@ -1,0 +1,40 @@
+# Python 가상 환경
+venv/
+.venv/
+
+# Python 캐시 파일
+__pycache__/
+*.pyc
+*.pyo
+
+# 사용자가 요청한 제외 폴더
+temp/
+
+# 요청한 파일 타입 제외 (inp 디렉토리 제외)
+*.inp
+*.bin
+*.rpt
+
+# ! (느낌표)는 제외 규칙의 예외를 의미합니다.
+# 즉, inp 폴더와 그 안의 .inp 파일은 제외하지 않고 '포함'시킵니다.
+!inp/
+!inp/*.inp
+
+# IDE 및 Git 관련 파일
+.git/
+.gitignore
+.vscode/
+*.idea/
+
+# Docker 자체 파일
+Dockerfile
+.dockerignore
+
+*.tar
+
+# 군산 엔진 스크립트 옆의 개발 덤프 DB 접속 정보.
+# 앱은 이 파일을 쓰지 않는다 - epa_service_gunsan 이 --conn 으로 마운트본
+# (/app/connections.json)을 항상 명시해서 넘긴다. 이미지에 구우면 반출본에
+# 자격증명만 실려 나가고, 컨테이너에서 스크립트를 직접 돌릴 때 기본값
+# (SCRIPT_DIR/connections.json)을 집어 엉뚱한 DB 에 쓰는 함정이 남는다.
+epanet_gunsan/connections.json

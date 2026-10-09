@@ -1,0 +1,36 @@
+# 1. 기본 이미지 선택 (가벼운 slim 버전 사용)
+FROM python:3.10-slim
+
+# 2. 환경 변수 설정
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+ENV TZ=Asia/Seoul
+
+# 3. 작업 디렉토리 설정
+WORKDIR /app
+
+# 5. 의존성 설치
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# --- [핵심 수정] ---
+# 6. 로그 및 임시 디렉토리 미리 생성
+#    Gunicorn이 실행되기 전에 디렉토리가 존재하도록 보장합니다.
+RUN mkdir -p logs temp
+# --------------------
+
+# 7. 소스 코드 복사
+COPY . .
+
+# 8. 컨테이너가 노출할 포트 설정 (포트 23002번)
+EXPOSE 23002
+
+# 9. 서버 실행
+# [HTTP 수정] --certfile, --keyfile 옵션 제거
+#    --preload : 스케줄러 중복 실행 방지
+#    --enable-stdio-inheritance : print() 로그 출력
+CMD ["gunicorn", \
+     "--bind", "0.0.0.0:23002", \
+     "--preload", \
+     "--enable-stdio-inheritance", \
+     "run:app"]

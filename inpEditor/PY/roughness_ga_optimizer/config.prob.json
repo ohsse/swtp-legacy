@@ -1,0 +1,46 @@
+{
+  "db": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "root",
+    "password": "CHANGE_ME",
+    "database": "ems_db_gs_dump_260410"
+  },
+  "pump_curve": {
+    "rawdata_table": "TB_RAWDATA",
+    "power_price_table": "TB_POWER_PRICE"
+  },
+  "inp_server_host": "localhost",
+  "inp_base_dir": "D:/inp_simulator/files/originals",
+  "output_dir": "outputs",
+  "target_timestamp": null,
+  "monitor_target_timestamp": null,
+  "write_optimized_inp": false,
+  "publish_optimized_inp": {
+    "enabled": true,
+    "dir": "D:/inp_simulator/files/published",
+    "file_name": null
+  },
+  "fallback_sec": 600,
+  "pressure_compare_scale": 0.1,
+  "objective_metric": "rmse",
+  "comparison_times_sec": [
+    3600
+  ],
+  "multiplier": {
+    "low": 0.4,
+    "high": 2.0,
+    "steps": 161
+  },
+  "roughness": {
+    "low": 60.0,
+    "high": 160.0
+  },
+  "ga": {
+    "generations": 30,
+    "population": 24,
+    "seed": 0,
+    "mutation_probability": 0.2,
+    "crossover_probability": 0.8
+  }
+}

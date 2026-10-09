@@ -1,0 +1,35 @@
+﻿# 버전 범위(>=) 대신 실제 검증된 정확한 버전으로 고정 — 환경마다 다른 버전이
+# 깔려서 "내 컴퓨터에서는 되는데" 문제가 생기는 걸 막기 위함.
+#
+# torch==2.8.0은 CPU 빌드/CUDA 빌드 둘 다에 쓸 수 있는 버전 번호다. 어느 쪽이
+# 깔리는지는 설치 시 index-url로 정해진다:
+#   - CPU만:      pip install -r requirements.txt
+#   - NVIDIA GPU: pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cu128
+#                 (그 다음 나머지는 pip install -r requirements.txt)
+#     Blackwell 세대(RTX 50xx 등) GPU는 CUDA 12.8 이상 빌드(cu128)가 필요하다 —
+#     기본 PyPI에서 그냥 설치하면 CPU 전용(+cpu) 빌드가 깔려 GPU를 인식 못 한다.
+torch==2.8.0
+numpy==1.26.4
+pandas==2.0.3
+scikit-learn==1.6.1
+PyYAML==6.0.1
+joblib==1.5.3
+openpyxl==3.1.2
+matplotlib==3.7.2
+tabulate==0.9.0
+scipy==1.13.1   # analyze.py의 주기성 탐지(scipy.signal.find_peaks)에 필요
+networkx==3.2.1   # analyze.py의 CCF 기반 관망 구조 그래프(plot_network_graph)에 필요
+
+# data.source: "db" 를 쓸 때만 필요 (CSV만 쓰면 설치 안 해도 됨)
+pymysql==1.1.1
+sqlalchemy==2.0.21
+# sqlalchemy가 Windows/x86_64에서 필수로 같이 까는 의존성. 명시적으로 안 고정하면
+# pip이 최신 버전(3.2.5)을 골라오는데, 그 버전은 Python 3.9용 사전빌드 wheel이
+# 없어서(3.9는 2025-10 EOL) 소스 빌드를 시도하다가 "Microsoft Visual C++ 14.0 이상
+# 필요" 에러로 실패한다. wheel이 있는 마지막 버전(3.2.4)으로 고정해서 빌드 도구
+# 설치 없이 그냥 설치되게 한다.
+greenlet==3.2.4
+
+# scripts/candidate_models.py(예측 모델 후보 비교, 2026-09-11) 전용
+xgboost==2.1.1
+lightgbm==4.5.0

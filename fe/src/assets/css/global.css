@@ -1,0 +1,283 @@
+/* 공통 */
+
+html {
+    font-family: KHNPHDRegular;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* body {
+    max-width: 2880px;
+    max-height: 1586px;
+	min-width: 1920px;
+	min-height: 935px;
+} */
+
+.fs-18 {
+	font-size: 1.125rem;
+}
+
+#app {
+	height: 100%;
+}
+
+/* 데시보드 */
+.dashboard_bg {
+	width: 100%;
+    height: 100%;
+    background: #091434 url(../img/dashboard_background1.png) no-repeat;
+	background-size: 80% 100%;
+	background-position: 83% 50%;
+	overflow: hidden;
+}
+/* 메인 */
+.page_bg {
+	height: 100%;
+	width: 100%;
+	padding-left: 26px;
+    /* background: url(../img/img03.png) no-repeat 100% 100%; */
+	background-color: #001455;
+	/* background: url(../img/backgroundColor.b46ea726_2.png) no-repeat 100% 100%; */
+	background-image: url(../img/backgroundColor.b46ea726_2.png) ;
+	background-repeat: no-repeat;
+	background-size: cover;
+	background-size: 100% 100%;
+	overflow: hidden;
+}
+/* 서브페이지 */
+.sub_page_bg {
+	height: 100%;
+    background: url(../img/design_bg.png) no-repeat 100% 100%;
+	background-size: 100% 100%;
+	overflow: hidden;
+}
+/* 고산 배경*/
+.gosan_bg {
+	height: 100vh;
+    background: #091434 url(../img/local_geumgang/gosan/gosan_bg.png) no-repeat 100% 100%;
+	background-size: 100% 100%;
+	overflow: hidden;
+}
+/* 해평 배경*/
+.haepyeong_bg {
+	height: 100vh;
+    background: #091434 url(../img/local_nakdong/haepyeong/haepyeong_bg.png) no-repeat 100% 100%;
+	background-size: 100% 100%;
+	overflow: hidden;
+}
+/* 군산 배경*/
+.gunsan_bg {
+	height: 100vh;
+    background: #091434 url(../img/local_geumgang/gunsan/gunsan_bg.png) no-repeat 100% 100%;
+	background-size: 100% 100%;
+	overflow: hidden;
+}
+/* 부안 배경*/
+.buan_bg {
+	height: 100vh;
+    background: #091434 url(../img/local_geumgang/buan/buan_bg.png) no-repeat 100% 100%;
+	background-size: 100% 100%;
+	overflow: hidden;
+}
+/* 왼쪽 메뉴 */
+.dashboard_btn_on {
+	background: url(../img/icon/dashboard.png) no-repeat;
+	margin: 10px 0 12px 0; width: 33px; height: 24px; background-size: 100%;
+}
+.dashboard_btn_off {
+	background: url(../img/icon/dashboard_off.png) no-repeat;
+	margin: 10px 0 12px 0; width: 33px; height: 24px; background-size: 100%;
+}
+.ems_btn_on {
+	background: url(../img/icon/ems.png) no-repeat;
+	margin: 10px 0 12px 0; width: 33px; height: 30px; background-size: 100%;
+}
+.ems_btn_off {
+	background: url(../img/icon/ems_off.png) no-repeat;
+	margin: 10px 0 12px 0; width: 33px; height: 30px; background-size: 100%;
+}
+.auto_btn_on {
+	background: url(../img/icon/auto.png) no-repeat;
+	margin: 10px 0 12px 0; width: 27px; height: 27px; background-size: 100%;
+}
+.auto_btn_off {
+	background: url(../img/icon/auto_off.png) no-repeat;
+	margin: 10px 0 12px 0; width: 27px; height: 27px; background-size: 100%;
+}
+.pms_btn_on {
+	background: url(../img/icon/pms.png) no-repeat;
+	margin: 10px 0 12px 0; width: 33px; height: 30px; background-size: 100%;
+}
+.pms_btn_off {
+	background: url(../img/icon/pms_off.png) no-repeat;
+	margin: 10px 0 12px 0; width: 33px; height: 30px; background-size: 100%;
+}
+.cctv_btn_on {
+	background: url(../img/icon/cctv.png) no-repeat;
+	margin: 10px 0 12px 0; width: 41px; height: 28px;
+}
+.cctv_btn_off {
+	background: url(../img/icon/cctv_off.png) no-repeat;
+	margin: 10px 0 12px 0; width: 41px; height: 28px;
+}
+.setting_btn_on {
+	background: url(../img/icon/setting.png) no-repeat;
+	margin: 10px 0 12px 0; width: 33px; height: 32px; background-size: 100%;
+}
+.setting_btn_off {
+	background: url(../img/icon/setting_off.png) no-repeat;
+	margin: 10px 0 12px 0; width: 33px; height: 32px; background-size: 100%;
+}
+.subMenuContents:active {
+    background-color: rgb(0, 185, 237);
+}
+.menu_handler{
+	display: flex; align-items: center; justify-content: center; position: absolute; top: 65px; right: -13px; width: 13px; height: 31px; background-color: rgb(8, 33, 74); border-top-right-radius: 5px; border-bottom-right-radius: 5px; z-index: 100;
+}
+.menu_arrow{
+	width: 0px; height: 0px; border-top: 5px solid transparent; border-left: 5px solid white; border-bottom: 5px solid transparent;
+}
+
+/* table */
+.table-borderless > tbody > tr > td,
+.table-borderless > tbody > tr > th,
+.table-borderless > tfoot > tr > td,
+.table-borderless > tfoot > tr > th,
+.table-borderless > thead > tr > td,
+.table-borderless > thead > tr > th {
+    border: none;
+}
+.table {
+	--bs-table-bg: transparent;
+	--bs-table-border-color: transparent;
+	--bs-table-striped-bg: transparent;
+	--bs-table-active-bg: transparent;
+	--bs-table-hover-bg: transparent;
+}
+
+/* 주요인자 */
+.table.juyoinja {
+	width: 90%;
+    margin: 0 auto;
+	border-collapse: unset;
+	padding: 50px 0 90px 0;
+}
+.table.juyoinja tr td {
+	font-size: 18px;
+	vertical-align: middle;
+	padding: 10px 15px;
+}
+.table-bg-02 {
+	width: 100%;
+    background: url(../img/analysis/table_bg_02.png) no-repeat;
+    background-position: center;
+    background-size: 100% 100%;
+}
+
+/* 리스트그룹 커스터마이징 */
+.list-custom-group.list-group .list-group-item {
+	border: 0;
+	background: transparent;
+	color: white;
+	text-align: center;
+	cursor: pointer;
+	height: 40px;
+}
+.list-custom-group.list-group .list-group-item.active {
+	background: url(../img/div_new.png) center center / 100% 100% no-repeat;
+	border: 2px solid rgba(255, 255, 255, 0.54);
+}
+
+  /* 인풋 */
+.form-control {
+    color: #fff;
+	background-color: #15284e;
+    border-color: #489cf2;
+}
+  .form-control:focus {
+	color: #fff;
+	background-color: #15284e;
+    border-color: #489cf2;
+}
+  .dtpFont {
+    align-self: center;
+    text-align: center;
+    text-shadow: 0 0 9px #5cafff;
+    font-size: 16px;
+}
+.form-select {
+	color: #fff;
+    border-color: #489cf2;
+	background: #15284e url(../img/select_btn.png) center right no-repeat;
+}
+.form-select option {
+	margin: 40px;
+	background: #15284e;
+	color: #fff;
+	text-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+}
+select option:hover {
+	background-color: #489cf2;
+	box-shadow: inset 0 0 3px 1px #c6def7;
+	padding: 5px;
+}
+select option:checked,
+select option:hover {
+	background: url(../img/select_option_bg.png) no-repeat;
+    box-shadow: inset 0 0 3px 1px #c6def7;
+}
+
+.dash_title {
+	width: fit-content;
+    padding: 5px 30px 15px;
+	background: url(../img/circle_title_bar.png) no-repeat;
+	background-size: 100% 100%;
+	background-position: 0 7px;
+	text-shadow: 0 0 9px #5cafff;
+    font-size: 18px;
+    color: #bbdff5;
+    font-family: 'KHNPHDBold';
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+
+	/* Swal (SweetAlert2 css 적용) */
+	body {
+		padding-right: 0 !important; /* 기존에 설정된 스타일 무시 */
+	}
+	body.swal2-height-auto{
+		height: 100% !important;
+	}
+	.swal2-styled{
+		width: 100px;
+		padding : 0;
+	}
+	.swal2-actions{
+		margin-right: 20px;
+	}
+	.swal2-confirm{
+		border: 1px solid #b4dffa !important;
+		background-color:rgba(239, 194, 240, 0.25) !important;
+	}
+	.swal2-cancel{
+		border: 1px solid #b4dffa !important;
+		background-color:rgba(239, 194, 240, 0.25) !important;
+	}
+	/* 배경 이미지를 포함하는 CSS 클래스 정의 */
+	.swal2-popup {
+	background: url('@/assets/alert_box.png') !important;
+	background-size: 100% 100% !important;
+	padding: 30px;
+	color: #b4dffb !important;
+	font-family: 'KHNPHUotfR', sans-serif !important;
+	font-size: 18px !important;
+	line-height: 28px ip !important;
+	}

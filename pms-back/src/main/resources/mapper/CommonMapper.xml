@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.wapplab.pms.repository.CommonMapper">
+    <insert id="msgInsert" parameterType="hashmap">
+        INSERT IGNORE INTO TB_MOTOR
+        (MOTOR_ID, EQUIPMENT_ID, CENTER_ID, CHANNEL_ID, ACQ_DATE, DATA_ARRAY)
+        VALUES(
+            #{MOTOR_ID},
+            #{EQUIPMENT_ID},
+            #{CENTER_ID},
+            #{CHANNEL_ID},
+            #{ACQ_DATE},
+            #{DATA_ARRAY}
+        );
+    </insert>
+    
+    <select id="kafkaTagList" resultType="hashmap">
+        SELECT PUMP_SCADA_ID, EQ_ON_TAG, FREQUENCY_TAG, FLOW_RATE_TAG, PRESSURE_TAG, R_TEMP_TAG, S_TEMP_TAG, T_TEMP_TAG, BRG_MOTOR_DE_TEMP_TAG, BRG_MOTOR_NDE_TEMP_TAG, BRG_PUMP_DE_TEMP_TAG, BRG_PUMP_NDE_TEMP_TAG, DISCHARGE_PRESSURE_TAG, SUCTION_PRESSURE_TAG
+        FROM TB_PUMP_INF;
+    </select>
+    
+    <insert id="insertRawData" parameterType="hashmap">
+        INSERT INTO TB_PUMP_SCADA
+            (
+                PUMP_SCADA_ID,
+                CENTER_ID,
+                ACQ_DATE,
+                <if test="targetKey == 'EQ_ON_TAG'">
+                    EQ_ON
+                </if>
+                <if test="targetKey == 'FREQUENCY_TAG'">
+                    FREQUENCY
+                </if>
+                <if test="targetKey == 'FLOW_RATE_TAG'">
+                    FLOW_RATE
+                </if>
+                <if test="targetKey == 'PRESSURE_TAG'">
+                    PRESSURE
+                </if>
+                <if test="targetKey == 'R_TEMP_TAG'">
+                    R_TEMP
+                </if>
+                <if test="targetKey == 'S_TEMP_TAG'">
+                    S_TEMP
+                </if>
+                <if test="targetKey == 'T_TEMP_TAG'">
+                    T_TEMP
+                </if>
+                <if test="targetKey == 'BRG_MOTOR_DE_TEMP_TAG'">
+                    BRG_MOTOR_DE_TEMP
+                </if>
+                <if test="targetKey == 'BRG_MOTOR_NDE_TEMP_TAG'">
+                    BRG_MOTOR_NDE_TEMP
+                </if>
+                <if test="targetKey == 'BRG_PUMP_DE_TEMP_TAG'">
+                    BRG_PUMP_DE_TEMP
+                </if>
+                <if test="targetKey == 'BRG_PUMP_NDE_TEMP_TAG'">
+                    BRG_PUMP_NDE_TEMP
+                </if>
+                <if test="targetKey == 'DISCHARGE_PRESSURE_TAG'">
+                    DISCHARGE_PRESSURE
+                </if>
+                <if test="targetKey == 'SUCTION_PRESSURE_TAG'">
+                    SUCTION_PRESSURE
+                </if>
+            )
+        VALUES
+        (
+            #{pumpScadaId},
+            #{centerId},
+            #{timestamp},
+            #{value}
+        )
+        ON DUPLICATE KEY UPDATE
+        <if test="targetKey == 'EQ_ON_TAG'">
+            EQ_ON = #{value}
+        </if>
+        <if test="targetKey == 'FREQUENCY_TAG'">
+            FREQUENCY = #{value}
+        </if>
+        <if test="targetKey == 'FLOW_RATE_TAG'">
+            FLOW_RATE = #{value}
+        </if>
+        <if test="targetKey == 'PRESSURE_TAG'">
+            PRESSURE = #{value}
+        </if>
+        <if test="targetKey == 'R_TEMP_TAG'">
+            R_TEMP = #{value}
+        </if>
+        <if test="targetKey == 'S_TEMP_TAG'">
+            S_TEMP = #{value}
+        </if>
+        <if test="targetKey == 'T_TEMP_TAG'">
+            T_TEMP = #{value}
+        </if>
+        <if test="targetKey == 'BRG_MOTOR_DE_TEMP_TAG'">
+            BRG_MOTOR_DE_TEMP = #{value}
+        </if>
+        <if test="targetKey == 'BRG_MOTOR_NDE_TEMP_TAG'">
+            BRG_MOTOR_NDE_TEMP = #{value}
+        </if>
+        <if test="targetKey == 'BRG_PUMP_DE_TEMP_TAG'">
+            BRG_PUMP_DE_TEMP = #{value}
+        </if>
+        <if test="targetKey == 'BRG_PUMP_NDE_TEMP_TAG'">
+            BRG_PUMP_NDE_TEMP = #{value}
+        </if>
+        <if test="targetKey == 'DISCHARGE_PRESSURE_TAG'">
+            DISCHARGE_PRESSURE = #{value}
+        </if>
+        <if test="targetKey == 'SUCTION_PRESSURE_TAG'">
+            SUCTION_PRESSURE = #{value}
+        </if>
+    </insert>
+
+    <insert id="insertScadaDto" parameterType="com.wapplab.pms.web.common.ScadaDto">
+        INSERT IGNORE INTO TB_PUMP_SCADA (
+        PUMP_SCADA_ID, CENTER_ID, ACQ_DATE, EQ_ON, FREQUENCY, FLOW_RATE,
+        PRESSURE, R_TEMP, S_TEMP, T_TEMP, BRG_MOTOR_DE_TEMP, BRG_MOTOR_NDE_TEMP,
+        BRG_PUMP_DE_TEMP, BRG_PUMP_NDE_TEMP, DISCHARGE_PRESSURE, SUCTION_PRESSURE, PROC_STAT
+        ) VALUES (
+        #{PUMP_SCADA_ID}, #{CENTER_ID}, #{ACQ_DATE}, #{EQ_ON}, #{FREQUENCY}, #{FLOW_RATE},
+        #{PRESSURE}, #{R_TEMP}, #{S_TEMP}, #{T_TEMP}, #{BRG_MOTOR_DE_TEMP}, #{BRG_MOTOR_NDE_TEMP},
+        #{BRG_PUMP_DE_TEMP}, #{BRG_PUMP_NDE_TEMP}, #{DISCHARGE_PRESSURE}, #{SUCTION_PRESSURE}, 0
+        );
+    </insert>
+
+
+</mapper>

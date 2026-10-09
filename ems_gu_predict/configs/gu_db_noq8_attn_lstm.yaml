@@ -1,0 +1,71 @@
+# gu_db_noq8.yaml과 데이터 전처리는 완전히 동일하고, model만 attn_lstm으로
+# 바꾼 비교용 config. 아키텍처 비교 취지는 gu_db_attn_lstm.yaml 참고.
+#
+# 실행: PYTHONPATH=src python -m deepems.train --config configs/gu_db_noq8_attn_lstm.yaml
+
+data:
+  taglist_path: "./taglist/GU_taglist.xlsx"
+  sheet: GU
+  mode: BOTH
+  freq: "5min"
+  ffill_limit_minutes: 10
+  stuck_value_min_minutes: 360
+  stuck_value_impute_columns: [P6, P9]
+  stuck_value_impute_method: linear   # 근거는 gu_db.yaml 참고 (2026-09-10)
+  exclude_vars: [Q8]
+  combine_max_columns:
+    H3: [H3_1, H3_2]
+    H7: [H7_1, H7_2]
+  linear_interp_columns: [P_GunS, P1, P_Ham, P2, P4, P5, P6]
+  time_features: [hour_sin, hour_cos]
+
+  source: db
+  start_date: "2023-01-01"
+  end_date: null
+
+  db_connections_path: "./configs/db_connections.json"
+  db_environment: dev        # prod로 바꿀 땐 반드시 명시적으로 지정할 것
+  db_connection_key: "maria-ems-db-gs"
+
+window:
+  window_size: 288   # 5분 리샘플링에서 과거 24시간
+  horizon: 6           # 미래 30분
+  stride: 1             # train 데이터 증강용 촘촘한 슬라이딩 (5분마다)
+  eval_stride: null    # val/test는 기본값(horizon=6)을 써서 겹치는 윈도우를 반복 평가하지 않음
+  min_segment_minutes: 3000  # window_size+horizon=294스텝=1470분보다 넉넉히 크게
+
+split:
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  purge_minutes: 1470   # (window_size + horizon) * freq = 294 * 5분
+
+outlier:
+  enabled: true
+  lower_quantile: 0.01
+  upper_quantile: 0.99
+  apply_to_splits: ["train", "val"]
+  column_overrides:
+    P6: [0.0, 1.0]   # 사실상 clip 끔 — gu_db.yaml 참고
+
+model:
+  type: attn_lstm
+  encoder_hidden: 64   # attn_lstm 원래 기본값 그대로 — gu_db_attn_lstm.yaml 참고
+  decoder_hidden: 32
+  dropout: 0.1
+  non_negative_output: true
+
+train:
+  batch_size: 1024
+  epochs: 200
+  patience: 15
+  lr: 0.001
+  weight_decay: 0.0
+  seed: 42
+  device: auto
+  target_loss_weighting: inverse_persistence_mae
+  target_loss_weight_cap: 3.0   # P6/H7 문제 진단(2.0은 P6에 오히려 역효과였음) 근거는 gu_db.yaml 참고
+
+output:
+  dir: "./runs/gu_db_noq8_attn_lstm"
+  analysis_dir: "./analysis/{sheet}_db_noq8"

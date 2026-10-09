@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<mapper namespace="kr.co.mindone.ems.alarm.AlarmMapper">
+	<select id="prdctPeak" resultType="Double" parameterType="hashMap">
+		SELECT
+			ROUND(rst.PRDCT_PWR*pti.PWI_UNIT_VALUE, 2) AS 'allPwi'
+		FROM
+			TB_PEAK_PWR_PRDCT_RST rst,
+			TB_PEAK_TAG_INF pti
+		WHERE
+			pti.MNTR_YN ='1'
+			AND
+			pti.IS_ALL='1'
+			AND
+			rst.CNFRM_TIME &gt; #{nowDate}
+			AND
+				rst.CNFRM_TIME &lt;=
+				<if test="type == 'minute'">
+					(#{nowDate} + INTERVAL 15 MINUTE)
+				</if>
+				<if test="type == 'hour'">
+					(#{nowDate} + INTERVAL 75 MINUTE)
+				</if>
+		ORDER BY
+			rst.CNFRM_TIME DESC
+		limit 1;
+	</select>
+	
+	<insert id="emsAlarmInsert" parameterType="hashMap">
+		INSERT INTO
+			TB_EMS_ALR
+		(ALR_TYP, ALR_TIME, AI_WEB, AI_SCADA, EMS_WEB, EMS_SCADA, PMS_WEB, PMS_SCADA, MSG, LINK, RGSTR_TIME, UPDT_TIME, FLAG)
+		VALUES (
+			#{alr_typ},
+			#{nowDate},
+			"0",
+			"0",
+			"1",
+			"1",
+			"0",
+			"0",
+			#{msg},
+			#{link},
+			#{nowDate},
+			NULL,
+			'1'
+		);
+	</insert>
+	
+	<select id="getAlarmList" resultType="hashMap" parameterType="String">
+		<![CDATA[
+		SELECT
+            ALR_ID, ALR_TIME, ALR_TYP, MSG, LINK
+	    FROM
+	       TB_EMS_ALR
+	    WHERE
+	       FLAG = '1'
+	       AND
+	       ALR_TIME >= DATE_FORMAT(#{nowDate}, '%Y-%m-%d %H:%i:%s') - INTERVAL 60 MINUTE
+	       AND
+	       ALR_TIME <= DATE_FORMAT(#{nowDate}, '%Y-%m-%d %H:%i:%s') + INTERVAL 10 MINUTE
+    ORDER BY ALR_ID DESC
+		]]>
+	</select>
+	
+	<update id="checkAlarm" parameterType="hashMap">
+		UPDATE
+			TB_EMS_ALR
+		SET
+			FLAG = #{flag}
+		WHERE
+			<choose>
+				<when test="ALR_ID != null and ALR_ID != ''">
+					ALR_ID = #{ALR_ID}
+				</when>
+				<otherwise>
+					MSG = #{MSG}
+				</otherwise>
+			</choose>
+	</update>
+
+	<update id="checkAllAlarm" parameterType="hashMap">
+		UPDATE
+		TB_EMS_ALR
+		SET
+		FLAG = 3
+		WHERE
+		FLAG = 1
+	</update>
+
+            <select id="alarmNowPeak" resultType="Double" parameterType="String">
+                <![CDATA[
+                select
+                SUM(ROUND(rd.value*pti.PWI_UNIT_VALUE, 2)) AS 'allPwi'
+                FROM
+                TB_RAWDATA rd, TB_PEAK_TAG_INF pti
+                WHERE
+                rd.tagname = pti.PWI_TAG
+                AND pti.MNTR_YN ='1' AND pti.IS_ALL='1' and rd.value != 0
+                AND ts >= (#{nowDate} - INTERVAL 15 MINUTE) AND ts <= #{nowDate}
+                GROUP by
+                rd.ts
+                ORDER BY
+                ts DESC
+                LIMIT 1
+                ]]>
+            </select>
+
+            <select id="prdctAlarmUse" resultType="int">
+                select
+                    DEFAULT_VALUE as alarm_use
+                from
+                    TB_WPP_TAG_CODE
+                where
+                    FUNC_TYP = 'PrdctAlarmUse'
+            </select>
+
+            <update id="updateAlarmPrdctData" parameterType="String">
+            UPDATE
+                TB_EMS_ALR
+                    SET flag = '2'
+            WHERE
+				ALR_TYP = 'PEAK'
+                <if test="MSG != null">
+					AND MSG = #{MSG}
+                </if>
+            </update>
+
+            <select id="alarmCheck" parameterType="hashMap" resultType="int">
+                <![CDATA[
+                select
+                    count(*) as cnt
+                from
+                    TB_EMS_ALR
+                where
+                        MSG = #{MSG}
+                    and
+                        FLAG = '2'
+                    and
+                        ALR_TIME >= DATE_FORMAT(#{nowDate}, '%Y-%m-%d %H:%i:%s') - INTERVAL 60 MINUTE
+                    AND
+                        ALR_TIME <= DATE_FORMAT(#{nowDate}, '%Y-%m-%d %H:%i:%s') + INTERVAL 10 MINUTE
+                ]]>
+            </select>
+        </mapper>

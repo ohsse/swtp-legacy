@@ -1,0 +1,20 @@
+# ---- 1단계: 빌드 ----
+# 기존 Dockerfile은 build/libs/*.jar 사전 빌드를 전제하지만 리포에는 plain jar만 남아 있어 로컬용은 빌드 스테이지 포함
+# 테스트 소스가 현재 컴파일 불가(MotorMapperTest 시그니처 불일치)이므로 bootJar만 수행
+FROM gradle:7.6-jdk11 AS build
+USER root
+ENV GRADLE_USER_HOME=/gradle-cache
+WORKDIR /workspace
+COPY build.gradle settings.gradle ./
+COPY src ./src
+RUN --mount=type=cache,target=/gradle-cache \
+    gradle bootJar -x test --no-daemon
+
+# ---- 2단계: 런타임 ----
+FROM eclipse-temurin:11-jre
+ENV TZ=Asia/Seoul
+WORKDIR /app
+COPY --from=build /workspace/build/libs/*.jar app.jar
+EXPOSE 4040
+# dev 프로파일(Kafka 비활성). DB 접속은 compose 환경변수(SPRING_DATASOURCE_*)로 오버라이드
+ENTRYPOINT ["java", "-Dspring.profiles.active=dev", "-jar", "app.jar"]
